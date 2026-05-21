@@ -69,6 +69,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             timestamp: "desc",
           },
         },
+        documents: {
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+        invoices: {
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+        receipts: {
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+        ledgerEntries: {
+          orderBy: {
+            timestamp: "asc",
+          },
+        },
       },
     });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useState } from "react";
+import React, { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { ApplicantProfileCard } from "@/components/shared/ApplicantProfileCard";
@@ -9,10 +9,6 @@ import { LedgerTable } from "@/components/shared/LedgerTable";
 import { WorkflowStepper } from "@/components/shared/WorkflowStepper";
 import { ReceiptPreview } from "@/components/shared/ReceiptPreview";
 import {
-  MOCK_APPLICANTS,
-  MOCK_INVOICES,
-  MOCK_RECEIPTS,
-  MOCK_LEDGERS,
   MockApplicant,
   MockDocument,
   MockLedgerEntry,
@@ -29,45 +25,230 @@ import {
   Archive,
   RotateCcw,
   Sparkles,
+  Globe2,
 } from "lucide-react";
+
+interface DBApplicant {
+  id: string;
+  userId: string | null;
+  agentId: string | null;
+  jobOrderId: string | null;
+  passportNumber: string;
+  passportExpiry: string | Date;
+  nationality: string;
+  fullName: string;
+  phone: string;
+  email: string | null;
+  dateOfBirth: string | Date;
+  nidNumber: string | null;
+  address: string | null;
+  emergencyContact: string | null;
+  isArchived: boolean;
+  archivedAt: string | Date | null;
+  trade: string;
+  currentStage: WorkflowStage;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  agent?: {
+    id: string;
+    agentCode: string;
+    companyName: string;
+  } | null;
+  jobOrder?: {
+    id: string;
+    orderNumber: string;
+    employerName: string;
+    country: string;
+    trade: string;
+    salary: number | string;
+    totalQuota: number;
+    allocatedQuota: number;
+    commissionAmount: number | string;
+    status: string;
+  } | null;
+  workflows?: Array<{
+    id: string;
+    applicantId: string;
+    oldStage: WorkflowStage;
+    newStage: WorkflowStage;
+    changedById: string;
+    changeNotes: string | null;
+    timestamp: string | Date;
+  }>;
+  documents?: Array<{
+    id: string;
+    applicantId: string;
+    documentType: string;
+    fileUrl: string;
+    fileName: string;
+    status: string;
+    expiryDate: string | Date | null;
+    verifiedById: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+  }>;
+  invoices?: Array<{
+    id: string;
+    applicantId: string;
+    invoiceNo: string;
+    amount: number | string;
+    outstanding: number | string;
+    dueDate: string | Date;
+    description: string;
+    createdAt: string | Date;
+  }>;
+  receipts?: Array<{
+    id: string;
+    applicantId: string;
+    invoiceId: string | null;
+    receiptNo: string;
+    amountPaid: number | string;
+    paymentMethod: string;
+    referenceNo: string | null;
+    receivedById: string;
+    createdAt: string | Date;
+  }>;
+  ledgerEntries?: Array<{
+    id: string;
+    applicantId: string;
+    transactionType: string;
+    referenceId: string;
+    debit: number | string;
+    credit: number | string;
+    runningBalance: number | string;
+    timestamp: string | Date;
+  }>;
+}
 
 export default function ApplicantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
-  const { user } = useMockAuth();
+  const { user, accessToken, loading: authLoading } = useMockAuth();
 
-  // Find base applicant record
-  const baseApplicant = MOCK_APPLICANTS.find((a) => a.id === id);
+  // Dynamic state for dynamic PostgreSQL loads
+  const [dbData, setDbData] = useState<DBApplicant | null>(null);
+  const [fetching, setFetching] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [statusCode, setStatusCode] = useState<number | null>(null);
 
-  // Stateful applicant data for simulation
-  const [prevId, setPrevId] = useState(id);
-  const [applicant, setApplicant] = useState<MockApplicant | undefined>(baseApplicant);
-  const [documents, setDocuments] = useState<MockDocument[]>(baseApplicant ? baseApplicant.documents : []);
-  const [ledgers, setLedgers] = useState<MockLedgerEntry[]>(
-    baseApplicant ? MOCK_LEDGERS.filter((l) => l.applicantId === baseApplicant.id) : []
-  );
-  const [invoice, setInvoice] = useState<MockInvoice | undefined>(
-    baseApplicant ? MOCK_INVOICES.find((i) => i.applicantId === baseApplicant.id) : undefined
-  );
-  const [receipts, setReceipts] = useState<MockReceipt[]>(
-    baseApplicant ? MOCK_RECEIPTS.filter((r) => r.applicantId === baseApplicant.id) : []
-  );
+  // Transitioning & Mutation states
+  const [transitioning, setTransitioning] = useState<boolean>(false);
+  const [transitionError, setTransitionError] = useState<string | null>(null);
+  const [transitionSuccess, setTransitionSuccess] = useState<boolean>(false);
+
+  // Tab and Interactive state
   const [activeTab, setActiveTab] = useState<"bio" | "compliance" | "financial">("bio");
   const [selectedReceipt, setSelectedReceipt] = useState<MockReceipt | undefined>(undefined);
+  const [readOnlyAlert, setReadOnlyAlert] = useState<{ action: string } | null>(null);
 
-  // Adjust state synchronously if id or baseApplicant changes to satisfy react-hooks/set-state-in-effect and avoid double renders
-  if (id !== prevId) {
-    setPrevId(id);
-    setApplicant(baseApplicant);
-    setDocuments(baseApplicant ? baseApplicant.documents : []);
-    setLedgers(baseApplicant ? MOCK_LEDGERS.filter((l) => l.applicantId === baseApplicant.id) : []);
-    setInvoice(baseApplicant ? MOCK_INVOICES.find((i) => i.applicantId === baseApplicant.id) : undefined);
-    setReceipts(baseApplicant ? MOCK_RECEIPTS.filter((r) => r.applicantId === baseApplicant.id) : []);
+  // Extract loadData to be callable after mutations
+  const loadData = async () => {
+    if (!accessToken) return;
+    try {
+      setFetching(true);
+      setFetchError(null);
+      setStatusCode(null);
+
+      const res = await fetch(`/api/applicants/${id}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      setStatusCode(res.status);
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP error ${res.status}`);
+      }
+
+      const data = await res.json();
+      setDbData(data);
+    } catch (err: any) {
+      setFetchError(err.message || "An error occurred.");
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  // Load applicant details from API route
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!accessToken) {
+      setStatusCode(401);
+      setFetchError("Unauthorized.");
+      setFetching(false);
+      return;
+    }
+
+    loadData();
+  }, [id, accessToken, authLoading]);
+
+  // Auth/fetch Loading Screen
+  if (authLoading || fetching) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-4">
+        <div className="relative flex flex-col items-center max-w-sm text-center space-y-6 animate-in fade-in duration-300">
+          <div className="relative flex items-center justify-center h-16 w-16 rounded-2xl bg-white dark:bg-slate-950 shadow-xl border border-slate-100 dark:border-slate-800">
+            <Globe2 className="h-8 w-8 text-indigo-500 animate-spin" />
+            <div className="absolute inset-0 rounded-2xl border-2 border-indigo-500/20 animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+              Loading Candidate Dossier...
+            </h3>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+              Fetching verified biographical details and transactional history ledger from PostgreSQL database.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  if (!applicant) {
+  // Handle Unauthorized Session Error
+  if (statusCode === 401) {
     return (
-      <div className="text-center py-16 space-y-4">
+      <div className="text-center py-16 space-y-4 animate-in fade-in duration-300">
+        <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Session Expired</h3>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+          Your authentication session has expired. Please sign in again.
+        </p>
+        <button
+          onClick={() => router.push("/login")}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 shadow-sm"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+
+  // Handle Cohort-Scoped Access Denied
+  if (statusCode === 403) {
+    return (
+      <div className="text-center py-16 space-y-4 animate-in fade-in duration-300">
+        <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Access Denied</h3>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+          You do not have the required permissions to view this candidate dossier or it is restricted by sourcing boundaries.
+        </p>
+        <button
+          onClick={() => router.push("/applicants")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Directory
+        </button>
+      </div>
+    );
+  }
+
+  // Handle Dossier Not Found
+  if (statusCode === 404 || !dbData) {
+    return (
+      <div className="text-center py-16 space-y-4 animate-in fade-in duration-300">
         <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
         <h3 className="text-lg font-bold text-slate-900 dark:text-white">Candidate File Not Found</h3>
         <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -83,167 +264,139 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     );
   }
 
-  // Scoped Data check: if Agent, can only view their own candidate
-  const isAgent = user.roleName === "Agent";
-  if (isAgent && applicant.agentId !== user.agentCode) {
-    return (
-      <div className="text-center py-16 space-y-4">
-        <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Access Denied (Cohort Scoped)</h3>
-        <p className="text-xs text-slate-500 max-w-sm mx-auto">
-          Recruitment agents are strictly bound to applicants sourced under their license. Vetting other cohort groups is restricted.
-        </p>
-        <button
-          onClick={() => router.push("/applicants")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Directory
-        </button>
-      </div>
-    );
-  }
+  // Mapping layer to align dynamic DB fields with strict mock interface expectations
+  const applicant: MockApplicant = {
+    id: dbData.id,
+    fullName: dbData.fullName,
+    phone: dbData.phone,
+    email: dbData.email,
+    passportNumber: dbData.passportNumber,
+    passportExpiry: new Date(dbData.passportExpiry).toISOString().split("T")[0],
+    nationality: dbData.nationality,
+    dateOfBirth: new Date(dbData.dateOfBirth).toISOString().split("T")[0],
+    nidNumber: dbData.nidNumber,
+    address: dbData.address,
+    emergencyContact: dbData.emergencyContact,
+    trade: dbData.trade,
+    currentStage: dbData.currentStage,
+    isArchived: dbData.isArchived,
+    archivedAt: dbData.archivedAt ? new Date(dbData.archivedAt).toISOString() : null,
+    agentId: dbData.agentId,
+    jobOrderId: dbData.jobOrderId,
+    userId: dbData.userId,
+    documents: (dbData.documents || []).map((doc) => ({
+      id: doc.id,
+      documentType: doc.documentType as MockDocument["documentType"],
+      fileName: doc.fileName,
+      fileUrl: doc.fileUrl,
+      status: doc.status as MockDocument["status"],
+      expiryDate: doc.expiryDate ? new Date(doc.expiryDate).toISOString().split("T")[0] : undefined,
+      verifiedBy: doc.verifiedById ? "Staff Auditor" : undefined,
+    })),
+  };
 
-  // --- Handlers for Simulator Actions ---
+  const documents: MockDocument[] = applicant.documents;
 
-  // Verify / Reject Compliance Document
+  const invoices: MockInvoice[] = (dbData.invoices || []).map((inv) => ({
+    id: inv.id,
+    invoiceNo: inv.invoiceNo,
+    applicantId: inv.applicantId,
+    amount: Number(inv.amount),
+    outstanding: Number(inv.outstanding),
+    dueDate: new Date(inv.dueDate).toISOString().split("T")[0],
+    description: inv.description,
+    createdAt: new Date(inv.createdAt).toISOString().split("T")[0],
+  }));
+
+  const receipts: MockReceipt[] = (dbData.receipts || []).map((rec) => ({
+    id: rec.id,
+    receiptNo: rec.receiptNo,
+    applicantId: rec.applicantId,
+    invoiceId: rec.invoiceId,
+    amountPaid: Number(rec.amountPaid),
+    paymentMethod: rec.paymentMethod as MockReceipt["paymentMethod"],
+    referenceNo: rec.referenceNo,
+    receivedBy: "Accounts Officer",
+    createdAt: new Date(rec.createdAt).toISOString(),
+  }));
+
+  const ledgers: MockLedgerEntry[] = (dbData.ledgerEntries || []).map((entry) => {
+    // Map dynamic double entry reference id back to real invoice/receipt numbers
+    const referenceNo =
+      invoices.find((i) => i.id === entry.referenceId)?.invoiceNo ||
+      receipts.find((r) => r.id === entry.referenceId)?.receiptNo ||
+      entry.referenceId;
+
+    return {
+      id: entry.id,
+      applicantId: entry.applicantId,
+      transactionType: entry.transactionType as MockLedgerEntry["transactionType"],
+      referenceNo,
+      debit: Number(entry.debit),
+      credit: Number(entry.credit),
+      runningBalance: Number(entry.runningBalance),
+      timestamp: new Date(entry.timestamp).toISOString(),
+    };
+  });
+
+  const outstandingBalance = invoices.reduce((acc, inv) => acc + inv.outstanding, 0);
+  const invoice = invoices[0]; // Primary billing record passed to ReceiptPreview helper
+
+  // --- Safe-Freeze Handlers for LIVE READ-ONLY MODE ---
+
   const handleVerifyDocument = (docId: string, status: "VERIFIED" | "REJECTED") => {
-    const updatedDocs = documents.map((doc) => {
-      if (doc.id === docId) {
-        return {
-          ...doc,
-          status,
-          verifiedBy: status === "VERIFIED" ? user.fullName : undefined,
-        };
-      }
-      return doc;
-    });
-    setDocuments(updatedDocs);
-    setApplicant((prev) => prev ? { ...prev, documents: updatedDocs } : undefined);
+    setReadOnlyAlert({ action: `${status === "VERIFIED" ? "Verify" : "Reject"} Compliance Document (ID: ${docId})` });
   };
 
-  // Upload Document Simulator
   const handleUploadDocument = (docType: string, fileName: string) => {
-    const newDoc: MockDocument = {
-      id: `doc-sim-${Date.now()}`,
-      documentType: docType as MockDocument["documentType"],
-      fileName,
-      fileUrl: "#",
-      status: "PENDING_VERIFICATION",
-    };
-    const updatedDocs = [...documents, newDoc];
-    setDocuments(updatedDocs);
-    setApplicant((prev) => prev ? { ...prev, documents: updatedDocs } : undefined);
+    setReadOnlyAlert({ action: `Upload Document (Type: ${docType}, File: ${fileName})` });
   };
 
-  // Record Cash / Bank Payment
   const handleRecordPayment = (amount: number, method: string, ref: string) => {
-    const activeOutstanding = invoice ? invoice.outstanding : 0;
-    const newOutstanding = Math.max(0, activeOutstanding - amount);
-    
-    // Update Invoice Dues
-    if (invoice) {
-      setInvoice({
-        ...invoice,
-        outstanding: newOutstanding,
-      });
-    }
-
-    // Generate Double Entry Ledger Log
-    const debitVal = ledgers.length > 0 ? ledgers[ledgers.length - 1].runningBalance : 0;
-    const runningBal = Math.max(0, debitVal - amount);
-
-    const newLedger: MockLedgerEntry = {
-      id: `ldg-sim-${Date.now()}`,
-      applicantId: applicant.id,
-      transactionType: "RECEIPT",
-      referenceNo: `REC-SIM-${Date.now().toString().substring(8)}`,
-      debit: 0,
-      credit: amount,
-      runningBalance: runningBal,
-      timestamp: new Date().toISOString(),
-    };
-    
-    const newReceipt: MockReceipt = {
-      id: `rec-sim-${Date.now()}`,
-      receiptNo: newLedger.referenceNo,
-      applicantId: applicant.id,
-      invoiceId: invoice?.id || null,
-      amountPaid: amount,
-      paymentMethod: method as MockReceipt["paymentMethod"],
-      referenceNo: ref,
-      receivedBy: user.fullName,
-      createdAt: new Date().toISOString(),
-    };
-
-    setLedgers([...ledgers, newLedger]);
-    setReceipts([...receipts, newReceipt]);
-    setSelectedReceipt(newReceipt); // Trigger print-receipt voucher popup instantly!
+    setReadOnlyAlert({ action: `Record Payment Receipt ($${amount} via ${method}, Ref: ${ref})` });
   };
 
-  // Issue Custom Service Invoice
   const handleRecordInvoice = (amount: number, desc: string) => {
-    const currentOutstanding = invoice ? invoice.outstanding : 0;
-    const newOutstanding = currentOutstanding + amount;
+    setReadOnlyAlert({ action: `Issue Service Invoice ($${amount} - ${desc})` });
+  };
 
-    if (invoice) {
-      setInvoice({
-        ...invoice,
-        amount: invoice.amount + amount,
-        outstanding: newOutstanding,
-        description: desc,
+  const handleWorkflowTransition = async (newStage: WorkflowStage, notes: string) => {
+    if (!accessToken) return;
+    try {
+      setTransitioning(true);
+      setTransitionError(null);
+      setTransitionSuccess(false);
+
+      const res = await fetch(`/api/applicants/${id}/workflows`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          nextStage: newStage,
+          remarks: notes,
+        }),
       });
-    } else {
-      const newInv: MockInvoice = {
-        id: `inv-sim-${Date.now()}`,
-        invoiceNo: `INV-SIM-${Date.now().toString().substring(8)}`,
-        applicantId: applicant.id,
-        amount: amount,
-        outstanding: amount,
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        description: desc,
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-      setInvoice(newInv);
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to transition stage. HTTP ${res.status}`);
+      }
+
+      const updatedData = await res.json();
+      setDbData(updatedData);
+      setTransitionSuccess(true);
+    } catch (err: any) {
+      setTransitionError(err.message || "An error occurred during stage transition.");
+    } finally {
+      setTransitioning(false);
     }
-
-    // Ledger Entry
-    const lastBal = ledgers.length > 0 ? ledgers[ledgers.length - 1].runningBalance : 0;
-    const newLedger: MockLedgerEntry = {
-      id: `ldg-sim-${Date.now()}`,
-      applicantId: applicant.id,
-      transactionType: "INVOICE",
-      referenceNo: `INV-SIM-${Date.now().toString().substring(8)}`,
-      debit: amount,
-      credit: 0,
-      runningBalance: lastBal + amount,
-      timestamp: new Date().toISOString(),
-    };
-
-    setLedgers([...ledgers, newLedger]);
   };
 
-  // Workflow State Transition
-  const handleWorkflowTransition = (newStage: WorkflowStage, _notes: string) => {
-    const updated = {
-      ...applicant,
-      currentStage: newStage,
-    };
-    setApplicant(updated);
-  };
-
-  // Soft Archiving Audit Toggle
   const handleSoftArchive = () => {
-    const archived = !applicant.isArchived;
-    const updated = {
-      ...applicant,
-      isArchived: archived,
-      archivedAt: archived ? new Date().toISOString() : null,
-    };
-    setApplicant(updated);
+    setReadOnlyAlert({ action: `${applicant.isArchived ? "Recover" : "Soft Archive"} Candidate dossier` });
   };
-
-  // Outstanding balance calculation
-  const outstandingBalance = invoice ? invoice.outstanding : 0;
 
   return (
     <div className="space-y-6">
@@ -277,7 +430,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
                 onClick={handleSoftArchive}
                 className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20"
               >
-                <RotateCcw className="h-4 w-4 animate-spin-slow" /> Emigration Emigration Recovery
+                <RotateCcw className="h-4 w-4" /> Emigration Recovery
               </button>
             ) : (
               <button
@@ -335,10 +488,10 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
           {/* Interactive Warning Banner */}
           <div className="mt-8 rounded-lg bg-indigo-50/50 p-3.5 border border-indigo-100/50 dark:bg-indigo-950/10 dark:border-indigo-900/10">
             <div className="flex gap-1.5 items-center text-[10px] text-indigo-800 dark:text-indigo-400 font-bold mb-1">
-              <Sparkles className="h-3.5 w-3.5 shrink-0 animate-pulse" /> SIMULATOR ACTIVE
+              <Sparkles className="h-3.5 w-3.5 shrink-0 animate-pulse" /> LIVE READ-ONLY MODE
             </div>
             <p className="text-[9px] text-indigo-700/80 leading-normal dark:text-indigo-400/80">
-              Any changes made inside documents, ledgers, or stepper transitions are saved in the client session state.
+              Applicant data is now loaded from PostgreSQL. Mutations will be enabled in the next phases.
             </p>
           </div>
         </div>
@@ -375,6 +528,79 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
           onClose={() => setSelectedReceipt(undefined)}
         />
       )}
+
+      {/* Glassmorphic Read-Only Warning Alert Modal */}
+      {readOnlyAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-xl border border-indigo-100 bg-white p-6 shadow-xl dark:border-indigo-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+              <Sparkles className="h-5 w-5 animate-pulse shrink-0" />
+              <h3 className="text-sm font-bold uppercase tracking-wider">LIVE READ-ONLY MODE</h3>
+            </div>
+            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              The action <span className="font-bold text-slate-800 dark:text-white">"{readOnlyAlert.action}"</span> is deactivated in this phase.
+            </p>
+            <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+              Applicant data is now loaded live from PostgreSQL. Mutations (workflow transitions, document uploads, payment entries, invoices, and archiving) will be enabled in upcoming Phase 4 developments.
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setReadOnlyAlert(null)}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 hover:shadow-indigo-600/30"
+              >
+                Acknowledge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glassmorphic Transition Success Alert Modal */}
+      {transitionSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-xl border border-emerald-100 bg-white p-6 shadow-xl dark:border-emerald-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+              <Sparkles className="h-5 w-5 animate-pulse shrink-0" />
+              <h3 className="text-sm font-bold uppercase tracking-wider">Transition Successful</h3>
+            </div>
+            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Candidate workflow stage successfully updated and audit history, log tracks, and system alerts generated.
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setTransitionSuccess(false)}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 hover:shadow-emerald-600/30"
+              >
+                Acknowledge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glassmorphic Transition Error Alert Modal */}
+      {transitionError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-xl border border-rose-100 bg-white p-6 shadow-xl dark:border-rose-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <ShieldAlert className="h-5 w-5 shrink-0" />
+              <h3 className="text-sm font-bold uppercase tracking-wider">Transition Denied</h3>
+            </div>
+            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              {transitionError}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setTransitionError(null)}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700 shadow-sm shadow-rose-600/20 hover:shadow-rose-600/30"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
