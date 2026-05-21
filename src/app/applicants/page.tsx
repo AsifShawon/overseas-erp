@@ -1,39 +1,69 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PermissionGate } from "@/components/ui/PermissionGate";
-import { MOCK_APPLICANTS, WORKFLOW_LABELS, WorkflowStage, MockApplicant } from "@/lib/mockData";
-import { SlidersHorizontal, Plus, FileSpreadsheet } from "lucide-react";
+import { WORKFLOW_LABELS, WorkflowStage } from "@/lib/mockData";
+import { SlidersHorizontal, Plus, FileSpreadsheet, Loader2, AlertCircle } from "lucide-react";
 
 export default function ApplicantsPage() {
   const router = useRouter();
-  const { hasAccess, user } = useMockAuth();
+  const { hasAccess, accessToken } = useMockAuth();
+
+  // Component states
+  const [applicants, setApplicants] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters State
   const [selectedTrade, setSelectedTrade] = useState("ALL");
   const [selectedStage, setSelectedStage] = useState("ALL");
   const [showArchived, setShowArchived] = useState(false);
 
-  // Scoped Data check: if Agent, can only view their own candidates
-  const isAgent = user.roleName === "Agent";
-  const agentCode = user.agentCode;
+  // Load live data from postgres-backed API
+  const fetchApplicants = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
 
-  const baseData = MOCK_APPLICANTS.filter((app) => {
-    if (isAgent) {
-      return app.agentId === agentCode;
+      // Fetch active cohort dataset matching archive status from server
+      const res = await fetch(`/api/applicants?archived=${showArchived}&pageSize=1000`, {
+        method: "GET",
+        headers,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to load directory data.");
+      }
+
+      const data = await res.json();
+      setApplicants(data.data || []);
+    } catch (err: any) {
+      console.error("Error fetching applicants:", err);
+      setError(err.message || "An unexpected error occurred while loading candidates.");
+    } finally {
+      setLoading(false);
     }
-    return true;
-  });
+  };
 
-  // Apply filters
-  const filteredApplicants = baseData.filter((app) => {
-    // Archived check
-    if (app.isArchived !== showArchived) return false;
+  // Perform fetching on mount and archived state transitions
+  useEffect(() => {
+    fetchApplicants();
+  }, [showArchived, accessToken]);
+
+  // Apply filters client-side to fetched cohort dataset
+  const filteredApplicants = applicants.filter((app) => {
     // Trade check
     if (selectedTrade !== "ALL" && app.trade !== selectedTrade) return false;
     // Stage check
@@ -41,35 +71,41 @@ export default function ApplicantsPage() {
     return true;
   });
 
-  // Unique Trades and Stages for filter dropdowns
-  const availableTrades = Array.from(new Set(baseData.map((a) => a.trade)));
-  const availableStages = Array.from(new Set(baseData.map((a) => a.currentStage)));
+  // Unique Trades and Stages derived dynamically from active data segment
+  const availableTrades = Array.from(new Set(applicants.map((a) => a.trade)));
+  const availableStages = Array.from(new Set(applicants.map((a) => a.currentStage)));
 
-  const handleRowClick = (app: MockApplicant) => {
+  const handleRowClick = (app: any) => {
     router.push(`/applicants/${app.id}`);
   };
 
   const tableColumns = [
     {
       header: "Candidate Name",
-      accessor: (a: MockApplicant) => (
+      accessor: (a: any) => (
         <div className="flex flex-col gap-0.5">
           <span className="font-semibold text-slate-900 dark:text-white">{a.fullName}</span>
           <span className="text-[10px] text-slate-400">{a.email || "No claimed email"}</span>
         </div>
       ),
     },
-    { header: "Passport Number", accessor: (a: MockApplicant) => <span className="font-mono">{a.passportNumber}</span> },
-    { header: "Contact Phone", accessor: (a: MockApplicant) => a.phone },
-    { header: "Applied Trade", accessor: (a: MockApplicant) => a.trade },
+    { header: "Passport Number", accessor: (a: any) => <span className="font-mono">{a.passportNumber}</span> },
+    { header: "Contact Phone", accessor: (a: any) => a.phone },
+    { header: "Applied Trade", accessor: (a: any) => a.trade },
     {
       header: "Workflow Status",
-      accessor: (a: MockApplicant) => <StatusBadge status={a.currentStage} />,
+      accessor: (a: any) => <StatusBadge status={a.currentStage} />,
     },
     {
       header: "Integrity",
-      accessor: (a: MockApplicant) => (
-        <span className={`text-[10px] font-bold ${a.isArchived ? "text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 dark:bg-rose-950/20" : "text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 dark:bg-emerald-950/20"}`}>
+      accessor: (a: any) => (
+        <span
+          className={`text-[10px] font-bold ${
+            a.isArchived
+              ? "text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 dark:bg-rose-950/20"
+              : "text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 dark:bg-emerald-950/20"
+          }`}
+        >
           {a.isArchived ? "Archived" : "Active Vetting"}
         </span>
       ),
@@ -84,7 +120,7 @@ export default function ApplicantsPage() {
           <Plus className="h-4 w-4" /> Add Applicant
         </button>
       )}
-      <button className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+      <button className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
         <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export Excel
       </button>
     </div>
@@ -163,16 +199,39 @@ export default function ApplicantsPage() {
           </div>
         </div>
 
-        {/* Data Table */}
-        <DataTable
-          data={filteredApplicants}
-          columns={tableColumns}
-          searchPlaceholder="Search candidates by name..."
-          searchField="fullName"
-          onRowClick={handleRowClick}
-          emptyStateTitle={showArchived ? "No archived files found" : "No active vetting files found"}
-          emptyStateDescription="Try resetting your filters or toggle the view back to active candidate records."
-        />
+        {/* Live Data rendering with beautiful loading/error and empty states */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 space-y-4">
+            <div className="relative h-12 w-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center shadow-lg">
+              <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+            </div>
+            <p className="text-xs text-slate-500 font-bold animate-pulse">Loading live applicants from database...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-rose-100 bg-rose-50/50 p-6 text-center shadow-sm dark:border-rose-950/10 dark:bg-rose-950/5 space-y-4">
+            <AlertCircle className="h-10 w-10 text-rose-500" />
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-rose-900 dark:text-rose-400">Failed to Load Directory</h3>
+              <p className="text-xs text-rose-700/80 dark:text-rose-400/70 max-w-md">{error}</p>
+            </div>
+            <button
+              onClick={fetchApplicants}
+              className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 shadow-sm"
+            >
+              Retry Connection
+            </button>
+          </div>
+        ) : (
+          <DataTable
+            data={filteredApplicants}
+            columns={tableColumns}
+            searchPlaceholder="Search candidates by name..."
+            searchField="fullName"
+            onRowClick={handleRowClick}
+            emptyStateTitle={showArchived ? "No archived files found" : "No active vetting files found"}
+            emptyStateDescription="Try resetting your filters or toggle the view back to active candidate records."
+          />
+        )}
       </PermissionGate>
     </div>
   );

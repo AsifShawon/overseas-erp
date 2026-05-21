@@ -1,0 +1,27 @@
+# docker-compose.yml
+# Overseas Manpower ERP – Local PostgreSQL development database
+# Start:  docker compose up -d
+# Stop:   docker compose down
+# Wipe:   docker compose down -v   (WARNING: deletes all data)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: overseas_erp_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: overseas
+      POSTGRES_PASSWORD: overseas_dev_password
+      POSTGRES_DB: overseas_erp_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - overseas_erp_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U overseas -d overseas_erp_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  overseas_erp_pgdata:
