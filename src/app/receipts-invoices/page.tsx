@@ -90,6 +90,7 @@ export default function ReceiptsInvoicesPage() {
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
+      toast.success("Financial statement registers exported successfully!");
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred during export.");
     } finally {

@@ -9,6 +9,7 @@ import { PermissionGate } from "@/components/ui/PermissionGate";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { CheckCircle, FileSpreadsheet, Loader2, AlertCircle, ShieldAlert } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/DialogContext";
 
 interface FlattenedCommission {
   id: string;
@@ -32,6 +33,7 @@ interface FlattenedCommission {
 export default function CommissionsPage() {
   const { accessToken, activeRoleName } = useMockAuth();
   const toast = useToast();
+  const { prompt } = useDialog();
 
   const isAgent = activeRoleName === "Agent";
   const isStaffOrAdmin = ["Super Admin", "Operations Admin", "Accounts Officer"].includes(activeRoleName);
@@ -52,13 +54,6 @@ export default function CommissionsPage() {
   // Accrual Loading state
   const [accruing, setAccruing] = useState(false);
 
-  // Payout Modal state
-  const [payingId, setPayingId] = useState<string | null>(null);
-  const [payoutRef, setPayoutRef] = useState("");
-  const [payoutDate, setPayoutDate] = useState(new Date().toISOString().split("T")[0]);
-  const [showPayoutModal, setShowPayoutModal] = useState(false);
-  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
-  const [payoutError, setPayoutError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
@@ -83,6 +78,7 @@ export default function CommissionsPage() {
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
+      toast.success("Commissions register exported successfully!");
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred during export.");
     } finally {
@@ -166,43 +162,49 @@ export default function CommissionsPage() {
     }
   };
 
-  const handlePayoutSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!payingId || !payoutRef.trim()) return;
+  const handlePayoutRelease = async (commissionId: string) => {
+    if (!accessToken) return;
 
-    setPayoutSubmitting(true);
-    setPayoutError(null);
+    const payoutRefVal = await prompt({
+      title: "Settle Commission Payout",
+      description: "Provide the bank transfer voucher reference to settle this commission obligation.",
+      placeholder: "e.g. BANK-COMM-001",
+      confirmLabel: "Release Payout",
+      cancelLabel: "Cancel",
+      isDanger: false,
+    });
+
+    if (payoutRefVal === null) return; // Cancelled
+    const trimmedRef = payoutRefVal.trim();
+    if (!trimmedRef) {
+      toast.error("Voucher reference code is required.");
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/finance/commissions/${payingId}/payout`, {
+      const todayDate = new Date().toISOString().split("T")[0];
+      const res = await fetch(`/api/finance/commissions/${commissionId}/payout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          payoutRef: payoutRef.trim(),
-          payoutDate,
+          payoutRef: trimmedRef,
+          payoutDate: todayDate,
         }),
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to settle commission payout.");
       }
 
-      // Reset Form & Close Modal
-      setShowPayoutModal(false);
-      setPayingId(null);
-      setPayoutRef("");
-      setPayoutDate(new Date().toISOString().split("T")[0]);
-
-      // Re-fetch log register data
+      toast.success("Commission payout settled and transfer voucher recorded.");
       await fetchCommissions();
     } catch (err: any) {
       console.error("Error settling payout:", err);
-      setPayoutError(err.message || "An unexpected error occurred during settlement.");
-    } finally {
-      setPayoutSubmitting(false);
+      toast.error(err.message || "An unexpected error occurred during settlement.");
     }
   };
 
@@ -252,10 +254,7 @@ export default function CommissionsPage() {
       accessor: (com: FlattenedCommission) => {
         return com.status === "ACCRUED" ? (
           <button
-            onClick={() => {
-              setPayingId(com.id);
-              setShowPayoutModal(true);
-            }}
+            onClick={() => handlePayoutRelease(com.id)}
             className="flex items-center gap-1 rounded bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20"
           >
             <CheckCircle className="h-3 w-3 shrink-0" /> Release Payout
@@ -409,79 +408,7 @@ export default function CommissionsPage() {
         </div>
       </PermissionGate>
 
-      {/* Settlement Payout Modal overlay */}
-      {showPayoutModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm transition-all duration-300">
-          <div className="w-full max-w-md rounded-2xl border border-border-theme bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <form onSubmit={handlePayoutSubmit} className="space-y-4">
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-text-theme">
-                  Settle Commission Payout
-                </h4>
-                <p className="text-xs text-text-muted">
-                  Provide the bank transfer voucher reference to settle this commission obligation.
-                </p>
-              </div>
 
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-soft">
-                    Voucher Reference Code
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={payoutRef}
-                    onChange={(e) => setPayoutRef(e.target.value)}
-                    placeholder="e.g. BANK-COMM-001"
-                    className="w-full rounded-lg border border-border-theme bg-bg px-3 py-2 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-text-theme"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-soft">
-                    Payment Settle Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={payoutDate}
-                    onChange={(e) => setPayoutDate(e.target.value)}
-                    className="w-full rounded-lg border border-border-theme bg-bg px-3 py-2 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-text-theme"
-                  />
-                </div>
-              </div>
-
-              {payoutError && (
-                <p className="text-[11px] text-rose-600 font-medium">{payoutError}</p>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPayoutModal(false);
-                    setPayingId(null);
-                    setPayoutRef("");
-                    setPayoutError(null);
-                  }}
-                  className="rounded-lg border border-border-theme bg-bg px-4 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={payoutSubmitting || !payoutRef.trim()}
-                  className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
-                >
-                  {payoutSubmitting && <Loader2 className="h-3 w-3 animate-spin" />}
-                  Release Payout
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

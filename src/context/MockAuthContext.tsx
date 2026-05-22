@@ -24,6 +24,7 @@ const PRESET_CREDENTIALS: Record<string, { email: string; password: string }> = 
 
 interface AuthenticatedUser extends MockUser {
   permissions: PermissionCode[];
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {

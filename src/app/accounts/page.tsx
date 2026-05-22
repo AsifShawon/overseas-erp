@@ -61,6 +61,7 @@ export default function AccountsPage() {
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
+      toast.success("Accounts ledger exported successfully!");
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred during export.");
     } finally {

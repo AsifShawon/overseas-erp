@@ -186,6 +186,7 @@ export default function ApplicantsPage() {
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
+      toast.success("Applicants directory exported successfully!");
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred during export.");
     } finally {

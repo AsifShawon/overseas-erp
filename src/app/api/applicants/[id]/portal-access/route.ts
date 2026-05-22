@@ -147,6 +147,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           phone: validatedData.phone || applicant.phone || null,
           roleId: applicantRole.id,
           isActive: true,
+          mustChangePassword: validatedData.mode === "TEMP_PASSWORD",
         },
       });
 

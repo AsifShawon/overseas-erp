@@ -4,6 +4,7 @@ import React, { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/DialogContext";
 import { ApplicantProfileCard } from "@/components/shared/ApplicantProfileCard";
 import { PortalAccessPanel } from "@/components/shared/PortalAccessPanel";
 import { DocumentChecklist } from "@/components/shared/DocumentChecklist";
@@ -127,6 +128,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   const { id } = use(params);
   const { user, accessToken, loading: authLoading, hasAccess } = useMockAuth();
   const toast = useToast();
+  const { prompt } = useDialog();
 
   const canArchive =
     user && (
@@ -143,26 +145,12 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
   // Transitioning & Mutation states
   const [transitioning, setTransitioning] = useState<boolean>(false);
-  const [transitionError, setTransitionError] = useState<string | null>(null);
-  const [transitionSuccess, setTransitionSuccess] = useState<boolean>(false);
 
   // Invoicing states
   const [invoicing, setInvoicing] = useState<boolean>(false);
-  const [invoicingError, setInvoicingError] = useState<string | null>(null);
-  const [invoicingSuccess, setInvoicingSuccess] = useState<boolean>(false);
 
   // Receipt states
   const [recordingReceipt, setRecordingReceipt] = useState<boolean>(false);
-  const [receiptError, setReceiptError] = useState<string | null>(null);
-  const [receiptSuccess, setReceiptSuccess] = useState<boolean>(false);
-
-  // Archiving/Restoring states
-  const [archiveModalOpen, setArchiveModalOpen] = useState<boolean>(false);
-  const [archiveReason, setArchiveReason] = useState<string>("");
-  const [archiveAction, setArchiveAction] = useState<"ARCHIVE" | "RESTORE">("ARCHIVE");
-  const [isMutatingArchive, setIsMutatingArchive] = useState<boolean>(false);
-  const [archiveError, setArchiveError] = useState<string | null>(null);
-  const [archiveSuccess, setArchiveSuccess] = useState<boolean>(false);
 
   // Tab and Interactive state
   const [activeTab, setActiveTab] = useState<"bio" | "compliance" | "financial">("bio");
@@ -453,8 +441,6 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     if (!accessToken) return;
     try {
       setRecordingReceipt(true);
-      setReceiptError(null);
-      setReceiptSuccess(false);
 
       const res = await fetch(`/api/applicants/${id}/receipts`, {
         method: "POST",
@@ -477,7 +463,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       const { receipt, applicant: updatedData } = await res.json();
       setDbData(updatedData);
-      setReceiptSuccess(true);
+      toast.success("Candidate payment receipt successfully processed!");
 
       if (receipt) {
         const mappedReceipt: MockReceipt = {
@@ -494,7 +480,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
         setSelectedReceipt(mappedReceipt);
       }
     } catch (err: any) {
-      setReceiptError(err.message || "An error occurred during payment recording.");
+      toast.error(err.message || "An error occurred during payment recording.");
     } finally {
       setRecordingReceipt(false);
     }
@@ -504,8 +490,6 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     if (!accessToken) return;
     try {
       setInvoicing(true);
-      setInvoicingError(null);
-      setInvoicingSuccess(false);
 
       const res = await fetch(`/api/applicants/${id}/invoices`, {
         method: "POST",
@@ -527,9 +511,9 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       const updatedData = await res.json();
       setDbData(updatedData);
-      setInvoicingSuccess(true);
+      toast.success("Service invoice successfully generated and posted to ledger.");
     } catch (err: any) {
-      setInvoicingError(err.message || "An error occurred during invoice creation.");
+      toast.error(err.message || "An error occurred during invoice creation.");
     } finally {
       setInvoicing(false);
     }
@@ -539,8 +523,6 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     if (!accessToken) return;
     try {
       setTransitioning(true);
-      setTransitionError(null);
-      setTransitionSuccess(false);
 
       const res = await fetch(`/api/applicants/${id}/workflows`, {
         method: "POST",
@@ -561,25 +543,38 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       const updatedData = await res.json();
       setDbData(updatedData);
-      setTransitionSuccess(true);
+      toast.success("Candidate workflow stage successfully updated!");
     } catch (err: any) {
-      setTransitionError(err.message || "An error occurred during stage transition.");
+      toast.error(err.message || "An error occurred during stage transition.");
     } finally {
       setTransitioning(false);
     }
   };
 
-  const handleSoftArchiveSubmit = async () => {
+  const handleSoftArchive = async (action: "ARCHIVE" | "RESTORE") => {
     if (!accessToken) return;
-    if (archiveAction === "ARCHIVE" && archiveReason.trim().length < 5) {
-      setArchiveError("Please provide an archive explanation containing at least 5 characters.");
+
+    const isArchive = action === "ARCHIVE";
+    const reason = await prompt({
+      title: isArchive ? "Soft Archive Candidate Dossier" : "Recover Candidate Dossier",
+      description: isArchive 
+        ? "Please specify the reason for archiving (minimum 5 characters). No records will be deleted."
+        : "Please specify the reason for restoring the candidate file (optional).",
+      placeholder: isArchive
+        ? "e.g. Duplicate dossier, candidate withdrew, emigrated under different program..."
+        : "Specify the restore reasons (optional)...",
+      confirmLabel: isArchive ? "Archive Dossier" : "Recover Dossier",
+      cancelLabel: "Cancel",
+      isDanger: isArchive,
+    });
+
+    if (reason === null) return; // Cancelled
+    if (isArchive && reason.trim().length < 5) {
+      toast.error("Please provide an archive explanation containing at least 5 characters.");
       return;
     }
-    
+
     try {
-      setIsMutatingArchive(true);
-      setArchiveError(null);
-      
       const res = await fetch(`/api/applicants/${id}/archive`, {
         method: "PATCH",
         headers: {
@@ -587,8 +582,8 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          action: archiveAction,
-          reason: archiveReason,
+          action,
+          reason: reason.trim(),
         }),
       });
 
@@ -599,12 +594,9 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       const updatedData = await res.json();
       setDbData(updatedData);
-      setArchiveModalOpen(false);
-      setArchiveSuccess(true);
+      toast.success(isArchive ? "Candidate dossier successfully archived." : "Candidate dossier successfully recovered.");
     } catch (err: any) {
-      setArchiveError(err.message || "An unexpected error occurred.");
-    } finally {
-      setIsMutatingArchive(false);
+      toast.error(err.message || "An unexpected error occurred during status mutation.");
     }
   };
 
@@ -637,24 +629,14 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
           <div className="flex items-center gap-2">
             {applicant.isArchived ? (
               <button
-                onClick={() => {
-                  setArchiveAction("RESTORE");
-                  setArchiveReason("");
-                  setArchiveError(null);
-                  setArchiveModalOpen(true);
-                }}
+                onClick={() => handleSoftArchive("RESTORE")}
                 className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 transition-all hover:scale-105 active:scale-95 duration-200"
               >
                 <RotateCcw className="h-4 w-4" /> Emigration Recovery
               </button>
             ) : (
               <button
-                onClick={() => {
-                  setArchiveAction("ARCHIVE");
-                  setArchiveReason("");
-                  setArchiveError(null);
-                  setArchiveModalOpen(true);
-                }}
+                onClick={() => handleSoftArchive("ARCHIVE")}
                 className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 transition-all hover:scale-105 active:scale-95 duration-200"
               >
                 <Archive className="h-4 w-4" /> Soft Archive Candidate
@@ -787,52 +769,6 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      {/* Glassmorphic Transition Success Alert Modal */}
-      {transitionSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-xl border border-emerald-100 bg-white p-6 shadow-xl dark:border-emerald-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-              <Sparkles className="h-5 w-5 animate-pulse shrink-0" />
-              <h3 className="text-sm font-bold uppercase tracking-wider">Transition Successful</h3>
-            </div>
-            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Candidate workflow stage successfully updated and audit history, log tracks, and system alerts generated.
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setTransitionSuccess(false)}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 hover:shadow-emerald-600/30"
-              >
-                Acknowledge
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Glassmorphic Transition Error Alert Modal */}
-      {transitionError && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-xl border border-rose-100 bg-white p-6 shadow-xl dark:border-rose-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
-              <ShieldAlert className="h-5 w-5 shrink-0" />
-              <h3 className="text-sm font-bold uppercase tracking-wider">Transition Denied</h3>
-            </div>
-            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              {transitionError}
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setTransitionError(null)}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700 shadow-sm shadow-rose-600/20 hover:shadow-rose-600/30"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Glassmorphic Invoicing Loading Overlay */}
       {invoicing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
@@ -852,52 +788,6 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      {/* Glassmorphic Invoicing Success Alert Modal */}
-      {invoicingSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-xl border border-emerald-100 bg-white p-6 shadow-xl dark:border-emerald-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-              <Sparkles className="h-5 w-5 animate-pulse shrink-0" />
-              <h3 className="text-sm font-bold uppercase tracking-wider">Invoice Issued</h3>
-            </div>
-            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Service invoice successfully generated. The transaction has been posted as a debit entry in the applicant's ledger.
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setInvoicingSuccess(false)}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 hover:shadow-emerald-600/30"
-              >
-                Acknowledge
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Glassmorphic Invoicing Error Alert Modal */}
-      {invoicingError && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-xl border border-rose-100 bg-white p-6 shadow-xl dark:border-rose-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
-              <ShieldAlert className="h-5 w-5 shrink-0" />
-              <h3 className="text-sm font-bold uppercase tracking-wider">Invoice Failed</h3>
-            </div>
-            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              {invoicingError}
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setInvoicingError(null)}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700 shadow-sm shadow-rose-600/20 hover:shadow-rose-600/30"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Glassmorphic Receipt Loading Overlay */}
       {recordingReceipt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
@@ -912,161 +802,6 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
               <p className="text-[10px] text-slate-400 dark:text-slate-500">
                 Writing double-entry credit ledger entries and decrementing invoice dues securely.
               </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Glassmorphic Receipt Success Alert Modal */}
-      {receiptSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-xl border border-emerald-100 bg-white p-6 shadow-xl dark:border-emerald-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-              <Sparkles className="h-5 w-5 animate-pulse shrink-0" />
-              <h3 className="text-sm font-bold uppercase tracking-wider">Payment Recorded</h3>
-            </div>
-            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Candidate payment receipt successfully processed. The transaction has been posted as a credit entry in the candidate's statement.
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setReceiptSuccess(false)}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 hover:shadow-emerald-600/30"
-              >
-                Acknowledge
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Glassmorphic Receipt Error Alert Modal */}
-      {receiptError && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-xl border border-rose-100 bg-white p-6 shadow-xl dark:border-rose-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
-              <ShieldAlert className="h-5 w-5 shrink-0" />
-              <h3 className="text-sm font-bold uppercase tracking-wider">Receipt Failed</h3>
-            </div>
-            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              {receiptError}
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setReceiptError(null)}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700 shadow-sm shadow-rose-600/20 hover:shadow-rose-600/30"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Soft Archive / Restore Modal */}
-      {archiveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-2xl backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl border ${
-                archiveAction === "ARCHIVE" 
-                  ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400"
-                  : "bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-900/30 dark:text-emerald-400"
-              }`}>
-                {archiveAction === "ARCHIVE" ? <Archive className="h-5 w-5" /> : <RotateCcw className="h-5 w-5" />}
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  {archiveAction === "ARCHIVE" ? "Soft Archive Candidate Dossier" : "Recover Candidate Dossier"}
-                </h3>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                  Change the active status of candidate file. No records will be deleted.
-                </p>
-              </div>
-            </div>
-
-            {archiveError && (
-              <div className="mt-4 flex gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/10 dark:text-rose-400 border border-rose-100/50 dark:border-rose-900/20">
-                <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
-                <span className="font-medium">{archiveError}</span>
-              </div>
-            )}
-
-            <div className="mt-4 space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                {archiveAction === "ARCHIVE" ? "Reason for Archiving (Required)" : "Reason for Restoring (Optional)"}
-              </label>
-              <textarea
-                value={archiveReason}
-                onChange={(e) => setArchiveReason(e.target.value)}
-                placeholder={
-                  archiveAction === "ARCHIVE"
-                    ? "Specify the reasons (e.g. Duplicate dossier, candidate withdrew, emigrated under different program...)"
-                    : "Specify the restore reasons (optional)..."
-                }
-                rows={3}
-                disabled={isMutatingArchive}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs outline-none focus:border-indigo-500 focus:bg-white dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200 transition-all duration-200 placeholder:text-slate-400"
-              />
-            </div>
-
-            <div className="mt-6 flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setArchiveModalOpen(false)}
-                disabled={isMutatingArchive}
-                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900 transition-all duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSoftArchiveSubmit}
-                disabled={isMutatingArchive || (archiveAction === "ARCHIVE" && archiveReason.trim().length < 5)}
-                className={`flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white transition-all duration-200 shadow-md ${
-                  archiveAction === "ARCHIVE"
-                    ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20 disabled:bg-rose-400 disabled:opacity-50"
-                    : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 disabled:bg-emerald-400 disabled:opacity-50"
-                }`}
-              >
-                {isMutatingArchive ? (
-                  <>
-                    <Globe2 className="h-3.5 w-3.5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    {archiveAction === "ARCHIVE" ? "Archive Dossier" : "Recover Dossier"}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Soft Archive Success Modal */}
-      {archiveSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-emerald-100 bg-white p-6 shadow-2xl dark:border-emerald-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
-            <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 mx-auto">
-              <Sparkles className="h-6 w-6 animate-pulse" />
-            </div>
-            <div className="space-y-1.5">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                Dossier State Mutated
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
-                Candidate dossier has been successfully updated. Audit log histories and system alerts have been recorded successfully.
-              </p>
-            </div>
-            <div className="flex justify-center pt-2">
-              <button
-                onClick={() => setArchiveSuccess(false)}
-                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-md shadow-emerald-600/20 hover:shadow-emerald-600/30"
-              >
-                Acknowledge
-              </button>
             </div>
           </div>
         </div>

@@ -71,7 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     // 4. RBAC check: Non-Super/Ops Admins must hold UPLOAD_DOCUMENT permission
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
-    if (!isSuperOrOps) {
+    if (!isSuperOrOps && roleName !== "Applicant") {
       const permissions = await getUserPermissions(userId);
       if (!permissions.includes("UPLOAD_DOCUMENT")) {
         return NextResponse.json(

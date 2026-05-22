@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useMockAuth } from "@/context/MockAuthContext";
-import { Bell, Search, LogOut, ChevronDown, User as UserIcon } from "lucide-react";
+import { Bell, Search, LogOut, ChevronDown, User as UserIcon, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { MOCK_NOTIFICATIONS } from "@/lib/mockData";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -120,6 +120,15 @@ export function Topbar() {
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs text-text-muted hover:bg-bg-muted"
               >
                 <Bell className="h-3.5 w-3.5" /> Notifications
+              </button>
+              <button
+                onClick={() => {
+                  setDropdownOpen(false);
+                  router.push("/account/security");
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs text-text-muted hover:bg-bg-muted"
+              >
+                <Lock className="h-3.5 w-3.5" /> Account Security
               </button>
               <button
                 onClick={handleLogoutClick}

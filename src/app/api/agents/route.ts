@@ -217,6 +217,7 @@ export async function POST(request: Request) {
           phone: validatedData.phone || null,
           roleId: agentRole.id,
           isActive: true,
+          mustChangePassword: validatedData.accessMode === "TEMP_PASSWORD",
         },
       });
 

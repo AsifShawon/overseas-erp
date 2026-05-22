@@ -53,6 +53,7 @@ export async function GET(request: Request) {
         agentCode: user.agentProfile?.agentCode || null,
         applicantId: user.applicantProfile?.id || null,
         permissions,
+        mustChangePassword: user.mustChangePassword,
       },
     });
   } catch (error) {

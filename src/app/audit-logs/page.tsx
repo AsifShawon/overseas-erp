@@ -46,6 +46,7 @@ export default function AuditLogsPage() {
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
+      toast.success("Audit logs exported successfully!");
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred during export.");
     } finally {
