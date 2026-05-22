@@ -1,114 +1,134 @@
-# Product Overview - Overseas Manpower ERP
+# 01 — Product Overview
 
-This document outlines the core vision, objectives, scope boundaries, and primary lifecycle pipelines of the Overseas Manpower ERP. It establishes the architectural foundations to prevent feature drift and guides subsequent implementation.
+## What Is OverseasERP?
 
-## 1. Executive Summary & Core Identity
+**OverseasERP** is a full-stack web application designed for overseas manpower recruitment agencies. It replaces spreadsheets, paper trails, and disconnected tools with a single integrated platform that manages every stage of the recruitment-to-deployment lifecycle.
 
-The **Overseas Manpower ERP** is a proprietary, company-internal Enterprise Resource Planning (ERP) platform designed specifically for an overseas manpower supply and recruitment agency. Its purpose is to manage, monitor, and automate the highly regulated process of sourcing, vetting, training, securing visas for, and deploying candidate laborers to foreign employers.
-
-### ⚠️ Critical Scope Distinctions
-This is **NOT a public job board** (like LinkedIn or Indeed). It is a highly controlled B2B2C ERP. 
-
-| Feature | Public Job Board | Overseas Manpower ERP |
-| :--- | :--- | :--- |
-| **User Sign-up** | Open public registration for anyone. | Created by Agency Staff/Agents first. Applicant claims portal access later via OTP/Invite. |
-| **Job Discovery** | Public, searchable list of active jobs. | Hidden internal Job Orders mapped to candidates by internal staff. |
-| **Job Application** | Direct self-apply by candidate. | Candidates are assigned/linked to pre-vetted Job Orders by HR Officers. |
-| **Workflow Controls**| Candidate-driven updates (e.g. withdraw).| Staff-driven official compliance steps (Medical, Visa, Tickets). |
-| **Focus** | Job matching & advertising. | Logistics, regulatory compliance, finance, agent commission, and audit logs. |
+The system is built as a minimum viable product (MVP) with real database connections, authentication, role-based access control, document management, financial accounting, and audit logging — all working live.
 
 ---
 
-## 2. Business Goals & Objectives
+## Business Problem It Solves
 
-1. **Compliance Rigor**: Ensure zero-fault compliance with government emigration departments and foreign consulates.
-2. **Operational Transparency**: Maintain absolute auditability on where an applicant is stuck (e.g., Medical center, Embassy, or Ticketing office).
-3. **Double-Entry Financial Integrity**: Every candidate has a personalized transaction ledger showing exact receivables, payments made, invoices raised, and agent commissions computed.
-4. **Agent Loyalty Management**: Establish clear, error-free commission tracking for recruitment agents who source labor from remote or rural regions.
-5. **Efficiency**: Reduce placement pipeline latency (the time from initial sourcing to deployment flight) by at least 30% through automated notifications and digital document verification.
+Overseas manpower recruitment involves many departments, external agents, and government compliance requirements. Without a unified system, agencies suffer from:
+
+- Candidates tracked in Excel with no stage history
+- Documents stored on local drives with no verification trail
+- Agent commissions calculated manually with no formal records
+- Invoices and receipts managed in disconnected accounting tools
+- No audit log of who changed what and when
+- Staff accessing data they shouldn't see
+- No self-service portal for agents or placed candidates
+
+**OverseasERP** solves all of this in one system.
 
 ---
 
-## 3. High-Level System Context Diagram
+## Target Users
 
-The ERP interacts with several external entities and actors, coordinated through strict role parameters:
+### Super Admin
+The system owner or agency director. Has unrestricted access to every module. Can override workflow stage gates with justification remarks. Manages users, roles, and permissions via the RBAC Settings module.
 
-```mermaid
-graph TD
-    subgraph Foreign Employers
-        FE[Employer Job Orders]
-    end
-    
-    subgraph Internal Agency ERP
-        SA[Super Admin]
-        OA[Operations Admin]
-        HR[HR/Recruitment Officer]
-        DO[Documentation Officer]
-        VO[Visa Officer]
-        AO[Accounts Officer]
-    end
+**Example:** Agency director who wants to see the complete pipeline, financial summaries, and audit trail.
 
-    subgraph External Sourcing Network
-        AG[Recruitment Agents]
-        AP[Applicants / Candidates]
-    end
+### Operations Admin
+The day-to-day agency manager. Nearly identical permissions to Super Admin except they cannot manage RBAC settings or make financial payments directly. They oversee the entire pipeline and can generate reports and exports.
 
-    FE -->|Contract Details / Demands| HR
-    AG -->|Submit Candidates| HR
-    AP -->|Provides Bio-data / Passports| AG
-    AP -->|View Personal Progress & Receipts| AP
-    
-    HR -->|Assigns Candidates| FE
-    DO -->|Vets Documents| AP
-    VO -->|Manages Consulate Submissions| AP
-    AO -->|Collects Fees / Records Ledgers| AP
-    AO -->|Pays Commissions| AG
-    OA -->|Monitors Overall Pipeline Performance| SA
+**Example:** Branch manager who reviews pending work across all departments.
+
+### HR Officer
+Handles applicant intake and early recruitment. Creates applicant records, conducts or records interviews, and selects candidates for job orders. Can only move workflow stages within early recruitment stages (Applied → Interviewed → Selected).
+
+**Example:** Recruiter who registers new candidates, schedules interviews, and shortlists them for a job order.
+
+### Documentation Officer
+Manages compliance documents and pre-departure health requirements. Verifies uploaded documents (passport, medical report, police clearance). Can move workflow within medical and training stages (Medical Waiting → Medical Fit / Unfit → Training Completed).
+
+**Example:** Compliance officer who confirms medical reports and approves candidates to proceed.
+
+### Visa Officer
+Manages embassy submissions and visa logistics. Can move workflow within visa and departure stages (Visa Submitted → Visa Stamped / Rejected → Ticketed → Deployed). Uploads visa stickers and air tickets.
+
+**Example:** Consular affairs officer who tracks visa outcomes and books flight tickets.
+
+### Accounts Officer
+Manages all financial records. Creates invoices per applicant, records receipts, reviews the ledger, accesses commissions, and generates financial exports. Cannot move workflow stages or upload compliance documents.
+
+**Example:** Finance staff who bills candidates and records their payments.
+
+### Agent
+External recruitment partner with a scoped view. Can only see and manage their own sourced candidates. Can upload documents for their candidates and view their own commission records. Cannot see other agents' data, financial records, or RBAC settings.
+
+**Example:** Third-party recruiter in a regional city who sends candidates to the agency.
+
+### Applicant
+Placed candidate with a self-service portal. Can view their own profile, current stage, documents, invoices, and receipts. Cannot edit their own record or access any staff data.
+
+**Example:** A candidate who wants to check their visa status or download their medical report receipt.
+
+---
+
+## Main Business Journey
+
+```
+1. Applicant Sourced
+   An agent submits a candidate OR HR Officer registers a walk-in candidate.
+   Candidate profile created with passport, phone, trade, and bio-data.
+
+2. Applicant Vetted (HR Stage)
+   HR Officer records interview results.
+   Candidate moved: APPLIED → INTERVIEWED → SELECTED
+   Linked to a Job Order (employer, country, quota).
+
+3. Documents Uploaded (Documentation Stage)
+   Documentation Officer or Agent uploads required documents:
+   - Passport copy
+   - Photo, CV, Police Clearance
+   - Medical Report (after medical check)
+   Each document lands in PENDING_VERIFICATION status.
+   Documentation Officer verifies or rejects documents.
+
+4. Workflow Advances Through Stage Gates
+   Stage transitions enforce document prerequisites:
+   - MEDICAL_FIT requires: verified MEDICAL_REPORT
+   - VISA_SUBMITTED requires: verified PASSPORT
+   - VISA_STAMPED requires: verified VISA_STICKER
+   - TICKETED requires: verified AIR_TICKET
+   - DEPLOYED requires: all four verified
+
+5. Invoices and Receipts (Accounts Stage)
+   Accounts Officer creates invoice(s) for the candidate.
+   As candidate pays, receipts are recorded.
+   Each invoice/receipt creates a ledger entry (debit/credit).
+   Invoice outstanding balance updates automatically.
+
+6. Commission Accrued and Paid
+   When a candidate is DEPLOYED, commission is accrued for the linked agent.
+   Accounts Officer releases payment and records payout reference.
+
+7. Reporting and Audit
+   Super Admin / Operations Admin view:
+   - Stage distribution (pipeline health)
+   - Financial totals (invoiced, collected, outstanding)
+   - Commission totals (accrued vs paid)
+   - Audit log of every action
+   - Passport expiry alerts
+   - CSV exports for all modules
 ```
 
 ---
 
-## 4. End-to-End Operational Lifecycle Pipeline
+## What Makes This ERP Presentable as an MVP
 
-The operational lifecycle of a candidate is linear, strict, and stateful. Every candidate must pass through these distinct phases, with specific staff roles executing the validations:
-
-### Phase 1: Demand Sourcing & Job Orders
-* Foreign employers issue a **Job Order** (or Demand Letter) specifying roles needed (e.g., "50 Scaffolders for Saudi Arabia", salary, perks, age limits).
-* Operations Admin enters the Job Order into the system, detailing the visa quotas and financial parameters.
-
-### Phase 2: Candidate Intake & Sourcing
-* **Agent Sourcing**: Authorized Agents log in, view the active Job Orders open to their quota, and upload applicant bio-data (including passport, full name, phone, email, and DOB).
-* **Direct Sourcing**: HR Officers register walk-in applicants and log them in under the "Direct" agent profile.
-* **Portal Invitation & Claim**: The candidate file is created *without* an active `User` login account. Later, an invite or OTP is triggered by the agency. The applicant clicks the link or receives the OTP, verifies their passport/phone, and claims/creates their active `User` credential to access the portal.
-
-### Phase 3: Selection & Vetting
-* HR Officers schedule interviews (physical or virtual).
-* Candidate status changes from `APPLIED` to `INTERVIEWED` and then `SELECTED` (or `REJECTED`).
-* Selected candidates are officially matched to a Job Order, locking in their financial package and commission profiles.
-
-### Phase 4: Compliance & Logistics Vetting (The Agency Pipeline)
-Once selected, candidate processing is split between specialized officers:
-* **Medical**: The Documentation Officer inputs medical center routing and updates status to `MEDICAL_PASSED` or `MEDICAL_FAILED`.
-* **Training & Attestation**: Documentation Officer verifies government clearance cards, occupational training certificates, and police clearances.
-* **Visa Submission**: The Visa Officer processes documents for consulate submission. Status transitions to `VISA_SUBMITTED`, then to `VISA_STAMPED` or `VISA_REJECTED`.
-* **Flight & Ticketing**: Operations Admin/Visa Officer enters flight details, airline PNR, and tickets. Status transitions to `TICKETED`.
-
-### Phase 5: Financial Operations
-* Accounts Officer registers the candidate's custom financial profile based on their Job Order package.
-* **Invoicing**: Invoices are automatically generated for fees (medical fee, visa fee, agency service charge).
-* **Receipts**: Candidate pays at the agency counter or bank transfer. The Accounts Officer logs the payment, generating an immutable Receipt. The ledger updates instantly.
-* **Commission Computation**: Once the candidate status hits `VISA_STAMPED` or `DEPLOYED`, the agent's commission is automatically calculated and unlocked for payout.
-
-### Phase 6: Emigration & Deployment
-* Emigration clearances are verified.
-* The flight takes off, and the status changes to `DEPLOYED`.
-* Archive processes trigger, leaving candidate files readable but immutable for subsequent years for audit purposes.
-
----
-
-## 5. What this ERP is NOT (Strict Boundaries)
-
-1. **No Anonymous Job Board**: A guest user visiting the ERP landing page will only see a premium secure login portal. There is no public "Careers" or "Job List" page.
-2. **No Applicant Self-Matching**: Applicants cannot browse other Job Orders to swap positions. They are matched by HR staff and can only see the specific job they have been selected for.
-3. **No Direct Messaging Between Applicant and Employer**: All communications flow strictly through the Agency's coordination staff to preserve regulatory compliance and agency service fees.
-4. **No Financial Deletions**: Under no circumstances can invoices or receipts be deleted. They must be formally reversed using Credit Notes or Cancellation transactions to ensure a perfect forensic audit trail.
+- **All core modules are functional end-to-end** with real database data
+- **JWT authentication** with access + refresh token architecture
+- **Dynamic RBAC** pulled from the database at login — permissions are not hardcoded per user
+- **Stage-gate enforcement** at the API level — no role can bypass document prerequisites without an admin override with remarks
+- **Audit logs** are automatically written for every mutation (create applicant, transition stage, upload document, record receipt, accrue commission, archive)
+- **Notifications** are automatically created on key events (stage change, document upload, new invoice)
+- **Soft archive** preserves all financial records while hiding candidates from the active pipeline
+- **CSV export** for every major data entity
+- **Applicant portal** — candidates can log in and view their own dossier
+- **Agent scoped view** — agents only see their own candidates and commissions
+- **Role-specific dashboards** — each role sees tailored KPIs and action queues
+- **Light/dark theme** with CSS variable design tokens — consistent across all pages

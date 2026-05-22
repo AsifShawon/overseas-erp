@@ -95,3 +95,48 @@ export async function generateReceiptNumber(tx?: any): Promise<string> {
   const paddedSeq = String(nextSequence).padStart(5, "0");
   return `${prefix}${paddedSeq}`;
 }
+
+/**
+ * Generates the next sequential agent code prefixing with 'AGT-'.
+ * Performs database lookup inside the provided Prisma transaction (or defaults to the global prisma client).
+ * 
+ * @param tx Optional Prisma transaction or client instance to prevent race conditions
+ * @returns {Promise<string>} Next agent sequence code (e.g. "AGT-004")
+ */
+export async function generateAgentCode(tx?: any): Promise<string> {
+  const db = tx || prisma;
+  const prefix = "AGT-";
+
+  const agents = await db.agent.findMany({
+    where: {
+      agentCode: {
+        startsWith: prefix,
+      },
+    },
+    select: {
+      agentCode: true,
+    },
+  });
+
+  let nextSequence = 1;
+
+  if (agents && agents.length > 0) {
+    const sequences = agents.map((agt: { agentCode: string }) => {
+      const parts = agt.agentCode.split("-");
+      // Format: ["AGT", "XXX"]
+      if (parts.length === 2) {
+        const lastSeqString = parts[1];
+        const parsedSeq = parseInt(lastSeqString, 10);
+        return isNaN(parsedSeq) ? 0 : parsedSeq;
+      }
+      return 0;
+    });
+
+    const maxSeq = Math.max(0, ...sequences);
+    nextSequence = maxSeq + 1;
+  }
+
+  const paddedSeq = String(nextSequence).padStart(3, "0");
+  return `${prefix}${paddedSeq}`;
+}
+

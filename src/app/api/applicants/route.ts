@@ -242,6 +242,35 @@ export async function POST(request: Request) {
       },
     });
 
+    // Notify staff users (Super Admin, Operations Admin, HR Officer)
+    try {
+      const staffUsers = await prisma.user.findMany({
+        where: {
+          role: {
+            name: {
+              in: ["Super Admin", "Operations Admin", "HR Officer"],
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (staffUsers.length > 0) {
+        await prisma.notification.createMany({
+          data: staffUsers.map((u) => ({
+            userId: u.id,
+            title: "New Candidate Registered",
+            message: `${applicant.fullName} (${applicant.trade}) has been registered by ${roleName}.`,
+            isRead: false,
+          })),
+        });
+      }
+    } catch (notifErr) {
+      console.error("Error creating registration notifications:", notifErr);
+    }
+
     // Create Audit Log entry
     await prisma.auditLog.create({
       data: {

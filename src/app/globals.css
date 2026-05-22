@@ -119,54 +119,57 @@
 }
 
 /* 5. Base Styles for Layout and Core Elements */
-body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
-  transition: background-color 0.2s ease, color 0.2s ease;
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Ensure focus ring outlines and core components match colors */
+  input, select, textarea {
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--input-border);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+
+  select option, select optgroup {
+    background-color: var(--input-bg);
+    color: var(--input-text);
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: var(--input-placeholder);
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+    border-color: var(--primary);
+  }
+
+  input:disabled, select:disabled, textarea:disabled, button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: var(--bg-muted) !important;
+    color: var(--text-soft) !important;
+    border-color: var(--border) !important;
+  }
+
+  input[type="checkbox"], input[type="radio"] {
+    accent-color: var(--primary);
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+  }
 }
 
-/* Ensure focus ring outlines and core components match colors */
-input, select, textarea {
-  background-color: var(--input-bg);
-  color: var(--input-text);
-  border: 1px solid var(--input-border);
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-select option, select optgroup {
-  background-color: var(--input-bg);
-  color: var(--input-text);
-}
-
-input::placeholder, textarea::placeholder {
-  color: var(--input-placeholder);
-}
-
-input:focus, select:focus, textarea:focus {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
-  border-color: var(--primary);
-}
-
-input:disabled, select:disabled, textarea:disabled, button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: var(--bg-muted) !important;
-  color: var(--text-soft) !important;
-  border-color: var(--border) !important;
-}
-
-input[type="checkbox"], input[type="radio"] {
-  accent-color: var(--primary);
-  width: 1rem;
-  height: 1rem;
-  cursor: pointer;
-}
 
 /* 6. Global ERP Utility Classes */
 .app-shell {

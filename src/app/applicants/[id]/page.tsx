@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { ApplicantProfileCard } from "@/components/shared/ApplicantProfileCard";
+import { PortalAccessPanel } from "@/components/shared/PortalAccessPanel";
 import { DocumentChecklist } from "@/components/shared/DocumentChecklist";
 import { LedgerTable } from "@/components/shared/LedgerTable";
 import { WorkflowStepper } from "@/components/shared/WorkflowStepper";
@@ -717,7 +718,17 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
         {/* Tab View Container */}
         <div className="lg:col-span-3">
-          {activeTab === "bio" && <ApplicantProfileCard applicant={applicant} />}
+          {activeTab === "bio" && (
+            <div className="space-y-6">
+              <ApplicantProfileCard applicant={applicant} />
+              <PortalAccessPanel
+                applicant={applicant}
+                accessToken={accessToken}
+                userRole={user ? user.roleName : null}
+                onRefresh={loadData}
+              />
+            </div>
+          )}
 
           {activeTab === "compliance" && (
             <DocumentChecklist
