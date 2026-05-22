@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MockLedgerEntry } from "@/lib/mockData";
+import { MockLedgerEntry, MockInvoice } from "@/lib/mockData";
 import { StatusBadge } from "../ui/StatusBadge";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { Landmark, Printer, CreditCard, Receipt as ReceiptIcon, FilePlus } from "lucide-react";
@@ -9,8 +9,9 @@ import { Landmark, Printer, CreditCard, Receipt as ReceiptIcon, FilePlus } from 
 interface LedgerTableProps {
   entries: MockLedgerEntry[];
   outstandingBalance: number;
-  onRecordPayment?: (amount: number, method: string, ref: string) => void;
-  onRecordInvoice?: (amount: number, desc: string, dueDate: string) => void;
+  onRecordPayment?: (amount: number, method: string, ref: string, invoiceId: string) => void | Promise<void>;
+  onRecordInvoice?: (amount: number, desc: string, dueDate: string) => void | Promise<void>;
+  invoices?: MockInvoice[];
 }
 
 export function LedgerTable({
@@ -18,6 +19,7 @@ export function LedgerTable({
   outstandingBalance,
   onRecordPayment,
   onRecordInvoice,
+  invoices = [],
 }: LedgerTableProps) {
   const { user } = useMockAuth();
   const [modalOpen, setModalOpen] = useState(false);
@@ -28,23 +30,40 @@ export function LedgerTable({
   const [descOrRef, setDescOrRef] = useState("");
   const [payMethod, setPayMethod] = useState("BANK_TRANSFER");
   const [dueDate, setDueDate] = useState("");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) return;
+    if (isNaN(val) || val <= 0) {
+      alert("Please enter a valid amount greater than zero.");
+      return;
+    }
 
     if (modalType === "PAYMENT" && onRecordPayment) {
-      onRecordPayment(val, payMethod, descOrRef || "TXN_MOCK_REF");
+      if (!selectedInvoiceId) {
+        alert("Please select an outstanding invoice to apply payment.");
+        return;
+      }
+      onRecordPayment(val, payMethod, descOrRef || "TXN_MOCK_REF", selectedInvoiceId);
     } else if (modalType === "INVOICE" && onRecordInvoice) {
-      const formattedDueDate = dueDate || new Date().toISOString().split("T")[0];
-      onRecordInvoice(val, descOrRef || "KSA Medical/Embassy invoice", formattedDueDate);
+      if (!dueDate) {
+        alert("Due date is required for custom invoices.");
+        return;
+      }
+      const parsedDate = Date.parse(dueDate);
+      if (isNaN(parsedDate)) {
+        alert("Please enter a valid due date.");
+        return;
+      }
+      onRecordInvoice(val, descOrRef || "KSA Medical/Embassy invoice", dueDate);
     }
 
     // Reset
     setAmount("");
     setDescOrRef("");
     setDueDate("");
+    setSelectedInvoiceId("");
     setModalOpen(false);
   };
 
@@ -161,6 +180,37 @@ export function LedgerTable({
             </p>
 
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+              {modalType === "PAYMENT" && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400">Select Outstanding Invoice</label>
+                  {(() => {
+                    const outstandingInvoices = invoices.filter((inv) => inv.outstanding > 0);
+                    if (outstandingInvoices.length === 0) {
+                      return (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50/55 p-3 text-[11px] text-amber-800 dark:border-amber-900/30 dark:bg-amber-950/20 dark:text-amber-400 leading-relaxed">
+                          No outstanding invoices available to record payments against. Please issue an invoice first.
+                        </div>
+                      );
+                    }
+                    return (
+                      <select
+                        value={selectedInvoiceId}
+                        onChange={(e) => setSelectedInvoiceId(e.target.value)}
+                        required
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+                      >
+                        <option value="">-- Choose Invoice --</option>
+                        {outstandingInvoices.map((inv) => (
+                          <option key={inv.id} value={inv.id}>
+                            {inv.invoiceNo} - {inv.description} (Owed: ${Number(inv.outstanding).toLocaleString()})
+                          </option>
+                        ))}
+                      </select>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400">Transaction Amount ($)</label>
                 <input
@@ -171,6 +221,7 @@ export function LedgerTable({
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="e.g. 1500.00"
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+                  disabled={modalType === "PAYMENT" && invoices.filter((inv) => inv.outstanding > 0).length === 0}
                 />
               </div>
 
@@ -182,6 +233,7 @@ export function LedgerTable({
                       value={payMethod}
                       onChange={(e) => setPayMethod(e.target.value)}
                       className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+                      disabled={invoices.filter((inv) => inv.outstanding > 0).length === 0}
                     >
                       <option value="BANK_TRANSFER">Electronic Bank Transfer</option>
                       <option value="CASH">Counter Cash Desk</option>
@@ -197,6 +249,7 @@ export function LedgerTable({
                       onChange={(e) => setDescOrRef(e.target.value)}
                       placeholder="e.g. FT889211029"
                       className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+                      disabled={invoices.filter((inv) => inv.outstanding > 0).length === 0}
                     />
                   </div>
                 </>
@@ -236,7 +289,8 @@ export function LedgerTable({
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-sm"
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-sm disabled:opacity-50"
+                  disabled={modalType === "PAYMENT" && invoices.filter((inv) => inv.outstanding > 0).length === 0}
                 >
                   Save Entry
                 </button>

@@ -141,6 +141,11 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   const [invoicingError, setInvoicingError] = useState<string | null>(null);
   const [invoicingSuccess, setInvoicingSuccess] = useState<boolean>(false);
 
+  // Receipt states
+  const [recordingReceipt, setRecordingReceipt] = useState<boolean>(false);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [receiptSuccess, setReceiptSuccess] = useState<boolean>(false);
+
   // Tab and Interactive state
   const [activeTab, setActiveTab] = useState<"bio" | "compliance" | "financial">("bio");
   const [selectedReceipt, setSelectedReceipt] = useState<MockReceipt | undefined>(undefined);
@@ -426,8 +431,55 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     }
   };
 
-  const handleRecordPayment = (amount: number, method: string, ref: string) => {
-    setReadOnlyAlert({ action: `Record Payment Receipt ($${amount} via ${method}, Ref: ${ref})` });
+  const handleRecordPayment = async (amount: number, method: string, ref: string, invoiceId: string) => {
+    if (!accessToken) return;
+    try {
+      setRecordingReceipt(true);
+      setReceiptError(null);
+      setReceiptSuccess(false);
+
+      const res = await fetch(`/api/applicants/${id}/receipts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          invoiceId,
+          amountPaid: amount,
+          paymentMethod: method,
+          referenceNo: ref,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to record payment receipt. HTTP ${res.status}`);
+      }
+
+      const { receipt, applicant: updatedData } = await res.json();
+      setDbData(updatedData);
+      setReceiptSuccess(true);
+
+      if (receipt) {
+        const mappedReceipt: MockReceipt = {
+          id: receipt.id,
+          receiptNo: receipt.receiptNo,
+          applicantId: receipt.applicantId,
+          invoiceId: receipt.invoiceId,
+          amountPaid: Number(receipt.amountPaid),
+          paymentMethod: receipt.paymentMethod as MockReceipt["paymentMethod"],
+          referenceNo: receipt.referenceNo,
+          receivedBy: "Accounts Officer",
+          createdAt: new Date(receipt.createdAt).toISOString(),
+        };
+        setSelectedReceipt(mappedReceipt);
+      }
+    } catch (err: any) {
+      setReceiptError(err.message || "An error occurred during payment recording.");
+    } finally {
+      setRecordingReceipt(false);
+    }
   };
 
   const handleRecordInvoice = async (amount: number, desc: string, dueDate: string) => {
@@ -620,6 +672,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
               outstandingBalance={outstandingBalance}
               onRecordPayment={handleRecordPayment}
               onRecordInvoice={handleRecordInvoice}
+              invoices={invoices}
             />
           )}
         </div>
@@ -630,7 +683,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
         <ReceiptPreview
           receipt={selectedReceipt}
           applicant={applicant}
-          invoice={invoice}
+          invoice={invoices.find((i) => i.id === selectedReceipt.invoiceId)}
           onClose={() => setSelectedReceipt(undefined)}
         />
       )}
@@ -763,6 +816,71 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setInvoicingError(null)}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700 shadow-sm shadow-rose-600/20 hover:shadow-rose-600/30"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glassmorphic Receipt Loading Overlay */}
+      {recordingReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-xl border border-slate-100 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
+            <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-slate-900 mx-auto">
+              <Globe2 className="h-6 w-6 text-indigo-500 animate-spin" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                Recording Payment Receipt...
+              </h3>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                Writing double-entry credit ledger entries and decrementing invoice dues securely.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glassmorphic Receipt Success Alert Modal */}
+      {receiptSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-xl border border-emerald-100 bg-white p-6 shadow-xl dark:border-emerald-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+              <Sparkles className="h-5 w-5 animate-pulse shrink-0" />
+              <h3 className="text-sm font-bold uppercase tracking-wider">Payment Recorded</h3>
+            </div>
+            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Candidate payment receipt successfully processed. The transaction has been posted as a credit entry in the candidate's statement.
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setReceiptSuccess(false)}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 hover:shadow-emerald-600/30"
+              >
+                Acknowledge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glassmorphic Receipt Error Alert Modal */}
+      {receiptError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-xl border border-rose-100 bg-white p-6 shadow-xl dark:border-rose-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <ShieldAlert className="h-5 w-5 shrink-0" />
+              <h3 className="text-sm font-bold uppercase tracking-wider">Receipt Failed</h3>
+            </div>
+            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              {receiptError}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setReceiptError(null)}
                 className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700 shadow-sm shadow-rose-600/20 hover:shadow-rose-600/30"
               >
                 Dismiss
