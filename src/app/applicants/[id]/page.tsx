@@ -3,6 +3,7 @@
 import React, { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMockAuth } from "@/context/MockAuthContext";
+import { useToast } from "@/context/ToastContext";
 import { ApplicantProfileCard } from "@/components/shared/ApplicantProfileCard";
 import { DocumentChecklist } from "@/components/shared/DocumentChecklist";
 import { LedgerTable } from "@/components/shared/LedgerTable";
@@ -124,6 +125,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   const router = useRouter();
   const { id } = use(params);
   const { user, accessToken, loading: authLoading, hasAccess } = useMockAuth();
+  const toast = useToast();
 
   const canArchive =
     user && (
@@ -389,7 +391,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
       const updatedData = await res.json();
       setDbData(updatedData);
     } catch (err: any) {
-      alert("Verification Error: " + err.message);
+      toast.error("Verification Error: " + err.message);
     }
   };
 
@@ -442,7 +444,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
-      alert("Download Error: " + err.message);
+      toast.error("Download Error: " + err.message);
     }
   };
 

@@ -8,6 +8,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { PermissionGate } from "@/components/ui/PermissionGate";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { CheckCircle, FileSpreadsheet, Loader2, AlertCircle, ShieldAlert } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 interface FlattenedCommission {
   id: string;
@@ -30,6 +31,7 @@ interface FlattenedCommission {
 
 export default function CommissionsPage() {
   const { accessToken, activeRoleName } = useMockAuth();
+  const toast = useToast();
 
   const isAgent = activeRoleName === "Agent";
   const isStaffOrAdmin = ["Super Admin", "Operations Admin", "Accounts Officer"].includes(activeRoleName);
@@ -82,7 +84,7 @@ export default function CommissionsPage() {
       link.click();
       link.parentNode?.removeChild(link);
     } catch (err: any) {
-      alert(err.message || "An unexpected error occurred during export.");
+      toast.error(err.message || "An unexpected error occurred during export.");
     } finally {
       setIsExporting(false);
     }
@@ -154,11 +156,11 @@ export default function CommissionsPage() {
       }
 
       const data = await res.json();
-      alert(`Commission placement scan complete! Accrued ${data.count} new placements.`);
+      toast.success(`Commission placement scan complete! Accrued ${data.count} new placements.`);
       await fetchCommissions();
     } catch (err: any) {
       console.error("Error running accrual scan:", err);
-      alert(err.message || "An unexpected error occurred while running accrual scan.");
+      toast.error(err.message || "An unexpected error occurred while running accrual scan.");
     } finally {
       setAccruing(false);
     }

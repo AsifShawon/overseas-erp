@@ -8,9 +8,11 @@ import { PermissionGate } from "@/components/ui/PermissionGate";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { Eye, Terminal, ArrowDownRight, Loader2, FileSpreadsheet } from "lucide-react";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { useToast } from "@/context/ToastContext";
 
 export default function AuditLogsPage() {
   const { accessToken } = useMockAuth();
+  const toast = useToast();
   const [selectedLog, setSelectedLog] = useState<any | undefined>(undefined);
   const [logsList, setLogsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,7 +47,7 @@ export default function AuditLogsPage() {
       link.click();
       link.parentNode?.removeChild(link);
     } catch (err: any) {
-      alert(err.message || "An unexpected error occurred during export.");
+      toast.error(err.message || "An unexpected error occurred during export.");
     } finally {
       setIsExporting(false);
     }

@@ -23,6 +23,13 @@ export function escapeCsvValue(value: any): string {
     str = String(value);
   }
 
+  // Mitigate CSV / Spreadsheet Formula Injection (neutralize characters: =, +, -, @, tab, cr, lf)
+  const trimmed = str.trimStart();
+  const injectionChars = ["=", "+", "-", "@", "\t", "\r", "\n"];
+  if (trimmed.length > 0 && injectionChars.some((char) => trimmed.startsWith(char))) {
+    str = `'${str}`;
+  }
+
   // If string contains comma, double-quote, or newline characters, we must double-quote it.
   if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
     return `"${str.replace(/"/g, '""')}"`;

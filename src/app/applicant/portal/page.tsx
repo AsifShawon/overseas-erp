@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useMockAuth } from "@/context/MockAuthContext";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 import { WorkflowStepper } from "@/components/shared/WorkflowStepper";
 import { DocumentChecklist } from "@/components/shared/DocumentChecklist";
@@ -9,57 +11,206 @@ import { LedgerTable } from "@/components/shared/LedgerTable";
 import { ReceiptPreview } from "@/components/shared/ReceiptPreview";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
-  MOCK_APPLICANTS,
-  MOCK_LEDGERS,
-  MOCK_INVOICES,
-  MOCK_RECEIPTS,
   MockApplicant,
   MockDocument,
   MockReceipt,
+  MockInvoice,
 } from "@/lib/mockData";
-import { User, ShieldCheck, Mail, Phone, Calendar, Printer, FileText } from "lucide-react";
+import { User, ShieldCheck, Mail, Phone, Calendar, Printer, FileText, XCircle, Loader2 } from "lucide-react";
 
 export default function ApplicantPortalPage() {
-  const { user } = useMockAuth();
+  const router = useRouter();
+  const { user, accessToken } = useMockAuth();
+  const toast = useToast();
 
-  // Find applicant record matching this user session (default is app-1 / Mohammad Al-Amin)
-  const baseApplicant = MOCK_APPLICANTS.find((a) => a.id === user.applicantId) || MOCK_APPLICANTS[0];
+  // React state elements for dynamic API dossier rendering
+  const [applicant, setApplicant] = useState<MockApplicant | null>(null);
+  const [documents, setDocuments] = useState<MockDocument[]>([]);
+  const [ledgers, setLedgers] = useState<any[]>([]);
+  const [invoice, setInvoice] = useState<MockInvoice | undefined>(undefined);
+  const [receipts, setReceipts] = useState<MockReceipt[]>([]);
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [prevApplicantId, setPrevApplicantId] = useState(baseApplicant.id);
-  const [applicant, setApplicant] = useState<MockApplicant>(baseApplicant);
-  const [documents, setDocuments] = useState<MockDocument[]>(baseApplicant.documents);
   const [selectedReceipt, setSelectedReceipt] = useState<MockReceipt | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<"progress" | "documents" | "ledger">("progress");
 
-  // Adjust state synchronously if baseApplicant changes (e.g. from dynamic role switches)
-  if (baseApplicant.id !== prevApplicantId) {
-    setPrevApplicantId(baseApplicant.id);
-    setApplicant(baseApplicant);
-    setDocuments(baseApplicant.documents);
-  }
+  // 1. Strict Role-Guard Redirection
+  useEffect(() => {
+    if (user && user.roleName !== "Applicant") {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
 
-  // Derive stable list constants to satisfy react-hooks/set-state-in-effect and avoid double render loops
-  const ledgers = MOCK_LEDGERS.filter((l) => l.applicantId === baseApplicant.id);
-  const invoice = MOCK_INVOICES.find((i) => i.applicantId === baseApplicant.id);
-  const receipts = MOCK_RECEIPTS.filter((r) => r.applicantId === baseApplicant.id);
+  // 2. Fetch live applicant dossier via GET /api/applicant/portal
+  useEffect(() => {
+    let active = true;
 
+    const fetchDossier = async () => {
+      if (!accessToken) return;
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch("/api/applicant/portal", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (!res.ok) {
+          if (res.status === 403) {
+            throw new Error("Access Denied. You do not have permissions to view this portal.");
+          }
+          const data = await res.json();
+          throw new Error(data.error || "Failed to retrieve emigration dossier.");
+        }
+
+        const data = await res.json();
+        if (active) {
+          setApplicant(data);
+          setDocuments(data.documents || []);
+          setLedgers(data.ledgerEntries || []);
+          // Extract primary invoice from invoices list
+          setInvoice(data.invoices?.[0] || undefined);
+          setReceipts(data.receipts || []);
+        }
+      } catch (err: any) {
+        if (active) {
+          setError(err.message || "An unexpected connection error occurred.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchDossier();
+    return () => {
+      active = false;
+    };
+  }, [accessToken]);
+
+  // 3. Document Secure Upload handler
   const handleUploadDocument = async (
     docType: string,
     file: File,
     expiryDate?: string,
     remarks?: string
   ) => {
-    const newDoc: MockDocument = {
-      id: `doc-sim-${Date.now()}`,
-      documentType: docType as MockDocument["documentType"],
-      fileName: file.name,
-      fileUrl: "#",
-      status: "PENDING_VERIFICATION",
-    };
-    const updatedDocs = [...documents, newDoc];
-    setDocuments(updatedDocs);
-    setApplicant((prev) => ({ ...prev, documents: updatedDocs }));
+    if (!applicant || !accessToken) return;
+
+    const formData = new FormData();
+    formData.append("documentType", docType);
+    formData.append("file", file);
+    if (expiryDate) formData.append("expiryDate", expiryDate);
+    if (remarks) formData.append("remarks", remarks);
+
+    const res = await fetch(`/api/applicants/${applicant.id}/documents`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || "Failed to upload compliance file.");
+    }
+
+    const updatedApplicant = await res.json();
+    setApplicant(updatedApplicant);
+    if (updatedApplicant.documents) {
+      // Re-map storage URLs to secure downloadable streams
+      const safeDocs = updatedApplicant.documents.map((doc: any) => ({
+        ...doc,
+        fileUrl: `/api/applicants/${updatedApplicant.id}/documents/${doc.id}/download`,
+      }));
+      setDocuments(safeDocs);
+    }
   };
+
+  // 4. Secure streamed downloads using JWT validation
+  const handleDownloadDocument = async (docId: string, fileName: string) => {
+    if (!applicant || !accessToken) return;
+    try {
+      const res = await fetch(`/api/applicants/${applicant.id}/documents/${docId}/download`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Access Denied. You cannot view files from other candidates.");
+        }
+        throw new Error("Failed to download compliance file.");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error("Secure download failed:", err);
+      toast.error(err.message || "An unexpected error occurred during download.");
+    }
+  };
+
+  // 5. Elegant Loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <Loader2 className="h-10 w-10 text-indigo-600 animate-spin dark:text-indigo-400" />
+        <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Retrieving Emigration Dossier...</p>
+      </div>
+    );
+  }
+
+  // 6. Error/403 state layout
+  if (error) {
+    return (
+      <div className="rounded-xl border border-rose-100 bg-rose-50/20 p-6 shadow-sm max-w-2xl mx-auto dark:border-rose-950/20 dark:bg-rose-950/5">
+        <div className="flex gap-3">
+          <XCircle className="h-6 w-6 text-rose-600 shrink-0 dark:text-rose-400" />
+          <div>
+            <h4 className="text-sm font-bold text-rose-900 dark:text-rose-400 font-bold">Portal Access Restriction</h4>
+            <p className="mt-2 text-xs text-rose-700/80 dark:text-rose-400/80 leading-relaxed">
+              {error}
+            </p>
+            <div className="mt-4">
+              <button
+                onClick={() => window.location.reload()}
+                className="rounded bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 transition"
+              >
+                Retry Request Handshake
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 7. Empty state layout
+  if (!applicant) {
+    return (
+      <div className="text-center py-16 border border-dashed border-slate-200 rounded-xl bg-slate-50/30 text-slate-500 max-w-2xl mx-auto dark:border-slate-800 dark:bg-slate-950">
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">No Active Dossier Linked</h3>
+        <p className="mt-2 text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+          We could not find an active emigration recruitment dossier matching your credentials. Please contact your operations administrator.
+        </p>
+      </div>
+    );
+  }
 
   const outstandingBalance = invoice ? invoice.outstanding : 0;
 
@@ -168,7 +319,11 @@ export default function ApplicantPortalPage() {
         )}
 
         {activeTab === "documents" && (
-          <DocumentChecklist documents={documents} onUpload={handleUploadDocument} />
+          <DocumentChecklist 
+            documents={documents} 
+            onUpload={handleUploadDocument} 
+            onDownload={handleDownloadDocument} 
+          />
         )}
 
         {activeTab === "ledger" && (

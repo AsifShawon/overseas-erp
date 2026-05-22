@@ -8,6 +8,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { PermissionGate } from "@/components/ui/PermissionGate";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { FileSpreadsheet, Loader2, AlertCircle, ShieldAlert } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 interface FlattenedLedger {
   id: string;
@@ -25,6 +26,7 @@ interface FlattenedLedger {
 
 export default function AccountsPage() {
   const { accessToken, activeRoleName } = useMockAuth();
+  const toast = useToast();
 
   const [ledgers, setLedgers] = useState<FlattenedLedger[]>([]);
   const [stats, setStats] = useState({
@@ -60,7 +62,7 @@ export default function AccountsPage() {
       link.click();
       link.parentNode?.removeChild(link);
     } catch (err: any) {
-      alert(err.message || "An unexpected error occurred during export.");
+      toast.error(err.message || "An unexpected error occurred during export.");
     } finally {
       setIsExporting(false);
     }

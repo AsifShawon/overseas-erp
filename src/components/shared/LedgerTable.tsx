@@ -5,6 +5,7 @@ import { MockLedgerEntry, MockInvoice } from "@/lib/mockData";
 import { StatusBadge } from "../ui/StatusBadge";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { Landmark, Printer, CreditCard, Receipt as ReceiptIcon, FilePlus } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 interface LedgerTableProps {
   entries: MockLedgerEntry[];
@@ -22,6 +23,7 @@ export function LedgerTable({
   invoices = [],
 }: LedgerTableProps) {
   const { user } = useMockAuth();
+  const toast = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"PAYMENT" | "INVOICE">("PAYMENT");
 
@@ -36,24 +38,24 @@ export function LedgerTable({
     e.preventDefault();
     const val = parseFloat(amount);
     if (isNaN(val) || val <= 0) {
-      alert("Please enter a valid amount greater than zero.");
+      toast.warning("Please enter a valid amount greater than zero.");
       return;
     }
 
     if (modalType === "PAYMENT" && onRecordPayment) {
       if (!selectedInvoiceId) {
-        alert("Please select an outstanding invoice to apply payment.");
+        toast.warning("Please select an outstanding invoice to apply payment.");
         return;
       }
       onRecordPayment(val, payMethod, descOrRef || "TXN_MOCK_REF", selectedInvoiceId);
     } else if (modalType === "INVOICE" && onRecordInvoice) {
       if (!dueDate) {
-        alert("Due date is required for custom invoices.");
+        toast.warning("Due date is required for custom invoices.");
         return;
       }
       const parsedDate = Date.parse(dueDate);
       if (isNaN(parsedDate)) {
-        alert("Please enter a valid due date.");
+        toast.warning("Please enter a valid due date.");
         return;
       }
       onRecordInvoice(val, descOrRef || "KSA Medical/Embassy invoice", dueDate);
@@ -127,7 +129,7 @@ export function LedgerTable({
         <div className="flex items-center justify-between border-b border-slate-100 p-5 dark:border-slate-800">
           <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase">Double-Entry Ledger Log</h3>
           <button
-            onClick={() => alert("Simulating print folder download...")}
+            onClick={() => toast.info("Simulating print folder download...")}
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400"
           >
             <Printer className="h-3.5 w-3.5" /> Print Statement

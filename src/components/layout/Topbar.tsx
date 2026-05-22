@@ -5,6 +5,7 @@ import { useMockAuth } from "@/context/MockAuthContext";
 import { Bell, Search, LogOut, ChevronDown, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { MOCK_NOTIFICATIONS } from "@/lib/mockData";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function Topbar() {
   const { user, allUsers, switchRole, logout } = useMockAuth();
@@ -81,6 +82,9 @@ export function Topbar() {
             </span>
           )}
         </div>
+
+        {/* Theme Toggle Switcher */}
+        <ThemeToggle />
 
         {/* User Account Settings Dropdown */}
         <div className="relative">

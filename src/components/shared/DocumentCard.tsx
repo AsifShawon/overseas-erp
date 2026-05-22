@@ -7,6 +7,7 @@ import React from "react";
 import { MockDocument } from "@/lib/mockData";
 import { StatusBadge } from "../ui/StatusBadge";
 import { FileText, ShieldCheck, CheckCircle, XCircle, Download } from "lucide-react";
+import { useDialog } from "@/context/DialogContext";
 
 interface DocumentCardProps {
   document: MockDocument;
@@ -24,11 +25,19 @@ export function DocumentCard({
   className = "",
 }: DocumentCardProps) {
   
+  const { prompt } = useDialog();
+
   // Triggers secure audit verification with comments prompted from user
-  const handleVerifyClick = (status: "VERIFIED" | "REJECTED") => {
+  const handleVerifyClick = async (status: "VERIFIED" | "REJECTED") => {
     if (!onVerify) return;
     const textPrompt = `Enter optional audit remarks for marking this file as ${status === "VERIFIED" ? "Approved" : "Rejected"}:`;
-    const remarks = window.prompt(textPrompt);
+    const remarks = await prompt({
+      title: `${status === "VERIFIED" ? "Approve" : "Reject"} Document`,
+      description: textPrompt,
+      placeholder: "Remarks...",
+      confirmLabel: status === "VERIFIED" ? "Approve" : "Reject",
+      isDanger: status === "REJECTED",
+    });
     if (remarks !== null) {
       onVerify(document.id, status, remarks || undefined);
     }

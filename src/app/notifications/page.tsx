@@ -6,9 +6,11 @@ import { StatCard } from "@/components/ui/StatCard";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { Bell, BellOff, CheckCircle, AlertTriangle, Plus, Loader2 } from "lucide-react";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { useToast } from "@/context/ToastContext";
 
 export default function NotificationsPage() {
   const { user, accessToken } = useMockAuth();
+  const toast = useToast();
   const [notificationsList, setNotificationsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +144,7 @@ export default function NotificationsPage() {
       }));
     } catch (err: any) {
       console.error("Simulate alert API failure:", err);
-      alert(err.message || "Failed to simulate system alert. Ensure you are in development mode.");
+      toast.error(err.message || "Failed to simulate system alert. Ensure you are in development mode.");
     }
   };
 

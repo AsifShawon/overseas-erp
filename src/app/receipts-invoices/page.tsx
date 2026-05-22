@@ -9,6 +9,7 @@ import { PermissionGate } from "@/components/ui/PermissionGate";
 import { ReceiptPreview } from "@/components/shared/ReceiptPreview";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { FileSpreadsheet, Plus, Printer, Loader2, AlertCircle } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 interface FlattenedInvoice {
   id: string;
@@ -51,6 +52,7 @@ interface FlattenedReceipt {
 export default function ReceiptsInvoicesPage() {
   const router = useRouter();
   const { accessToken } = useMockAuth();
+  const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<"invoices" | "receipts">("invoices");
 
@@ -89,7 +91,7 @@ export default function ReceiptsInvoicesPage() {
       link.click();
       link.parentNode?.removeChild(link);
     } catch (err: any) {
-      alert(err.message || "An unexpected error occurred during export.");
+      toast.error(err.message || "An unexpected error occurred during export.");
     } finally {
       setIsExporting(false);
     }

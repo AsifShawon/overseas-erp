@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMockAuth } from "@/context/MockAuthContext";
+import { useToast } from "@/context/ToastContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -13,6 +14,7 @@ import { SlidersHorizontal, Plus, FileSpreadsheet, Loader2, AlertCircle } from "
 export default function ApplicantsPage() {
   const router = useRouter();
   const { hasAccess, accessToken } = useMockAuth();
+  const toast = useToast();
 
   // Component states
   const [applicants, setApplicants] = useState<any[]>([]);
@@ -48,7 +50,7 @@ export default function ApplicantsPage() {
       link.click();
       link.parentNode?.removeChild(link);
     } catch (err: any) {
-      alert(err.message || "An unexpected error occurred during export.");
+      toast.error(err.message || "An unexpected error occurred during export.");
     } finally {
       setIsExporting(false);
     }
