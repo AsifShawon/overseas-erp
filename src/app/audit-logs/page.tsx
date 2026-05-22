@@ -1,22 +1,78 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
 import { StatCard } from "@/components/ui/StatCard";
 import { PermissionGate } from "@/components/ui/PermissionGate";
-import { MOCK_AUDIT_LOGS, MockAuditLog } from "@/lib/mockData";
-import { Eye, Terminal, ArrowDownRight } from "lucide-react";
+import { useMockAuth } from "@/context/MockAuthContext";
+import { Eye, Terminal, ArrowDownRight, Loader2 } from "lucide-react";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 export default function AuditLogsPage() {
-  const [selectedLog, setSelectedLog] = useState<MockAuditLog | undefined>(undefined);
+  const { accessToken } = useMockAuth();
+  const [selectedLog, setSelectedLog] = useState<any | undefined>(undefined);
+  const [logsList, setLogsList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    totalLogs: 0,
+    ipLoggingEnabled: true,
+    auditChainStatus: "SHA-256 Locked",
+  });
 
-  const totalLogs = MOCK_AUDIT_LOGS.length;
+  useEffect(() => {
+    let active = true;
+
+    async function fetchAuditLogs() {
+      if (!accessToken) return;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch("/api/audit-logs?pageSize=1000", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Failed to fetch audit logs (${response.status})`);
+        }
+        const result = await response.json();
+        if (active) {
+          setLogsList(result.data || []);
+          if (result.stats) {
+            setStats(result.stats);
+          } else {
+            setStats({
+              totalLogs: result.meta?.total || (result.data || []).length,
+              ipLoggingEnabled: true,
+              auditChainStatus: "SHA-256 Locked",
+            });
+          }
+        }
+      } catch (err: any) {
+        if (active) {
+          setError(err.message || "An unexpected error occurred while loading audit trails.");
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    fetchAuditLogs();
+
+    return () => {
+      active = false;
+    };
+  }, [accessToken]);
 
   const tableColumns = [
     {
       header: "Timestamp",
-      accessor: (log: MockAuditLog) => (
+      accessor: (log: any) => (
         <span className="text-slate-500 font-medium">
           {new Date(log.timestamp).toLocaleString()}
         </span>
@@ -24,34 +80,36 @@ export default function AuditLogsPage() {
     },
     {
       header: "Audited Staff",
-      accessor: (log: MockAuditLog) => (
+      accessor: (log: any) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-slate-900 dark:text-white">{log.userId}</span>
+          <span className="font-semibold text-slate-900 dark:text-white">
+            {log.user?.fullName || log.userId || "System Engine"}
+          </span>
           <span className="text-[10px] text-slate-400">Role: {log.roleName}</span>
         </div>
       ),
     },
     {
       header: "Operation Action",
-      accessor: (log: MockAuditLog) => (
+      accessor: (log: any) => (
         <span className="font-bold text-slate-950 dark:text-white uppercase tracking-wide">
           {log.actionType}
         </span>
       ),
     },
-    { header: "Module Layer", accessor: (log: MockAuditLog) => log.tableName },
+    { header: "Module Layer", accessor: (log: any) => log.tableName },
     {
       header: "Transaction ID",
-      accessor: (log: MockAuditLog) => (
+      accessor: (log: any) => (
         <span className="font-mono text-[10px] bg-slate-100 px-1 py-0.5 rounded border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
           {log.recordId}
         </span>
       ),
     },
-    { header: "Client IP Address", accessor: (log: MockAuditLog) => log.ipAddress || "System Engine" },
+    { header: "Client IP Address", accessor: (log: any) => log.ipAddress || "System Engine" },
     {
       header: "Delta payload",
-      accessor: (log: MockAuditLog) => (
+      accessor: (log: any) => (
         <button
           onClick={() => setSelectedLog(log)}
           className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400"
@@ -63,9 +121,25 @@ export default function AuditLogsPage() {
     },
   ];
 
+  const renderDeltaJSON = (delta: any) => {
+    if (!delta) return "{}";
+    if (typeof delta === "string") {
+      try {
+        return JSON.stringify(JSON.parse(delta), null, 2);
+      } catch {
+        return JSON.stringify({ rawValue: delta }, null, 2);
+      }
+    }
+    return JSON.stringify(delta, null, 2);
+  };
+
   return (
     <div className="space-y-6">
-      <PermissionGate permission="VIEW_AUDIT_LOGS" showFallback={true} fallbackMessage="Access to the immutable system audit trail and regulatory data-change tracking tables is locked.">
+      <PermissionGate
+        permission="VIEW_AUDIT_LOGS"
+        showFallback={true}
+        fallbackMessage="Access to the immutable system audit trail and regulatory data-change tracking tables is locked."
+      >
         <PageHeader
           title="Immutable Audit Logs"
           description="Regulatory operations change logs. Tracks database insertions, stamp creations, and balance revisions permanently."
@@ -76,19 +150,19 @@ export default function AuditLogsPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
             title="Audited System Entries"
-            value={totalLogs}
+            value={stats.totalLogs}
             description="Forensic records committed"
             iconName="History"
           />
           <StatCard
             title="IP Logging Engine"
-            value="Enabled"
+            value={stats.ipLoggingEnabled ? "Enabled" : "Disabled"}
             description="Collecting vetting host client data"
             iconName="Cpu"
           />
           <StatCard
             title="Audit Chain Integrity"
-            value="SHA-256 Locked"
+            value={stats.auditChainStatus}
             description="No deletion or rollback permitted"
             iconName="ShieldCheck"
           />
@@ -97,14 +171,32 @@ export default function AuditLogsPage() {
         {/* Audit Log Table */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
           <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">
-            immutable Ledger Logs
+            Immutable Ledger Logs
           </h3>
-          <DataTable
-            data={MOCK_AUDIT_LOGS}
-            columns={tableColumns}
-            searchPlaceholder="Search audit events by action..."
-            searchField="actionType"
-          />
+
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-4">
+              <Loader2 className="h-8 w-8 text-indigo-500 animate-spin" />
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
+                Decrypting Ledger Logs...
+              </p>
+            </div>
+          ) : error ? (
+            <ErrorState
+              title="Query Interrupted"
+              description={error}
+              iconName="AlertCircle"
+            />
+          ) : (
+            <DataTable
+              data={logsList}
+              columns={tableColumns}
+              searchPlaceholder="Search audit events by action..."
+              searchField="actionType"
+              emptyStateTitle="Audit Log Trail Clear"
+              emptyStateDescription="No database change records matched the filter query."
+            />
+          )}
         </div>
 
         {/* Change Delta Drawer */}
@@ -135,7 +227,7 @@ export default function AuditLogsPage() {
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Vetting Operator</p>
                       <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">
-                        {selectedLog.userId} ({selectedLog.roleName})
+                        {selectedLog.user?.fullName || selectedLog.userId || "System"} ({selectedLog.roleName})
                       </p>
                     </div>
                     <div>
@@ -158,7 +250,7 @@ export default function AuditLogsPage() {
                       <ArrowDownRight className="h-3.5 w-3.5" /> JSON Delta Diff
                     </p>
                     <pre className="rounded-lg bg-slate-950 p-4 font-mono text-[10px] leading-relaxed text-indigo-400 overflow-x-auto select-all max-h-[50vh]">
-                      {JSON.stringify(JSON.parse(selectedLog.delta || "{}"), null, 2)}
+                      {renderDeltaJSON(selectedLog.delta)}
                     </pre>
                   </div>
                 </div>

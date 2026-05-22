@@ -136,6 +136,11 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   const [transitionError, setTransitionError] = useState<string | null>(null);
   const [transitionSuccess, setTransitionSuccess] = useState<boolean>(false);
 
+  // Invoicing states
+  const [invoicing, setInvoicing] = useState<boolean>(false);
+  const [invoicingError, setInvoicingError] = useState<string | null>(null);
+  const [invoicingSuccess, setInvoicingSuccess] = useState<boolean>(false);
+
   // Tab and Interactive state
   const [activeTab, setActiveTab] = useState<"bio" | "compliance" | "financial">("bio");
   const [selectedReceipt, setSelectedReceipt] = useState<MockReceipt | undefined>(undefined);
@@ -425,8 +430,39 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     setReadOnlyAlert({ action: `Record Payment Receipt ($${amount} via ${method}, Ref: ${ref})` });
   };
 
-  const handleRecordInvoice = (amount: number, desc: string) => {
-    setReadOnlyAlert({ action: `Issue Service Invoice ($${amount} - ${desc})` });
+  const handleRecordInvoice = async (amount: number, desc: string, dueDate: string) => {
+    if (!accessToken) return;
+    try {
+      setInvoicing(true);
+      setInvoicingError(null);
+      setInvoicingSuccess(false);
+
+      const res = await fetch(`/api/applicants/${id}/invoices`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          amount,
+          dueDate,
+          description: desc,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to issue invoice. HTTP ${res.status}`);
+      }
+
+      const updatedData = await res.json();
+      setDbData(updatedData);
+      setInvoicingSuccess(true);
+    } catch (err: any) {
+      setInvoicingError(err.message || "An error occurred during invoice creation.");
+    } finally {
+      setInvoicing(false);
+    }
   };
 
   const handleWorkflowTransition = async (newStage: WorkflowStage, notes: string) => {
@@ -662,6 +698,71 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setTransitionError(null)}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700 shadow-sm shadow-rose-600/20 hover:shadow-rose-600/30"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glassmorphic Invoicing Loading Overlay */}
+      {invoicing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-xl border border-slate-100 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
+            <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-slate-900 mx-auto">
+              <Globe2 className="h-6 w-6 text-indigo-500 animate-spin" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                Processing Invoice Posting...
+              </h3>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                Writing double-entry ledger entries and updating outstanding balances securely.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glassmorphic Invoicing Success Alert Modal */}
+      {invoicingSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-xl border border-emerald-100 bg-white p-6 shadow-xl dark:border-emerald-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+              <Sparkles className="h-5 w-5 animate-pulse shrink-0" />
+              <h3 className="text-sm font-bold uppercase tracking-wider">Invoice Issued</h3>
+            </div>
+            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Service invoice successfully generated. The transaction has been posted as a debit entry in the applicant's ledger.
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setInvoicingSuccess(false)}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 hover:shadow-emerald-600/30"
+              >
+                Acknowledge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glassmorphic Invoicing Error Alert Modal */}
+      {invoicingError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-xl border border-rose-100 bg-white p-6 shadow-xl dark:border-rose-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <ShieldAlert className="h-5 w-5 shrink-0" />
+              <h3 className="text-sm font-bold uppercase tracking-wider">Invoice Failed</h3>
+            </div>
+            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              {invoicingError}
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setInvoicingError(null)}
                 className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700 shadow-sm shadow-rose-600/20 hover:shadow-rose-600/30"
               >
                 Dismiss

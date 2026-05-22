@@ -10,7 +10,7 @@ interface LedgerTableProps {
   entries: MockLedgerEntry[];
   outstandingBalance: number;
   onRecordPayment?: (amount: number, method: string, ref: string) => void;
-  onRecordInvoice?: (amount: number, desc: string) => void;
+  onRecordInvoice?: (amount: number, desc: string, dueDate: string) => void;
 }
 
 export function LedgerTable({
@@ -27,6 +27,7 @@ export function LedgerTable({
   const [amount, setAmount] = useState("");
   const [descOrRef, setDescOrRef] = useState("");
   const [payMethod, setPayMethod] = useState("BANK_TRANSFER");
+  const [dueDate, setDueDate] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,12 +37,14 @@ export function LedgerTable({
     if (modalType === "PAYMENT" && onRecordPayment) {
       onRecordPayment(val, payMethod, descOrRef || "TXN_MOCK_REF");
     } else if (modalType === "INVOICE" && onRecordInvoice) {
-      onRecordInvoice(val, descOrRef || "KSA Medical/Embassy invoice");
+      const formattedDueDate = dueDate || new Date().toISOString().split("T")[0];
+      onRecordInvoice(val, descOrRef || "KSA Medical/Embassy invoice", formattedDueDate);
     }
 
     // Reset
     setAmount("");
     setDescOrRef("");
+    setDueDate("");
     setModalOpen(false);
   };
 
@@ -198,17 +201,29 @@ export function LedgerTable({
                   </div>
                 </>
               ) : (
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400">Billing Description / Ledger Note</label>
-                  <input
-                    type="text"
-                    required
-                    value={descOrRef}
-                    onChange={(e) => setDescOrRef(e.target.value)}
-                    placeholder="e.g. Visa Processing Stamping fee"
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
-                  />
-                </div>
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400">Billing Description / Ledger Note</label>
+                    <input
+                      type="text"
+                      required
+                      value={descOrRef}
+                      onChange={(e) => setDescOrRef(e.target.value)}
+                      placeholder="e.g. Visa Processing Stamping fee"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400">Invoice Due Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+                    />
+                  </div>
+                </>
               )}
 
               <div className="mt-6 flex items-center justify-end gap-3">
