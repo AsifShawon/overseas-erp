@@ -234,12 +234,42 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create candidate
-    const applicant = await prisma.applicant.create({
-      data: {
-        ...validatedData,
-        passportNumber: validatedData.passportNumber.trim(),
-      },
+    // Create candidate inside transaction to handle atomic quota validation & increment
+    const applicant = await prisma.$transaction(async (tx) => {
+      if (validatedData.jobOrderId) {
+        const jobOrder = await tx.jobOrder.findUnique({
+          where: { id: validatedData.jobOrderId },
+        });
+
+        if (!jobOrder) {
+          throw new Error("The specified Job Order placement does not exist.");
+        }
+
+        if (jobOrder.status !== "OPEN") {
+          throw new Error("The selected Job Order is currently not open for recruitment placements.");
+        }
+
+        if (jobOrder.allocatedQuota >= jobOrder.totalQuota) {
+          throw new Error(`The placement quota limit for this Job Order (${jobOrder.totalQuota}) has been fully filled.`);
+        }
+
+        // Increment the JobOrder allocatedQuota atomically
+        await tx.jobOrder.update({
+          where: { id: jobOrder.id },
+          data: {
+            allocatedQuota: {
+              increment: 1,
+            },
+          },
+        });
+      }
+
+      return await tx.applicant.create({
+        data: {
+          ...validatedData,
+          passportNumber: validatedData.passportNumber.trim(),
+        },
+      });
     });
 
     // Notify staff users (Super Admin, Operations Admin, HR Officer)
@@ -285,9 +315,17 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(applicant, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
+    }
+    // Return custom business logic validation errors thrown in transaction as 400 Bad Request
+    if (error instanceof Error && (
+      error.message.includes("quota") ||
+      error.message.includes("Job Order") ||
+      error.message.includes("placement")
+    )) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("POST /api/applicants Error:", error);
     return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });

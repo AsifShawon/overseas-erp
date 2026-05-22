@@ -543,7 +543,7 @@ export default function ApplicantsPage() {
                   />
                   
                   <AppSelect
-                    label="Job Order Placement (Optional)"
+                    label="Link to Job Order (Optional)"
                     value={formData.jobOrderId}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -558,11 +558,15 @@ export default function ApplicantsPage() {
                     error={errors.jobOrderId}
                   >
                     <option value="">No Placement Order (Unlinked)</option>
-                    {jobOrdersList.map((jo) => (
-                      <option key={jo.id} value={jo.id}>
-                        {jo.orderNumber} - {jo.employerName} ({jo.country} - {jo.trade})
-                      </option>
-                    ))}
+                    {jobOrdersList.map((jo) => {
+                      const slotsLeft = jo.remainingQuota ?? (jo.totalQuota - jo.allocatedQuota);
+                      const isFull = slotsLeft <= 0;
+                      return (
+                        <option key={jo.id} value={jo.id} disabled={isFull}>
+                          {jo.orderNumber} — {jo.trade} — {jo.country} — {isFull ? "FULL (0 slots left)" : `${slotsLeft} slots left`}
+                        </option>
+                      );
+                    })}
                   </AppSelect>
 
                   {activeRoleName === "Agent" ? (

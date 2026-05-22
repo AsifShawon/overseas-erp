@@ -233,13 +233,65 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
-    // Update candidate
-    const updatedApplicant = await prisma.applicant.update({
-      where: { id },
-      data: {
-        ...validatedData,
-        passportNumber: validatedData.passportNumber?.trim(),
-      },
+    // Apply updates inside transaction to safely allocate / deallocate quotas
+    const updatedApplicant = await prisma.$transaction(async (tx) => {
+      const isJobOrderChanging = validatedData.jobOrderId !== undefined && validatedData.jobOrderId !== previousApplicant.jobOrderId;
+
+      if (isJobOrderChanging) {
+        // 1. If previous jobOrderId was defined, decrement its quota
+        if (previousApplicant.jobOrderId) {
+          const oldJob = await tx.jobOrder.findUnique({
+            where: { id: previousApplicant.jobOrderId },
+          });
+          if (oldJob) {
+            const nextQuota = Math.max(0, oldJob.allocatedQuota - 1);
+            await tx.jobOrder.update({
+              where: { id: oldJob.id },
+              data: {
+                allocatedQuota: nextQuota,
+              },
+            });
+          }
+        }
+
+        // 2. If new jobOrderId is defined, validate and increment its quota
+        if (validatedData.jobOrderId) {
+          const newJob = await tx.jobOrder.findUnique({
+            where: { id: validatedData.jobOrderId },
+          });
+
+          if (!newJob) {
+            throw new Error("The specified Job Order placement does not exist.");
+          }
+
+          if (newJob.status !== "OPEN") {
+            throw new Error("The selected Job Order is currently not open for recruitment placements.");
+          }
+
+          if (newJob.allocatedQuota >= newJob.totalQuota) {
+            throw new Error(`The placement quota limit for this Job Order (${newJob.totalQuota}) has been fully filled.`);
+          }
+
+          // Increment the JobOrder allocatedQuota atomically
+          await tx.jobOrder.update({
+            where: { id: newJob.id },
+            data: {
+              allocatedQuota: {
+                increment: 1,
+              },
+            },
+          });
+        }
+      }
+
+      // 3. Perform the actual candidate record update
+      return await tx.applicant.update({
+        where: { id },
+        data: {
+          ...validatedData,
+          passportNumber: validatedData.passportNumber?.trim(),
+        },
+      });
     });
 
     // Create Audit Log entry recording delta
@@ -259,9 +311,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
 
     return NextResponse.json(updatedApplicant);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
+    }
+    // Return custom business logic validation errors thrown in transaction as 400 Bad Request
+    if (error instanceof Error && (
+      error.message.includes("quota") ||
+      error.message.includes("Job Order") ||
+      error.message.includes("placement")
+    )) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("PATCH /api/applicants/[id] Error:", error);
     return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });

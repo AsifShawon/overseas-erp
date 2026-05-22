@@ -16,7 +16,8 @@ export type PermissionCode =
   | "VIEW_REPORTS"
   | "VIEW_AUDIT_LOGS"
   | "MANAGE_RBAC"
-  | "VIEW_NOTIFICATIONS";
+  | "VIEW_NOTIFICATIONS"
+  | "MANAGE_JOB_ORDERS";
 
 export interface Role {
   id: string;
@@ -47,6 +48,7 @@ export const SYSTEM_ROLES: Record<string, Role> = {
       "VIEW_AUDIT_LOGS",
       "MANAGE_RBAC",
       "VIEW_NOTIFICATIONS",
+      "MANAGE_JOB_ORDERS",
     ],
   },
   OPERATIONS_ADMIN: {
@@ -68,6 +70,7 @@ export const SYSTEM_ROLES: Record<string, Role> = {
       "VIEW_REPORTS",
       "VIEW_AUDIT_LOGS",
       "VIEW_NOTIFICATIONS",
+      "MANAGE_JOB_ORDERS",
     ],
   },
   HR_OFFICER: {
