@@ -11,7 +11,7 @@ export function ThemeToggle() {
     <button
       onClick={toggleTheme}
       type="button"
-      className="flex items-center justify-center rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 cursor-pointer"
+      className="flex items-center justify-center rounded-lg p-2 text-text-soft hover:bg-bg-muted hover:text-text-theme transition-colors cursor-pointer"
       title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
       aria-label="Toggle visual theme"
     >

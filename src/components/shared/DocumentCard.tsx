@@ -52,26 +52,26 @@ export function DocumentCard({
 
   return (
     <div
-      className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition-all duration-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 ${className}`}
+      className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-border-theme bg-surface p-4 shadow-sm transition-all duration-300 hover:shadow-md ${className}`}
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-theme">
           <FileText className="h-5 w-5" />
         </div>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">
+            <span className="text-xs font-bold text-text-theme uppercase tracking-wider">
               {document.documentType.replace("_", " ")}
             </span>
             <StatusBadge status={document.status} className="text-[9px] px-2 py-0" />
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium break-all flex items-center gap-1.5">
+          <p className="text-xs text-text-muted font-medium break-all flex items-center gap-1.5">
             <span>{document.fileName}</span>
             {onDownload && (
               <button
                 onClick={handleDownloadClick}
                 title="Download Sourced Document"
-                className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-semibold cursor-pointer underline flex items-center"
+                className="text-primary-theme hover:text-primary-hover font-semibold cursor-pointer underline flex items-center"
               >
                 (download)
               </button>
@@ -79,27 +79,27 @@ export function DocumentCard({
           </p>
 
           {document.verifiedBy ? (
-            <div className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+            <div className="flex items-center gap-1 text-[10px] text-success-theme font-semibold">
               <ShieldCheck className="h-3.5 w-3.5" /> Checked by {document.verifiedBy}
             </div>
           ) : (
-            <div className="text-[10px] text-slate-400">Not verified yet</div>
+            <div className="text-[10px] text-text-soft">Not verified yet</div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 w-full sm:w-auto justify-end border-t border-slate-50 pt-3 sm:border-t-0 sm:pt-0 dark:border-slate-800">
+      <div className="flex items-center gap-2 w-full sm:w-auto justify-end border-t border-border-theme pt-3 sm:border-t-0 sm:pt-0">
         {canVerify && document.status !== "VERIFIED" && onVerify && (
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => handleVerifyClick("VERIFIED")}
-              className="flex items-center gap-1 rounded bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 cursor-pointer"
+              className="flex items-center gap-1 rounded bg-success-soft px-2.5 py-1 text-[10px] font-bold text-success-theme hover:opacity-90 cursor-pointer"
             >
               <CheckCircle className="h-3.5 w-3.5" /> Approve
             </button>
             <button
               onClick={() => handleVerifyClick("REJECTED")}
-              className="flex items-center gap-1 rounded bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400 cursor-pointer"
+              className="flex items-center gap-1 rounded bg-danger-soft px-2.5 py-1 text-[10px] font-bold text-danger-theme hover:opacity-90 cursor-pointer"
             >
               <XCircle className="h-3.5 w-3.5" /> Reject
             </button>
@@ -107,7 +107,7 @@ export function DocumentCard({
         )}
 
         {document.status === "VERIFIED" && (
-          <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider bg-emerald-50/50 px-2 py-0.5 rounded border border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/30">
+          <span className="text-[10px] text-success-theme font-bold uppercase tracking-wider bg-success-soft px-2 py-0.5 rounded border border-success-theme">
             Locked
           </span>
         )}
@@ -116,7 +116,7 @@ export function DocumentCard({
           <button
             onClick={handleDownloadClick}
             title="Download secure stream"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-theme bg-bg text-text-soft hover:bg-bg-muted hover:text-text-theme cursor-pointer"
           >
             <Download className="h-4 w-4" />
           </button>

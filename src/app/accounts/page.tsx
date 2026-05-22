@@ -114,8 +114,8 @@ export default function AccountsPage() {
       header: "Candidate Name",
       accessor: (entry: FlattenedLedger) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-slate-900 dark:text-white">{entry.applicantName}</span>
-          <span className="text-[10px] text-slate-400">Passport: {entry.passportNumber}</span>
+          <span className="font-semibold text-text-theme">{entry.applicantName}</span>
+          <span className="text-[10px] text-text-muted">Passport: {entry.passportNumber}</span>
         </div>
       ),
     },
@@ -130,7 +130,7 @@ export default function AccountsPage() {
     {
       header: "Reference No",
       accessor: (entry: FlattenedLedger) => (
-        <span className="font-mono font-bold text-slate-900 dark:text-white">{entry.referenceNo}</span>
+        <span className="font-mono font-bold text-text-theme">{entry.referenceNo}</span>
       ),
     },
     {
@@ -154,7 +154,7 @@ export default function AccountsPage() {
     {
       header: "Running Balance",
       accessor: (entry: FlattenedLedger) => (
-        <span className="font-bold text-slate-950 dark:text-white">
+        <span className="font-bold text-text-theme">
           ${entry.runningBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -172,8 +172,8 @@ export default function AccountsPage() {
           <ShieldAlert className="h-8 w-8 text-rose-500" />
         </div>
         <div className="space-y-2 max-w-md">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Access Locked</h2>
-          <p className="text-xs text-slate-500">
+          <h2 className="text-lg font-bold text-text-theme">Access Locked</h2>
+          <p className="text-xs text-text-muted">
             Access to corporate accounts logs, balance sheets, and audit receipts is locked for recruitment officers, agents, and candidates.
           </p>
         </div>
@@ -196,7 +196,7 @@ export default function AccountsPage() {
             <button
               onClick={handleExport}
               disabled={isExporting}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+              className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3.5 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
             >
               {isExporting ? (
                 <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
@@ -238,8 +238,8 @@ export default function AccountsPage() {
         </div>
 
         {/* Global Forensic Ledger Table */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">
+        <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+          <h3 className="text-xs font-bold text-text-theme uppercase tracking-wider mb-4">
             Unified Double-Entry Ledger Logs
           </h3>
 

@@ -116,14 +116,14 @@ export default function ApplicantsPage() {
       header: "Candidate Name",
       accessor: (a: any) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-slate-900 dark:text-white">{a.fullName}</span>
-          <span className="text-[10px] text-slate-400">{a.email || "No claimed email"}</span>
+          <span className="font-semibold text-text-theme">{a.fullName}</span>
+          <span className="text-[10px] text-text-soft">{a.email || "No claimed email"}</span>
         </div>
       ),
     },
-    { header: "Passport Number", accessor: (a: any) => <span className="font-mono">{a.passportNumber}</span> },
-    { header: "Contact Phone", accessor: (a: any) => a.phone },
-    { header: "Applied Trade", accessor: (a: any) => a.trade },
+    { header: "Passport Number", accessor: (a: any) => <span className="font-mono text-text-theme">{a.passportNumber}</span> },
+    { header: "Contact Phone", accessor: (a: any) => <span className="text-text-theme">{a.phone}</span> },
+    { header: "Applied Trade", accessor: (a: any) => <span className="text-text-theme">{a.trade}</span> },
     {
       header: "Workflow Status",
       accessor: (a: any) => <StatusBadge status={a.currentStage} />,
@@ -148,14 +148,14 @@ export default function ApplicantsPage() {
   const headerActions = (
     <div className="flex items-center gap-2">
       {hasAccess("CREATE_APPLICANT") && (
-        <button className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-500 shadow-indigo-600/20">
+        <button className="flex items-center gap-1.5 rounded-lg bg-primary-theme px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-hover shadow-primary-theme/20 cursor-pointer">
           <Plus className="h-4 w-4" /> Add Applicant
         </button>
       )}
       <button
         onClick={handleExport}
         disabled={isExporting}
-        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+        className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3.5 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
       >
         {isExporting ? (
           <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
@@ -178,19 +178,19 @@ export default function ApplicantsPage() {
         />
 
         {/* Dense Filters Bar */}
-        <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center dark:border-slate-800 dark:bg-slate-950">
-          <div className="flex items-center gap-2 shrink-0 text-slate-500 text-xs font-bold mr-2">
-            <SlidersHorizontal className="h-4 w-4 text-indigo-500" /> Vetting Filters
+        <div className="flex flex-col gap-4 rounded-xl border border-border-theme bg-surface p-5 shadow-sm sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 shrink-0 text-text-theme text-xs font-bold mr-2">
+            <SlidersHorizontal className="h-4 w-4 text-primary-theme" /> Vetting Filters
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 flex-1">
             {/* Trade Select */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Trade Category</label>
+              <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">Trade Category</label>
               <select
                 value={selectedTrade}
                 onChange={(e) => setSelectedTrade(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white dark:border-slate-800 dark:bg-slate-900"
+                className="w-full rounded-lg border border-border-theme bg-bg p-1.5 text-xs font-medium outline-none focus:border-primary-theme focus:bg-surface text-text-theme"
               >
                 <option value="ALL">All Trade Segments</option>
                 {availableTrades.map((trade) => (
@@ -203,11 +203,11 @@ export default function ApplicantsPage() {
 
             {/* Workflow Stage Select */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Logistics Milestone</label>
+              <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">Logistics Milestone</label>
               <select
                 value={selectedStage}
                 onChange={(e) => setSelectedStage(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white dark:border-slate-800 dark:bg-slate-900"
+                className="w-full rounded-lg border border-border-theme bg-bg p-1.5 text-xs font-medium outline-none focus:border-primary-theme focus:bg-surface text-text-theme"
               >
                 <option value="ALL">All Stages</option>
                 {availableStages.map((stage) => (
@@ -220,18 +220,18 @@ export default function ApplicantsPage() {
 
             {/* Soft-Archived Toggle */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Audit View</label>
+              <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">Audit View</label>
               <div className="flex h-9 items-center gap-2">
                 <input
                   type="checkbox"
                   id="archived-toggle"
                   checked={showArchived}
                   onChange={(e) => setShowArchived(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  className="h-4 w-4 rounded border-border-strong text-primary-theme focus:ring-primary-theme cursor-pointer accent-primary-theme"
                 />
                 <label
                   htmlFor="archived-toggle"
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none"
+                  className="text-xs font-semibold text-text-theme cursor-pointer select-none"
                 >
                   Show Soft-Archived Files Only
                 </label>
@@ -242,11 +242,11 @@ export default function ApplicantsPage() {
 
         {/* Live Data rendering with beautiful loading/error and empty states */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 space-y-4">
-            <div className="relative h-12 w-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center shadow-lg">
-              <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+          <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-border-theme bg-surface p-5 shadow-sm space-y-4">
+            <div className="relative h-12 w-12 rounded-2xl bg-surface border border-border-theme flex items-center justify-center shadow-lg">
+              <Loader2 className="h-6 w-6 text-primary-theme animate-spin" />
             </div>
-            <p className="text-xs text-slate-500 font-bold animate-pulse">Loading live applicants from database...</p>
+            <p className="text-xs text-text-soft font-bold animate-pulse">Loading live applicants from database...</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-rose-100 bg-rose-50/50 p-6 text-center shadow-sm dark:border-rose-950/10 dark:bg-rose-950/5 space-y-4">

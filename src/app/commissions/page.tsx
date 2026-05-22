@@ -211,8 +211,8 @@ export default function CommissionsPage() {
       header: "Sourcing Partner (Agent)",
       accessor: (com: FlattenedCommission) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-slate-900 dark:text-white">{com.agentName}</span>
-          <span className="text-[10px] text-slate-400">Agent Code: {com.agentCode}</span>
+          <span className="font-semibold text-text-theme">{com.agentName}</span>
+          <span className="text-[10px] text-text-muted">Agent Code: {com.agentCode}</span>
         </div>
       ),
     },
@@ -221,7 +221,7 @@ export default function CommissionsPage() {
     {
       header: "Commission Fee",
       accessor: (com: FlattenedCommission) => (
-        <span className="font-bold text-slate-950 dark:text-white">
+        <span className="font-bold text-text-theme">
           ${com.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       ),
@@ -235,12 +235,12 @@ export default function CommissionsPage() {
       header: "Settlement Voucher",
       accessor: (com: FlattenedCommission) =>
         com.payoutRef ? (
-          <div className="flex flex-col gap-0.5 text-[10px] text-slate-500">
-            <span className="font-mono font-bold text-slate-800 dark:text-slate-300">{com.payoutRef}</span>
+          <div className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+            <span className="font-mono font-bold text-text-theme">{com.payoutRef}</span>
             <span>Date: {com.payoutDate}</span>
           </div>
         ) : (
-          <span className="text-[10px] text-slate-400">Awaiting accounts release</span>
+          <span className="text-[10px] text-text-muted">Awaiting accounts release</span>
         ),
     },
   ];
@@ -277,8 +277,8 @@ export default function CommissionsPage() {
           <ShieldAlert className="h-8 w-8 text-rose-500" />
         </div>
         <div className="space-y-2 max-w-md">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Access Denied</h2>
-          <p className="text-xs text-slate-500">
+          <h2 className="text-lg font-bold text-text-theme">Access Denied</h2>
+          <p className="text-xs text-text-muted">
             Access to agent placement commission registers, clearing house balances, and payout settling is locked for candidates.
           </p>
         </div>
@@ -315,7 +315,7 @@ export default function CommissionsPage() {
               <button
                 onClick={handleExport}
                 disabled={isExporting}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+                className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3.5 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {isExporting ? (
                   <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
@@ -360,8 +360,8 @@ export default function CommissionsPage() {
         )}
 
         {/* Commissions Register List */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">
+        <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+          <h3 className="text-xs font-bold text-text-theme uppercase tracking-wider mb-4">
             {isAgent ? "Commission Statement Ledger" : "Agent Supply Commission Payout Log"}
           </h3>
 
@@ -396,7 +396,7 @@ export default function CommissionsPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                  className="app-select rounded-lg border border-border-theme px-3 py-1.5 text-xs font-semibold text-text-theme outline-none focus:border-indigo-500"
                 >
                   <option value="ALL">All Statuses</option>
                   <option value="ACCRUED">Accrued commissions</option>
@@ -412,20 +412,20 @@ export default function CommissionsPage() {
       {/* Settlement Payout Modal overlay */}
       {showPayoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm transition-all duration-300">
-          <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-border-theme bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <form onSubmit={handlePayoutSubmit} className="space-y-4">
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                <h4 className="text-sm font-bold text-text-theme">
                   Settle Commission Payout
                 </h4>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-text-muted">
                   Provide the bank transfer voucher reference to settle this commission obligation.
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-soft">
                     Voucher Reference Code
                   </label>
                   <input
@@ -434,12 +434,12 @@ export default function CommissionsPage() {
                     value={payoutRef}
                     onChange={(e) => setPayoutRef(e.target.value)}
                     placeholder="e.g. BANK-COMM-001"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    className="w-full rounded-lg border border-border-theme bg-bg px-3 py-2 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-text-theme"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-text-soft">
                     Payment Settle Date
                   </label>
                   <input
@@ -447,7 +447,7 @@ export default function CommissionsPage() {
                     required
                     value={payoutDate}
                     onChange={(e) => setPayoutDate(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    className="w-full rounded-lg border border-border-theme bg-bg px-3 py-2 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-text-theme"
                   />
                 </div>
               </div>
@@ -465,7 +465,7 @@ export default function CommissionsPage() {
                     setPayoutRef("");
                     setPayoutError(null);
                   }}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300"
+                  className="rounded-lg border border-border-theme bg-bg px-4 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted"
                 >
                   Cancel
                 </button>

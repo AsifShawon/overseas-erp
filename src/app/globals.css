@@ -1,74 +1,124 @@
 @import "tailwindcss";
 
+/* 1. Tailwind v4 Custom Dark Variant - strictly binds dark: utilities to data-theme="dark" */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* 2. Light Theme Design Tokens (Default) */
 :root {
+  color-scheme: light;
+  
   --bg: #f8fafc;
   --bg-muted: #f1f5f9;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
+  --surface-soft: #f8fafc;
+  
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
+  
   --text: #0f172a;
   --text-muted: #475569;
   --text-soft: #64748b;
+  
   --primary: #4f46e5;
   --primary-hover: #4338ca;
-  --primary-soft: #e0e7ff;
-  --success: #10b981;
-  --success-soft: #d1fae5;
-  --warning: #f59e0b;
-  --warning-soft: #fef3c7;
-  --danger: #ef4444;
-  --danger-soft: #fee2e2;
-  --info: #3b82f6;
-  --info-soft: #dbeafe;
+  --primary-soft: #eef2ff;
+  
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  
+  --info: #0284c7;
+  --info-soft: #eff6ff;
+  
+  --input-bg: #ffffff;
+  --input-text: #0f172a;
+  --input-placeholder: #94a3b8;
+  --input-border: #cbd5e1;
 }
 
-[data-theme="dark"], .dark {
+/* 3. Dark Theme Design Tokens (Manual Override Only) */
+[data-theme="dark"] {
+  color-scheme: dark;
+  
   --bg: #0f172a;
-  --bg-muted: #1e293b;
-  --surface: #1e293b;
-  --surface-elevated: #334155;
+  --bg-muted: #111827;
+  --surface: #111827;
+  --surface-elevated: #1e293b;
+  --surface-soft: #020617;
+  
   --border: #334155;
   --border-strong: #475569;
+  
   --text: #f8fafc;
   --text-muted: #cbd5e1;
   --text-soft: #94a3b8;
+  
   --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --primary-soft: #1e1b4b;
+  --primary-hover: #818cf8;
+  --primary-soft: rgba(99, 102, 241, 0.18);
+  
   --success: #10b981;
-  --success-soft: #064e3b;
+  --success-soft: rgba(16, 185, 129, 0.16);
+  
   --warning: #f59e0b;
-  --warning-soft: #78350f;
-  --danger: #ef4444;
-  --danger-soft: #7f1d1d;
-  --info: #3b82f6;
-  --info-soft: #172554;
+  --warning-soft: rgba(245, 158, 11, 0.16);
+  
+  --danger: #f43f5e;
+  --danger-soft: rgba(244, 63, 94, 0.16);
+  
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.16);
+  
+  --input-bg: #020617;
+  --input-text: #f8fafc;
+  --input-placeholder: #94a3b8;
+  --input-border: #475569;
 }
 
-@theme inline {
+/* 4. Map Variables into Tailwind v4 Theme Configuration */
+@theme {
   --color-bg: var(--bg);
   --color-bg-muted: var(--bg-muted);
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
+  --color-surface-soft: var(--surface-soft);
+  
   --color-border-theme: var(--border);
   --color-border-strong: var(--border-strong);
+  
   --color-text-theme: var(--text);
   --color-text-muted: var(--text-muted);
   --color-text-soft: var(--text-soft);
+  
   --color-primary-theme: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
+  
   --color-success-theme: var(--success);
   --color-success-soft: var(--success-soft);
+  
   --color-warning-theme: var(--warning);
   --color-warning-soft: var(--warning-soft);
+  
   --color-danger-theme: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  
   --color-info-theme: var(--info);
   --color-info-soft: var(--info-soft);
+  
+  --color-input-bg: var(--input-bg);
+  --color-input-text: var(--input-text);
+  --color-input-placeholder: var(--input-placeholder);
+  --color-input-border: var(--input-border);
 }
 
+/* 5. Base Styles for Layout and Core Elements */
 body {
   background-color: var(--bg);
   color: var(--text);
@@ -76,8 +126,182 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Ensure focus ring outlines are clean and consistent */
+/* Ensure focus ring outlines and core components match colors */
+input, select, textarea {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+select option, select optgroup {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--input-placeholder);
+}
+
 input:focus, select:focus, textarea:focus {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
+  border-color: var(--primary);
+}
+
+input:disabled, select:disabled, textarea:disabled, button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--bg-muted) !important;
+  color: var(--text-soft) !important;
+  border-color: var(--border) !important;
+}
+
+input[type="checkbox"], input[type="radio"] {
+  accent-color: var(--primary);
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+/* 6. Global ERP Utility Classes */
+.app-shell {
+  background-color: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-surface {
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.app-card {
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+.app-panel {
+  background-color: var(--surface-elevated);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.75rem;
+}
+
+.app-input {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.app-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+
+.app-select {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.app-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+
+.app-button-primary {
+  background-color: var(--primary);
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.app-button-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.app-button-secondary {
+  background-color: var(--bg-muted);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.app-button-secondary:hover:not(:disabled) {
+  background-color: var(--border);
+}
+
+.app-button-danger {
+  background-color: var(--danger);
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.app-button-danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.app-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.app-table th {
+  background-color: var(--bg-muted);
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-strong);
+  padding: 0.75rem 1rem;
+}
+
+.app-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1rem;
+  color: var(--text);
+}
+
+.app-table tr:hover td {
+  background-color: var(--bg-muted);
+}
+
+.app-muted {
+  color: var(--text-muted);
+}
+
+.app-heading {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.app-subtext {
+  color: var(--text-soft);
 }

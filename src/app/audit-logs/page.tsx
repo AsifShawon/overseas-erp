@@ -105,7 +105,7 @@ export default function AuditLogsPage() {
     {
       header: "Timestamp",
       accessor: (log: any) => (
-        <span className="text-slate-500 font-medium">
+        <span className="text-text-muted font-medium">
           {new Date(log.timestamp).toLocaleString()}
         </span>
       ),
@@ -114,10 +114,10 @@ export default function AuditLogsPage() {
       header: "Audited Staff",
       accessor: (log: any) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-slate-900 dark:text-white">
+          <span className="font-semibold text-text-theme">
             {log.user?.fullName || log.userId || "System Engine"}
           </span>
-          <span className="text-[10px] text-slate-400">Role: {log.roleName}</span>
+          <span className="text-[10px] text-text-soft">Role: {log.roleName}</span>
         </div>
       ),
     },
@@ -133,7 +133,7 @@ export default function AuditLogsPage() {
     {
       header: "Transaction ID",
       accessor: (log: any) => (
-        <span className="font-mono text-[10px] bg-slate-100 px-1 py-0.5 rounded border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+        <span className="font-mono text-[10px] bg-bg-muted px-1 py-0.5 rounded border border-border-theme">
           {log.recordId}
         </span>
       ),
@@ -180,7 +180,7 @@ export default function AuditLogsPage() {
             <button
               onClick={handleExport}
               disabled={isExporting}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+              className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3.5 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
             >
               {isExporting ? (
                 <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
@@ -215,8 +215,8 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Audit Log Table */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">
+        <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+          <h3 className="text-xs font-bold text-text-theme uppercase tracking-wider mb-4">
             Immutable Ledger Logs
           </h3>
 
@@ -247,16 +247,16 @@ export default function AuditLogsPage() {
 
         {/* Change Delta Drawer */}
         {selectedLog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-end bg-slate-900/40 backdrop-blur-xs">
-            <div className="w-full max-w-lg h-full border-l border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-xs">
+            <div className="w-full max-w-lg h-full border-l border-border-theme bg-surface p-6 shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
               <div className="space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
-                  <h3 className="text-sm font-bold text-slate-950 dark:text-white flex items-center gap-1.5">
+                <div className="flex items-center justify-between border-b border-border-theme pb-4">
+                  <h3 className="text-sm font-bold text-text-theme flex items-center gap-1.5">
                     <Terminal className="h-4.5 w-4.5 text-indigo-500" /> Database Delta Payload
                   </h3>
                   <button
                     onClick={() => setSelectedLog(undefined)}
-                    className="rounded border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400"
+                    className="rounded border border-border-theme bg-bg-muted px-3 py-1.5 text-xs font-bold text-text-theme hover:bg-bg-muted"
                   >
                     Close Drawer
                   </button>
@@ -265,26 +265,26 @@ export default function AuditLogsPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Timestamp</p>
-                      <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">
+                      <p className="text-[10px] font-bold text-text-soft uppercase">Timestamp</p>
+                      <p className="mt-1 font-semibold text-text-theme">
                         {new Date(selectedLog.timestamp).toLocaleString()}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Vetting Operator</p>
-                      <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">
+                      <p className="text-[10px] font-bold text-text-soft uppercase">Vetting Operator</p>
+                      <p className="mt-1 font-semibold text-text-theme">
                         {selectedLog.user?.fullName || selectedLog.userId || "System"} ({selectedLog.roleName})
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Operation Type</p>
-                      <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                      <p className="text-[10px] font-bold text-text-soft uppercase">Operation Type</p>
+                      <p className="mt-1 font-semibold text-text-theme uppercase">
                         {selectedLog.actionType}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Audited DB Table</p>
-                      <p className="mt-1 font-semibold text-slate-700 dark:text-slate-300">
+                      <p className="text-[10px] font-bold text-text-soft uppercase">Audited DB Table</p>
+                      <p className="mt-1 font-semibold text-text-theme">
                         {selectedLog.tableName}
                       </p>
                     </div>
@@ -292,17 +292,17 @@ export default function AuditLogsPage() {
 
                   {/* Monospace Code View */}
                   <div className="space-y-1.5">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <p className="text-[10px] font-bold text-text-soft uppercase flex items-center gap-1">
                       <ArrowDownRight className="h-3.5 w-3.5" /> JSON Delta Diff
                     </p>
-                    <pre className="rounded-lg bg-slate-950 p-4 font-mono text-[10px] leading-relaxed text-indigo-400 overflow-x-auto select-all max-h-[50vh]">
+                    <pre className="rounded-lg bg-black p-4 font-mono text-[10px] leading-relaxed text-indigo-400 overflow-x-auto select-all max-h-[50vh]">
                       {renderDeltaJSON(selectedLog.delta)}
                     </pre>
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-slate-100 pt-4 text-[9px] text-slate-400 dark:border-slate-800">
+              <div className="border-t border-border-theme pt-4 text-[9px] text-text-soft">
                 Audited client node: {selectedLog.ipAddress || "Local Terminal"}
               </div>
             </div>

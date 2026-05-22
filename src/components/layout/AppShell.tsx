@@ -12,7 +12,7 @@ function InnerAppShell({ children }: { children: React.ReactNode }) {
   // If user is Applicant, render a centered, mobile-responsive layout without sidebars
   if (user.roleName === "Applicant") {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col">
+      <div className="min-h-screen bg-bg text-text-theme flex flex-col">
         <Topbar />
         <main className="flex-1 overflow-y-auto px-4 py-8 md:px-8">
           <div className="mx-auto max-w-5xl w-full">{children}</div>
@@ -22,7 +22,7 @@ function InnerAppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex">
+    <div className="min-h-screen bg-bg text-text-theme flex">
       {/* Sidebar Navigation */}
       <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 

@@ -18,21 +18,21 @@ export function StatCard({ title, value, description, iconName, trend, className
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 ${className}`}
+      className={`relative overflow-hidden rounded-xl border border-border-theme bg-surface p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${className}`}
     >
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{title}</span>
+        <span className="text-sm font-semibold text-text-soft">{title}</span>
         {IconComponent && (
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary-theme">
             <IconComponent className="h-5 w-5" />
           </div>
         )}
       </div>
 
       <div className="mt-4">
-        <h3 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{value}</h3>
+        <h3 className="text-3xl font-bold tracking-tight text-text-theme">{value}</h3>
         {description && (
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{description}</p>
+          <p className="mt-1 text-xs text-text-soft">{description}</p>
         )}
       </div>
 
@@ -41,13 +41,13 @@ export function StatCard({ title, value, description, iconName, trend, className
           <span
             className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
               trend.isPositive
-                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
+                ? "bg-success-soft text-success-theme"
+                : "bg-danger-soft text-danger-theme"
             }`}
           >
             {trend.isPositive ? "↑" : "↓"} {trend.value}
           </span>
-          <span className="text-[10px] text-slate-400 dark:text-slate-500">vs last month</span>
+          <span className="text-[10px] text-text-soft">vs last month</span>
         </div>
       )}
     </div>

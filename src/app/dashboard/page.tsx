@@ -91,11 +91,11 @@ export default function DashboardPage() {
           description="Fetching operations analytics and compliance stages from secure database..."
           breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Dashboard" }]}
         />
-        <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 space-y-4">
-          <div className="relative h-12 w-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center shadow-lg animate-pulse">
-            <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+        <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-border-theme bg-surface p-5 shadow-sm space-y-4">
+          <div className="relative h-12 w-12 rounded-2xl bg-surface border border-border-theme flex items-center justify-center shadow-lg animate-pulse">
+            <Loader2 className="h-6 w-6 text-primary-theme animate-spin" />
           </div>
-          <p className="text-xs text-slate-500 font-bold animate-pulse">Loading dynamic dashboard reports...</p>
+          <p className="text-xs text-text-soft font-bold animate-pulse">Loading dynamic dashboard reports...</p>
         </div>
       </div>
     );
@@ -217,19 +217,19 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Pipeline Stage Summary */}
-            <div className="lg:col-span-2 rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="h-4.5 w-4.5 text-indigo-500" /> Pipeline Stage Distribution
+            <div className="lg:col-span-2 rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+              <h3 className="text-sm font-bold text-text-theme mb-4 flex items-center gap-2">
+                <TrendingUp className="h-4.5 w-4.5 text-primary-theme" /> Pipeline Stage Distribution
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {(["SELECTED", "MEDICAL_WAITING", "VISA_SUBMITTED", "DEPLOYED"] as WorkflowStage[]).map((stage) => {
                   const count = stageCounts[stage] || 0;
                   const label = WORKFLOW_LABELS[stage];
                   return (
-                    <div key={stage} className="rounded-lg bg-slate-50 p-4 border border-slate-100 dark:bg-slate-950 dark:border-slate-800/60">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate">{label}</p>
-                      <h4 className="mt-2 text-2xl font-bold text-slate-800 dark:text-white">{count}</h4>
-                      <p className="text-[9px] text-slate-400 mt-1">Candidates in stage</p>
+                    <div key={stage} className="rounded-lg bg-surface-soft p-4 border border-border-theme">
+                      <p className="text-[10px] font-semibold text-text-soft uppercase tracking-wider truncate">{label}</p>
+                      <h4 className="mt-2 text-2xl font-bold text-text-theme">{count}</h4>
+                      <p className="text-[9px] text-text-soft mt-1">Candidates in stage</p>
                     </div>
                   );
                 })}
@@ -237,12 +237,12 @@ export default function DashboardPage() {
             </div>
 
             {/* Warning Widget */}
-            <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 flex flex-col justify-between">
+            <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-text-theme mb-2 flex items-center gap-2">
                   <AlertTriangle className="h-4.5 w-4.5 text-amber-500" /> Alerts & Vetting Warnings
                 </h3>
-                <p className="text-xs text-slate-500">System automated notifications indicating potential bottlenecks.</p>
+                <p className="text-xs text-text-soft">System automated notifications indicating potential bottlenecks.</p>
                 <div className="mt-4 space-y-3">
                   {passportExpiryWarnings.length > 0 ? (
                     passportExpiryWarnings.map((app: any) => (
@@ -272,26 +272,26 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[10px] text-slate-400">
+              <div className="mt-4 pt-4 border-t border-border-theme flex justify-between items-center text-[10px] text-text-soft">
                 <span>Last updated: Just now</span>
-                <span className="font-semibold text-indigo-600 cursor-pointer dark:text-indigo-400">Resolve all</span>
+                <span className="font-semibold text-primary-theme cursor-pointer">Resolve all</span>
               </div>
             </div>
           </div>
 
           {/* Immutable Audit Logs widget */}
-          <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-              <History className="h-4.5 w-4.5 text-indigo-500" /> Recent Immutable System Audits
+          <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-text-theme mb-4 flex items-center gap-2">
+              <History className="h-4.5 w-4.5 text-primary-theme" /> Recent Immutable System Audits
             </h3>
             <DataTable<any>
               data={recentAuditLogs}
               columns={[
                 { header: "Timestamp", accessor: (log: any) => new Date(log.timestamp).toLocaleString() },
                 { header: "Staff Member", accessor: (log: any) => `${log.userId} (${log.roleName})` },
-                { header: "Action", accessor: (log: any) => <span className="font-semibold text-slate-900 dark:text-white">{log.actionType}</span> },
+                { header: "Action", accessor: (log: any) => <span className="font-semibold text-text-theme">{log.actionType}</span> },
                 { header: "Module", accessor: (log: any) => log.tableName },
-                { header: "Vetting Record", accessor: (log: any) => <span className="font-mono text-[10px] bg-slate-100 px-1 py-0.5 rounded dark:bg-slate-800">{log.recordId}</span> },
+                { header: "Vetting Record", accessor: (log: any) => <span className="font-mono text-[10px] bg-bg-muted border border-border-theme px-1 py-0.5 rounded text-text-theme">{log.recordId}</span> },
                 { header: "Vetting IP", accessor: (log: any) => log.ipAddress || "N/A" },
               ]}
               searchPlaceholder="Filter audit trail..."
@@ -333,8 +333,8 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">Foreign Job Orders Quota Utilization</h3>
+          <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-text-theme mb-4">Foreign Job Orders Quota Utilization</h3>
             {jobOrders.length > 0 ? (
               <div className="space-y-4">
                 {jobOrders.map((jo: any) => {
@@ -342,16 +342,16 @@ export default function DashboardPage() {
                   return (
                     <div key={jo.id} className="space-y-2">
                       <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-slate-800 dark:text-slate-200">
-                          {jo.employerName} - <span className="text-slate-500">{jo.trade} ({jo.country})</span>
+                        <span className="text-text-theme">
+                          {jo.employerName} - <span className="text-text-soft">{jo.trade} ({jo.country})</span>
                         </span>
-                        <span className="text-slate-600 dark:text-slate-400">
+                        <span className="text-text-muted">
                           {jo.allocatedQuota} / {jo.totalQuota} ({percentage}%)
                         </span>
                       </div>
-                      <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div className="h-2 w-full rounded-full bg-bg-muted overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+                          className="h-full rounded-full bg-primary-theme transition-all duration-500"
                           style={{ width: `${percentage}%` }}
                         ></div>
                       </div>
@@ -360,7 +360,7 @@ export default function DashboardPage() {
                 })}
               </div>
             ) : (
-              <p className="text-xs text-slate-500">No Job Orders registered in database yet.</p>
+              <p className="text-xs text-text-soft">No Job Orders registered in database yet.</p>
             )}
           </div>
         </div>
@@ -396,8 +396,8 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">Urgent Pre-Selection Screening Queue</h3>
+          <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-text-theme mb-4">Urgent Pre-Selection Screening Queue</h3>
             <DataTable<any>
               data={recruitmentQueue}
               columns={[
@@ -445,15 +445,15 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">Pending Vetting Reviews</h3>
+          <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-text-theme mb-4">Pending Vetting Reviews</h3>
             {pendingDocumentApplicants.length > 0 ? (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              <div className="divide-y divide-border-theme">
                 {pendingDocumentApplicants.map((app: any) => (
                   <div key={app.id} className="py-3 flex items-center justify-between">
                     <div>
-                      <h4 className="text-xs font-semibold text-slate-900 dark:text-white">{app.fullName}</h4>
-                      <p className="text-[10px] text-slate-400">passport: {app.passportNumber} • Trade: {app.trade}</p>
+                      <h4 className="text-xs font-semibold text-text-theme">{app.fullName}</h4>
+                      <p className="text-[10px] text-text-soft">passport: {app.passportNumber} • Trade: {app.trade}</p>
                     </div>
                     <div className="flex gap-2">
                       {app.documents.map((d: any) => (
@@ -466,7 +466,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 py-2">No documents currently pending audit review.</p>
+              <p className="text-xs text-text-soft py-2">No documents currently pending audit review.</p>
             )}
           </div>
         </div>
@@ -502,8 +502,8 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">Embassy Consulate Packets List</h3>
+          <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-text-theme mb-4">Embassy Consulate Packets List</h3>
             <DataTable<any>
               data={visaQueue}
               columns={[
@@ -551,8 +551,8 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">Pending Invoice Ledgers</h3>
+          <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-text-theme mb-4">Pending Invoice Ledgers</h3>
             <DataTable<any>
               data={pendingInvoices}
               columns={[
@@ -603,8 +603,8 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">My Sourced Candidate Statuses</h3>
+          <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-text-theme mb-4">My Sourced Candidate Statuses</h3>
             <DataTable<any>
               data={ownApplicants}
               columns={[

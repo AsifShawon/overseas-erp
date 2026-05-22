@@ -160,15 +160,15 @@ export default function ReceiptsInvoicesPage() {
     {
       header: "Invoice Number",
       accessor: (inv: FlattenedInvoice) => (
-        <span className="font-mono font-bold text-slate-900 dark:text-white">{inv.invoiceNo}</span>
+        <span className="font-mono font-bold text-text-theme">{inv.invoiceNo}</span>
       ),
     },
     {
       header: "Sourced Candidate",
       accessor: (inv: FlattenedInvoice) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-slate-900 dark:text-white">{inv.applicantName}</span>
-          <span className="text-[10px] text-slate-400">Passport: {inv.passportNumber}</span>
+          <span className="font-semibold text-text-theme">{inv.applicantName}</span>
+          <span className="text-[10px] text-text-muted">Passport: {inv.passportNumber}</span>
         </div>
       ),
     },
@@ -177,7 +177,7 @@ export default function ReceiptsInvoicesPage() {
     {
       header: "Billed Total",
       accessor: (inv: FlattenedInvoice) => (
-        <span className="font-semibold text-slate-900 dark:text-white">
+        <span className="font-semibold text-text-theme">
           ${inv.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -210,8 +210,8 @@ export default function ReceiptsInvoicesPage() {
       header: "Sourced Candidate",
       accessor: (rec: FlattenedReceipt) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-slate-900 dark:text-white">{rec.applicantName}</span>
-          <span className="text-[10px] text-slate-400">Passport: {rec.passportNumber}</span>
+          <span className="font-semibold text-text-theme">{rec.applicantName}</span>
+          <span className="text-[10px] text-text-muted">Passport: {rec.passportNumber}</span>
         </div>
       ),
     },
@@ -259,7 +259,7 @@ export default function ReceiptsInvoicesPage() {
               <button
                 onClick={handleExport}
                 disabled={isExporting}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+                className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3.5 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {isExporting ? (
                   <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
@@ -273,13 +273,13 @@ export default function ReceiptsInvoicesPage() {
         />
 
         {/* Tab Headers */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800">
+        <div className="flex border-b border-border-theme">
           <button
             onClick={() => setActiveTab("invoices")}
             className={`px-6 py-3 text-xs font-bold transition-all border-b-2 ${
               activeTab === "invoices"
-                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-                : "border-transparent text-slate-400 hover:text-slate-600"
+                ? "border-primary-theme text-primary-theme"
+                : "border-transparent text-text-soft hover:text-text-theme"
             }`}
           >
             Issued Candidate Invoices
@@ -288,8 +288,8 @@ export default function ReceiptsInvoicesPage() {
             onClick={() => setActiveTab("receipts")}
             className={`px-6 py-3 text-xs font-bold transition-all border-b-2 ${
               activeTab === "receipts"
-                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-                : "border-transparent text-slate-400 hover:text-slate-600"
+                ? "border-primary-theme text-primary-theme"
+                : "border-transparent text-text-soft hover:text-text-theme"
             }`}
           >
             Cash Desk Receipts Logs
@@ -297,8 +297,8 @@ export default function ReceiptsInvoicesPage() {
         </div>
 
         {/* Dynamic Catalog */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">
+        <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+          <h3 className="text-xs font-bold text-text-theme uppercase tracking-wider mb-4">
             {activeTab === "invoices" ? "Candidate Billing Register" : "Consolidated Payment Audits"}
           </h3>
 
