@@ -344,12 +344,81 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
   // --- Safe-Freeze Handlers for LIVE READ-ONLY MODE ---
 
-  const handleVerifyDocument = (docId: string, status: "VERIFIED" | "REJECTED") => {
-    setReadOnlyAlert({ action: `${status === "VERIFIED" ? "Verify" : "Reject"} Compliance Document (ID: ${docId})` });
+  const handleVerifyDocument = async (docId: string, status: "VERIFIED" | "REJECTED", remarks?: string) => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`/api/applicants/${id}/documents/${docId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ status, remarks }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Verification action failed. HTTP ${res.status}`);
+      }
+
+      const updatedData = await res.json();
+      setDbData(updatedData);
+    } catch (err: any) {
+      alert("Verification Error: " + err.message);
+    }
   };
 
-  const handleUploadDocument = (docType: string, fileName: string) => {
-    setReadOnlyAlert({ action: `Upload Document (Type: ${docType}, File: ${fileName})` });
+  const handleUploadDocument = async (docType: string, file: File, expiryDate?: string, remarks?: string) => {
+    if (!accessToken) return;
+    const formData = new FormData();
+    formData.append("documentType", docType);
+    formData.append("file", file);
+    if (expiryDate) formData.append("expiryDate", expiryDate);
+    if (remarks) formData.append("remarks", remarks);
+
+    const res = await fetch(`/api/applicants/${id}/documents`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Upload failed. HTTP ${res.status}`);
+    }
+
+    const updatedData = await res.json();
+    setDbData(updatedData);
+  };
+
+  const handleDownloadDocument = async (docId: string, fileName: string) => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`/api/applicants/${id}/documents/${docId}/download`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to download file. HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      alert("Download Error: " + err.message);
+    }
   };
 
   const handleRecordPayment = (amount: number, method: string, ref: string) => {
@@ -505,6 +574,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
               documents={documents}
               onUpload={handleUploadDocument}
               onVerify={handleVerifyDocument}
+              onDownload={handleDownloadDocument}
             />
           )}
 

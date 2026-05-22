@@ -43,11 +43,16 @@ export default function ApplicantPortalPage() {
   const invoice = MOCK_INVOICES.find((i) => i.applicantId === baseApplicant.id);
   const receipts = MOCK_RECEIPTS.filter((r) => r.applicantId === baseApplicant.id);
 
-  const handleUploadDocument = (docType: string, fileName: string) => {
+  const handleUploadDocument = async (
+    docType: string,
+    file: File,
+    expiryDate?: string,
+    remarks?: string
+  ) => {
     const newDoc: MockDocument = {
       id: `doc-sim-${Date.now()}`,
       documentType: docType as MockDocument["documentType"],
-      fileName,
+      fileName: file.name,
       fileUrl: "#",
       status: "PENDING_VERIFICATION",
     };
