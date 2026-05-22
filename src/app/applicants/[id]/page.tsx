@@ -123,7 +123,14 @@ interface DBApplicant {
 export default function ApplicantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
-  const { user, accessToken, loading: authLoading } = useMockAuth();
+  const { user, accessToken, loading: authLoading, hasAccess } = useMockAuth();
+
+  const canArchive =
+    user && (
+      hasAccess("ARCHIVE_APPLICANT") ||
+      hasAccess("UPDATE_APPLICANT") ||
+      ["Super Admin", "Operations Admin"].includes(user.roleName)
+    );
 
   // Dynamic state for dynamic PostgreSQL loads
   const [dbData, setDbData] = useState<DBApplicant | null>(null);
@@ -145,6 +152,14 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   const [recordingReceipt, setRecordingReceipt] = useState<boolean>(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptSuccess, setReceiptSuccess] = useState<boolean>(false);
+
+  // Archiving/Restoring states
+  const [archiveModalOpen, setArchiveModalOpen] = useState<boolean>(false);
+  const [archiveReason, setArchiveReason] = useState<string>("");
+  const [archiveAction, setArchiveAction] = useState<"ARCHIVE" | "RESTORE">("ARCHIVE");
+  const [isMutatingArchive, setIsMutatingArchive] = useState<boolean>(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [archiveSuccess, setArchiveSuccess] = useState<boolean>(false);
 
   // Tab and Interactive state
   const [activeTab, setActiveTab] = useState<"bio" | "compliance" | "financial">("bio");
@@ -551,8 +566,43 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     }
   };
 
-  const handleSoftArchive = () => {
-    setReadOnlyAlert({ action: `${applicant.isArchived ? "Recover" : "Soft Archive"} Candidate dossier` });
+  const handleSoftArchiveSubmit = async () => {
+    if (!accessToken) return;
+    if (archiveAction === "ARCHIVE" && archiveReason.trim().length < 5) {
+      setArchiveError("Please provide an archive explanation containing at least 5 characters.");
+      return;
+    }
+    
+    try {
+      setIsMutatingArchive(true);
+      setArchiveError(null);
+      
+      const res = await fetch(`/api/applicants/${id}/archive`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          action: archiveAction,
+          reason: archiveReason,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP error ${res.status}`);
+      }
+
+      const updatedData = await res.json();
+      setDbData(updatedData);
+      setArchiveModalOpen(false);
+      setArchiveSuccess(true);
+    } catch (err: any) {
+      setArchiveError(err.message || "An unexpected error occurred.");
+    } finally {
+      setIsMutatingArchive(false);
+    }
   };
 
   return (
@@ -579,20 +629,30 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
           </p>
         </div>
 
-        {/* Soft Archive Controls (Super Admin & Ops only) */}
-        {["Super Admin", "Operations Admin"].includes(user.roleName) && (
+        {/* Soft Archive Controls */}
+        {canArchive && (
           <div className="flex items-center gap-2">
             {applicant.isArchived ? (
               <button
-                onClick={handleSoftArchive}
-                className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20"
+                onClick={() => {
+                  setArchiveAction("RESTORE");
+                  setArchiveReason("");
+                  setArchiveError(null);
+                  setArchiveModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 transition-all hover:scale-105 active:scale-95 duration-200"
               >
                 <RotateCcw className="h-4 w-4" /> Emigration Recovery
               </button>
             ) : (
               <button
-                onClick={handleSoftArchive}
-                className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20"
+                onClick={() => {
+                  setArchiveAction("ARCHIVE");
+                  setArchiveReason("");
+                  setArchiveError(null);
+                  setArchiveModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 transition-all hover:scale-105 active:scale-95 duration-200"
               >
                 <Archive className="h-4 w-4" /> Soft Archive Candidate
               </button>
@@ -884,6 +944,115 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
                 className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-700 shadow-sm shadow-rose-600/20 hover:shadow-rose-600/30"
               >
                 Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Soft Archive / Restore Modal */}
+      {archiveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-2xl backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl border ${
+                archiveAction === "ARCHIVE" 
+                  ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-900/30 dark:text-emerald-400"
+              }`}>
+                {archiveAction === "ARCHIVE" ? <Archive className="h-5 w-5" /> : <RotateCcw className="h-5 w-5" />}
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  {archiveAction === "ARCHIVE" ? "Soft Archive Candidate Dossier" : "Recover Candidate Dossier"}
+                </h3>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  Change the active status of candidate file. No records will be deleted.
+                </p>
+              </div>
+            </div>
+
+            {archiveError && (
+              <div className="mt-4 flex gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/10 dark:text-rose-400 border border-rose-100/50 dark:border-rose-900/20">
+                <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+                <span className="font-medium">{archiveError}</span>
+              </div>
+            )}
+
+            <div className="mt-4 space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                {archiveAction === "ARCHIVE" ? "Reason for Archiving (Required)" : "Reason for Restoring (Optional)"}
+              </label>
+              <textarea
+                value={archiveReason}
+                onChange={(e) => setArchiveReason(e.target.value)}
+                placeholder={
+                  archiveAction === "ARCHIVE"
+                    ? "Specify the reasons (e.g. Duplicate dossier, candidate withdrew, emigrated under different program...)"
+                    : "Specify the restore reasons (optional)..."
+                }
+                rows={3}
+                disabled={isMutatingArchive}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs outline-none focus:border-indigo-500 focus:bg-white dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200 transition-all duration-200 placeholder:text-slate-400"
+              />
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setArchiveModalOpen(false)}
+                disabled={isMutatingArchive}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSoftArchiveSubmit}
+                disabled={isMutatingArchive || (archiveAction === "ARCHIVE" && archiveReason.trim().length < 5)}
+                className={`flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white transition-all duration-200 shadow-md ${
+                  archiveAction === "ARCHIVE"
+                    ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20 disabled:bg-rose-400 disabled:opacity-50"
+                    : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 disabled:bg-emerald-400 disabled:opacity-50"
+                }`}
+              >
+                {isMutatingArchive ? (
+                  <>
+                    <Globe2 className="h-3.5 w-3.5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {archiveAction === "ARCHIVE" ? "Archive Dossier" : "Recover Dossier"}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Soft Archive Success Modal */}
+      {archiveSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-100 bg-white p-6 shadow-2xl dark:border-emerald-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
+            <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 mx-auto">
+              <Sparkles className="h-6 w-6 animate-pulse" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                Dossier State Mutated
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                Candidate dossier has been successfully updated. Audit log histories and system alerts have been recorded successfully.
+              </p>
+            </div>
+            <div className="flex justify-center pt-2">
+              <button
+                onClick={() => setArchiveSuccess(false)}
+                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700 shadow-md shadow-emerald-600/20 hover:shadow-emerald-600/30"
+              >
+                Acknowledge
               </button>
             </div>
           </div>

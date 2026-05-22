@@ -18,11 +18,41 @@ export default function ApplicantsPage() {
   const [applicants, setApplicants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Filters State
   const [selectedTrade, setSelectedTrade] = useState("ALL");
   const [selectedStage, setSelectedStage] = useState("ALL");
   const [showArchived, setShowArchived] = useState(false);
+
+  const handleExport = async () => {
+    if (!accessToken) return;
+    setIsExporting(true);
+    try {
+      const url = `/api/exports/applicants?archived=${showArchived}&trade=${selectedTrade}&stage=${selectedStage}`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to generate CSV export");
+      }
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", `applicants_export_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (err: any) {
+      alert(err.message || "An unexpected error occurred during export.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Load live data from postgres-backed API
   const fetchApplicants = async () => {
@@ -120,8 +150,17 @@ export default function ApplicantsPage() {
           <Plus className="h-4 w-4" /> Add Applicant
         </button>
       )}
-      <button className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-        <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export Excel
+      <button
+        onClick={handleExport}
+        disabled={isExporting}
+        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+      >
+        {isExporting ? (
+          <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
+        ) : (
+          <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+        )}
+        {isExporting ? "Exporting..." : "Export CSV"}
       </button>
     </div>
   );

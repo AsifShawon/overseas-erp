@@ -6,7 +6,7 @@ import { DataTable } from "@/components/shared/DataTable";
 import { StatCard } from "@/components/ui/StatCard";
 import { PermissionGate } from "@/components/ui/PermissionGate";
 import { useMockAuth } from "@/context/MockAuthContext";
-import { Eye, Terminal, ArrowDownRight, Loader2 } from "lucide-react";
+import { Eye, Terminal, ArrowDownRight, Loader2, FileSpreadsheet } from "lucide-react";
 import { ErrorState } from "@/components/ui/ErrorState";
 
 export default function AuditLogsPage() {
@@ -15,11 +15,41 @@ export default function AuditLogsPage() {
   const [logsList, setLogsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [stats, setStats] = useState({
     totalLogs: 0,
     ipLoggingEnabled: true,
     auditChainStatus: "SHA-256 Locked",
   });
+
+  const handleExport = async () => {
+    if (!accessToken) return;
+    setIsExporting(true);
+    try {
+      const url = `/api/exports/audit-logs`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to generate CSV export");
+      }
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", `audit_logs_export_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (err: any) {
+      alert(err.message || "An unexpected error occurred during export.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -144,6 +174,20 @@ export default function AuditLogsPage() {
           title="Immutable Audit Logs"
           description="Regulatory operations change logs. Tracks database insertions, stamp creations, and balance revisions permanently."
           breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Audit Logs" }]}
+          actions={
+            <button
+              onClick={handleExport}
+              disabled={isExporting}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+              )}
+              {isExporting ? "Exporting..." : "Export CSV"}
+            </button>
+          }
         />
 
         {/* Overview */}
