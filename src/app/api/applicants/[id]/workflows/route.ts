@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { authenticateRequest } from "@/lib/auth";
 import { getUserPermissions } from "@/lib/rbac";
-import { validateTransition } from "@/lib/workflow-rules";
+import { validateTransition, DOCUMENT_PREREQUISITES } from "@/lib/workflow-rules";
 import { z } from "zod";
 
 const TransitionSchema = z.object({
@@ -58,6 +58,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         where: { id },
         include: {
           agent: true,
+          documents: true,
         },
       });
 
@@ -73,6 +74,55 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           throw new Error(`BAD_REQUEST:${errorReason}`);
         } else {
           throw new Error(`FORBIDDEN:${errorReason}`);
+        }
+      }
+
+      // 2b. Validate document prerequisites
+      const requiredDocs = DOCUMENT_PREREQUISITES[nextStage] || [];
+      const verifiedDocs = applicant.documents
+        .filter((doc) => doc.status === "VERIFIED")
+        .map((doc) => doc.documentType as string);
+
+      const missingDocs = requiredDocs.filter((docType) => !verifiedDocs.includes(docType));
+
+      let isOverrideUsed = false;
+
+      if (missingDocs.length > 0) {
+        const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
+        if (isSuperOrOps) {
+          // Admin override is allowed only if they provide remarks
+          if (!remarks || remarks.trim() === "") {
+            throw new Error(
+              `BAD_REQUEST:Prerequisite document(s) [${missingDocs.join(
+                ", "
+              )}] are missing or unverified. As an Administrator, you must provide justification remarks to override this stage-gate block.`
+            );
+          }
+          isOverrideUsed = true;
+        } else {
+          // Non-admin roles cannot override
+          throw new Error(
+            `BAD_REQUEST:Prerequisite document(s) [${missingDocs.join(
+              ", "
+            )}] must be uploaded and verified before transitioning candidate to ${nextStage}.`
+          );
+        }
+      }
+
+      // 2c. Special Stage-Gate: DEPLOYED requires currentStage to be TICKETED
+      if (nextStage === "DEPLOYED" && applicant.currentStage !== "TICKETED") {
+        const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
+        if (isSuperOrOps) {
+          if (!remarks || remarks.trim() === "") {
+            throw new Error(
+              `BAD_REQUEST:Transition to DEPLOYED requires the candidate to be TICKETED first. As an Administrator, you must provide justification remarks to override this stage-gate block.`
+            );
+          }
+          isOverrideUsed = true;
+        } else {
+          throw new Error(
+            `BAD_REQUEST:Candidate must be in the TICKETED stage before being DEPLOYED.`
+          );
         }
       }
 
@@ -101,7 +151,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           data: {
             userId: applicant.userId,
             title: "Application Status Update",
-            message: `Your application stage has been updated from ${applicant.currentStage} to ${nextStage}.`,
+            message: `Your application stage has been updated from ${applicant.currentStage} to ${nextStage}.${isOverrideUsed ? " (Authorized override used)" : ""}`,
           },
         });
       }
@@ -117,7 +167,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             data: {
               userId: agent.userId,
               title: "Candidate Progress Alert",
-              message: `Candidate ${applicant.fullName}'s stage updated to ${nextStage}.`,
+              message: `Candidate ${applicant.fullName}'s stage updated to ${nextStage}.${isOverrideUsed ? " (Authorized override used)" : ""}`,
             },
           });
         }
@@ -135,6 +185,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             before: { currentStage: applicant.currentStage },
             after: { currentStage: nextStage },
             remarks: remarks || null,
+            overrideUsed: isOverrideUsed,
+            missingPrerequisites: missingDocs.length > 0 ? missingDocs : undefined,
           } as any,
           ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
         },

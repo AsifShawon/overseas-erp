@@ -96,3 +96,15 @@ export function validateTransition(
 
   return { valid: true };
 }
+
+/**
+ * Maps sensitive workflow stages to their required verified document types.
+ */
+export const DOCUMENT_PREREQUISITES: Record<string, string[]> = {
+  MEDICAL_FIT: ["MEDICAL_REPORT"],
+  VISA_SUBMITTED: ["PASSPORT"],
+  VISA_STAMPED: ["VISA_STICKER"],
+  TICKETED: ["AIR_TICKET"],
+  DEPLOYED: ["PASSPORT", "MEDICAL_REPORT", "VISA_STICKER", "AIR_TICKET"],
+};
+
