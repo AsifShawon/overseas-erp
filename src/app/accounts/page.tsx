@@ -1,33 +1,81 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StatCard } from "@/components/ui/StatCard";
 import { PermissionGate } from "@/components/ui/PermissionGate";
-import { MOCK_LEDGERS, MOCK_APPLICANTS, MOCK_INVOICES, MOCK_RECEIPTS, MOCK_COMMISSIONS, MockLedgerEntry } from "@/lib/mockData";
-import { FileSpreadsheet } from "lucide-react";
+import { useMockAuth } from "@/context/MockAuthContext";
+import { FileSpreadsheet, Loader2, AlertCircle, ShieldAlert } from "lucide-react";
 
-interface FlattenedLedger extends MockLedgerEntry {
+interface FlattenedLedger {
+  id: string;
+  applicantId: string;
   applicantName: string;
   passportNumber: string;
+  transactionType: "INVOICE" | "RECEIPT" | "CREDIT_NOTE" | "DEBIT_NOTE";
+  referenceNo: string;
+  description: string;
+  debit: number;
+  credit: number;
+  runningBalance: number;
+  timestamp: string;
 }
 
 export default function AccountsPage() {
-  const allLedgers: FlattenedLedger[] = MOCK_LEDGERS.flatMap((entry) => {
-    const app = MOCK_APPLICANTS.find((a) => a.id === entry.applicantId);
-    return {
-      ...entry,
-      applicantName: app ? app.fullName : "Unknown Candidate",
-      passportNumber: app ? app.passportNumber : "N/A",
-    };
-  });
+  const { accessToken, activeRoleName } = useMockAuth();
 
-  const totalOutstanding = MOCK_INVOICES.reduce((acc, inv) => acc + inv.outstanding, 0);
-  const totalBilled = MOCK_INVOICES.reduce((acc, inv) => acc + inv.amount, 0);
-  const totalCollected = MOCK_RECEIPTS.reduce((acc, rec) => acc + rec.amountPaid, 0);
-  const totalCommissionsAccrued = MOCK_COMMISSIONS.reduce((acc, com) => acc + com.amount, 0);
+  const [ledgers, setLedgers] = useState<FlattenedLedger[]>([]);
+  const [stats, setStats] = useState({
+    totalBilled: 0,
+    totalCollected: 0,
+    totalOutstanding: 0,
+    totalCommissionsAccrued: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLedgers = async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/accounts/ledger?pageSize=1000", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("FORBIDDEN");
+        }
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to load accounts ledger.");
+      }
+
+      const data = await res.json();
+      setLedgers(data.data || []);
+      setStats({
+        totalBilled: data.stats?.totalBilled || 0,
+        totalCollected: data.stats?.totalCollected || 0,
+        totalOutstanding: data.stats?.totalOutstanding || 0,
+        totalCommissionsAccrued: data.stats?.totalCommissionsAccrued || 0,
+      });
+    } catch (err: any) {
+      console.error("Error fetching accounts ledger:", err);
+      setError(err.message || "An unexpected error occurred while loading accounts.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLedgers();
+  }, [accessToken]);
 
   const tableColumns = [
     {
@@ -39,12 +87,20 @@ export default function AccountsPage() {
         </div>
       ),
     },
-    { header: "Posting Timestamp", accessor: (entry: FlattenedLedger) => new Date(entry.timestamp).toLocaleString() },
+    {
+      header: "Posting Timestamp",
+      accessor: (entry: FlattenedLedger) => new Date(entry.timestamp).toLocaleString(),
+    },
     {
       header: "Voucher Type",
       accessor: (entry: FlattenedLedger) => <StatusBadge status={entry.transactionType} />,
     },
-    { header: "Reference No", accessor: (entry: FlattenedLedger) => <span className="font-mono font-bold">{entry.referenceNo}</span> },
+    {
+      header: "Reference No",
+      accessor: (entry: FlattenedLedger) => (
+        <span className="font-mono font-bold text-slate-900 dark:text-white">{entry.referenceNo}</span>
+      ),
+    },
     {
       header: "Debit (Amount Owed)",
       accessor: (entry: FlattenedLedger) => (
@@ -74,9 +130,32 @@ export default function AccountsPage() {
     },
   ];
 
+  // Render 403 Forbidden specifically or custom Perms gate
+  const isBlockedRole = activeRoleName === "Agent" || activeRoleName === "Applicant";
+
+  if (isBlockedRole || error === "FORBIDDEN") {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
+        <div className="h-16 w-16 rounded-2xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/50 flex items-center justify-center shadow-md animate-bounce">
+          <ShieldAlert className="h-8 w-8 text-rose-500" />
+        </div>
+        <div className="space-y-2 max-w-md">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Access Locked</h2>
+          <p className="text-xs text-slate-500">
+            Access to corporate accounts logs, balance sheets, and audit receipts is locked for recruitment officers, agents, and candidates.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <PermissionGate permission="VIEW_ACCOUNTS" showFallback={true} fallbackMessage="Access to corporate accounts logs, balance sheets, and audit receipts is locked for recruitment officers, agents, and candidates.">
+      <PermissionGate
+        permission="VIEW_ACCOUNTS"
+        showFallback={true}
+        fallbackMessage="Access to corporate accounts logs, balance sheets, and audit receipts is locked for recruitment officers, agents, and candidates."
+      >
         <PageHeader
           title="Accounts & Forensic Ledgers"
           description="Consolidated agency financial statements. Track receivables, bank transfers, and candidate double-entry postings."
@@ -92,26 +171,26 @@ export default function AccountsPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Invoiced Package Fees"
-            value={`$${totalBilled.toLocaleString()}`}
+            value={`$${stats.totalBilled.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             description="Total billed candidate accounts"
             iconName="TrendingUp"
           />
           <StatCard
             title="Cash Desk Collected"
-            value={`$${totalCollected.toLocaleString()}`}
+            value={`$${stats.totalCollected.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             description="Electronic and cash payments cleared"
             iconName="Landmark"
           />
           <StatCard
             title="Outstanding Receivables"
-            value={`$${totalOutstanding.toLocaleString()}`}
+            value={`$${stats.totalOutstanding.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             description="Remaining candidate arrears outstanding"
             iconName="CreditCard"
             trend={{ value: "11%", isPositive: false }}
           />
           <StatCard
             title="Agent Commission Obligations"
-            value={`$${totalCommissionsAccrued.toLocaleString()}`}
+            value={`$${stats.totalCommissionsAccrued.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             description="Estimated payments outstanding to agents"
             iconName="Percent"
           />
@@ -122,12 +201,36 @@ export default function AccountsPage() {
           <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">
             Unified Double-Entry Ledger Logs
           </h3>
-          <DataTable
-            data={allLedgers}
-            columns={tableColumns}
-            searchPlaceholder="Search entries by candidate name..."
-            searchField="applicantName"
-          />
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-3">
+              <Loader2 className="h-7 w-7 text-indigo-600 animate-spin" />
+              <p className="text-xs text-slate-500 font-bold">Synchronizing double-entry transactions...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center space-y-4 bg-rose-50/50 dark:bg-rose-950/5 rounded-lg border border-rose-100 dark:border-rose-950/20">
+              <AlertCircle className="h-10 w-10 text-rose-500" />
+              <div className="space-y-1 max-w-sm">
+                <h4 className="text-sm font-bold text-rose-900 dark:text-rose-400">Failed to Load Ledger</h4>
+                <p className="text-xs text-rose-700/80 dark:text-rose-400/70">{error}</p>
+              </div>
+              <button
+                onClick={fetchLedgers}
+                className="rounded-lg bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-500"
+              >
+                Retry Request
+              </button>
+            </div>
+          ) : (
+            <DataTable
+              data={ledgers}
+              columns={tableColumns}
+              searchPlaceholder="Search entries by candidate name..."
+              searchField="applicantName"
+              emptyStateTitle="No ledger transactions recorded"
+              emptyStateDescription="Verify candidate invoices and desk desk payment clearances under the dossier tab."
+            />
+          )}
         </div>
       </PermissionGate>
     </div>

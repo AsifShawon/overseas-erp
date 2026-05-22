@@ -1,0 +1,216 @@
+// src/app/api/accounts/ledger/route.ts
+// GET /api/accounts/ledger - Retrieve flattened double-entry ledger statement entries with candidate biodata, search, pagination, and transactional summaries.
+
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { authenticateRequest } from "@/lib/auth";
+import { getUserPermissions } from "@/lib/rbac";
+
+export async function GET(request: Request) {
+  try {
+    const decoded = await authenticateRequest(request);
+    if (!decoded) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
+    const { userId, roleName } = decoded;
+
+    // Boundary Check: Explicitly block Agent and Applicant user roles from corporate financial records
+    if (roleName === "Agent" || roleName === "Applicant") {
+      return NextResponse.json(
+        { error: "Forbidden. Sourced cohorts and candidates cannot access general ledger logs." },
+        { status: 403 }
+      );
+    }
+
+    // RBAC: Check permissions
+    const permissions = await getUserPermissions(userId);
+    const isAuthorized =
+      roleName === "Super Admin" ||
+      roleName === "Operations Admin" ||
+      roleName === "Accounts Officer" ||
+      permissions.includes("VIEW_ACCOUNTS" as any) ||
+      permissions.includes("MANAGE_ACCOUNTS" as any);
+
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { error: "Forbidden. Insufficient administrative credentials to view accounts ledger." },
+        { status: 403 }
+      );
+    }
+
+    // Parse query params
+    const url = new URL(request.url);
+    const search = url.searchParams.get("search") || "";
+    const transactionType = url.searchParams.get("transactionType") || "";
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(url.searchParams.get("pageSize") || "50", 10);
+
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+
+    // Build filters dynamically
+    const whereClause: any = {};
+
+    if (search) {
+      // 1. Find applicant IDs where fullName or passportNumber matches search (case insensitive)
+      const matchingApplicants = await prisma.applicant.findMany({
+        where: {
+          OR: [
+            { fullName: { contains: search, mode: "insensitive" } },
+            { passportNumber: { contains: search, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true },
+      });
+      const applicantIds = matchingApplicants.map((a) => a.id);
+
+      // 2. Find matching Invoices by invoiceNo
+      const matchingInvoices = await prisma.invoice.findMany({
+        where: {
+          invoiceNo: { contains: search, mode: "insensitive" },
+        },
+        select: { id: true },
+      });
+      const invoiceIds = matchingInvoices.map((i) => i.id);
+
+      // 3. Find matching Receipts by receiptNo
+      const matchingReceipts = await prisma.receipt.findMany({
+        where: {
+          receiptNo: { contains: search, mode: "insensitive" },
+        },
+        select: { id: true },
+      });
+      const receiptIds = matchingReceipts.map((r) => r.id);
+
+      const referenceIds = [...invoiceIds, ...receiptIds];
+
+      whereClause.OR = [
+        { applicantId: { in: applicantIds } },
+        { referenceId: { in: referenceIds } },
+      ];
+    }
+
+    if (transactionType && transactionType !== "ALL") {
+      whereClause.transactionType = transactionType;
+    }
+
+    // Calculate dynamic stats
+    const billedAgg = await prisma.invoice.aggregate({
+      _sum: { amount: true },
+    });
+    const totalBilled = Number(billedAgg._sum.amount || 0);
+
+    const collectedAgg = await prisma.receipt.aggregate({
+      _sum: { amountPaid: true },
+    });
+    const totalCollected = Number(collectedAgg._sum.amountPaid || 0);
+
+    const outstandingAgg = await prisma.invoice.aggregate({
+      _sum: { outstanding: true },
+    });
+    const totalOutstanding = Number(outstandingAgg._sum.outstanding || 0);
+
+    const commissionAgg = await prisma.commission.aggregate({
+      where: { status: "ACCRUED" },
+      _sum: { amount: true },
+    });
+    const totalCommissionsAccrued = Number(commissionAgg._sum.amount || 0);
+
+    // Fetch entries
+    const ledgerEntries = await prisma.ledgerEntry.findMany({
+      where: whereClause,
+      orderBy: { timestamp: "desc" },
+      skip,
+      take,
+      include: {
+        applicant: {
+          select: {
+            fullName: true,
+            passportNumber: true,
+          },
+        },
+      },
+    });
+
+    const totalLedgerEntries = await prisma.ledgerEntry.count({
+      where: whereClause,
+    });
+
+    // Bulk resolve matching invoices/receipts for referenceId to supply invoiceNo/receiptNo and description
+    const referenceIdsInPage = ledgerEntries.map((e) => e.referenceId);
+
+    const invoices = await prisma.invoice.findMany({
+      where: { id: { in: referenceIdsInPage } },
+    });
+
+    const receipts = await prisma.receipt.findMany({
+      where: { id: { in: referenceIdsInPage } },
+      include: {
+        invoice: {
+          select: {
+            description: true,
+          },
+        },
+      },
+    });
+
+    const invoiceMap = new Map(invoices.map((i) => [i.id, i]));
+    const receiptMap = new Map(receipts.map((r) => [r.id, r]));
+
+    const data = ledgerEntries.map((entry) => {
+      let referenceNo = "N/A";
+      let description = "";
+
+      if (entry.transactionType === "INVOICE") {
+        const inv = invoiceMap.get(entry.referenceId);
+        if (inv) {
+          referenceNo = inv.invoiceNo;
+          description = inv.description;
+        }
+      } else if (entry.transactionType === "RECEIPT") {
+        const rec = receiptMap.get(entry.referenceId);
+        if (rec) {
+          referenceNo = rec.receiptNo;
+          description = rec.invoice?.description || "Direct Account Deposit";
+        }
+      }
+
+      return {
+        id: entry.id,
+        applicantId: entry.applicantId,
+        applicantName: entry.applicant?.fullName || "Unknown Candidate",
+        passportNumber: entry.applicant?.passportNumber || "N/A",
+        transactionType: entry.transactionType,
+        referenceNo,
+        description,
+        debit: Number(entry.debit),
+        credit: Number(entry.credit),
+        runningBalance: Number(entry.runningBalance),
+        timestamp: entry.timestamp.toISOString(),
+      };
+    });
+
+    return NextResponse.json({
+      data,
+      stats: {
+        totalBilled,
+        totalCollected,
+        totalOutstanding,
+        totalCommissionsAccrued,
+        totalLedgerEntries,
+      },
+      pagination: {
+        total: totalLedgerEntries,
+        page,
+        pageSize,
+      },
+    });
+  } catch (error: any) {
+    console.error("GET /api/accounts/ledger Error:", error);
+    return NextResponse.json(
+      { error: "An internal server error occurred while retrieving forensic ledger logs." },
+      { status: 500 }
+    );
+  }
+}
