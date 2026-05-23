@@ -9,6 +9,8 @@ import { PermissionGate } from "@/components/ui/PermissionGate";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { FileSpreadsheet, Loader2, AlertCircle, ShieldAlert } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
+import { useT } from "@/i18n/useT";
+import { formatCurrency, formatDateTime } from "@/i18n/format";
 
 interface FlattenedLedger {
   id: string;
@@ -27,6 +29,7 @@ interface FlattenedLedger {
 export default function AccountsPage() {
   const { accessToken, activeRoleName } = useMockAuth();
   const toast = useToast();
+  const { t, locale } = useT();
 
   const [ledgers, setLedgers] = useState<FlattenedLedger[]>([]);
   const [stats, setStats] = useState({
@@ -51,7 +54,7 @@ export default function AccountsPage() {
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to generate CSV export");
+        throw new Error(errData.error || (locale === "bn" ? "সিএসভি এক্সপোর্ট ফাইল তৈরি করতে ব্যর্থ হয়েছে।" : "Failed to generate CSV export"));
       }
       const blob = await res.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
@@ -61,9 +64,9 @@ export default function AccountsPage() {
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
-      toast.success("Accounts ledger exported successfully!");
+      toast.success(locale === "bn" ? "অ্যাকাউন্টস লেজার সফলভাবে এক্সপোর্ট করা হয়েছে!" : "Accounts ledger exported successfully!");
     } catch (err: any) {
-      toast.error(err.message || "An unexpected error occurred during export.");
+      toast.error(err.message || (locale === "bn" ? "এক্সপোর্ট করার সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred during export."));
     } finally {
       setIsExporting(false);
     }
@@ -87,7 +90,7 @@ export default function AccountsPage() {
           throw new Error("FORBIDDEN");
         }
         const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to load accounts ledger.");
+        throw new Error(errorData.error || (locale === "bn" ? "অ্যাকাউন্টস লেজার লোড করতে ব্যর্থ হয়েছে।" : "Failed to load accounts ledger."));
       }
 
       const data = await res.json();
@@ -100,7 +103,7 @@ export default function AccountsPage() {
       });
     } catch (err: any) {
       console.error("Error fetching accounts ledger:", err);
-      setError(err.message || "An unexpected error occurred while loading accounts.");
+      setError(err.message || (locale === "bn" ? "অ্যাকাউন্ট লোড করার সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred while loading accounts."));
     } finally {
       setLoading(false);
     }
@@ -112,51 +115,53 @@ export default function AccountsPage() {
 
   const tableColumns = [
     {
-      header: "Candidate Name",
+      header: t("accounts.tableHeaderApplicant"),
       accessor: (entry: FlattenedLedger) => (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5 text-text-theme">
           <span className="font-semibold text-text-theme">{entry.applicantName}</span>
-          <span className="text-[10px] text-text-muted">Passport: {entry.passportNumber}</span>
+          <span className="text-[10px] text-text-muted">
+            {locale === "bn" ? "পাসপোর্ট" : "Passport"}: {entry.passportNumber}
+          </span>
         </div>
       ),
     },
     {
-      header: "Posting Timestamp",
-      accessor: (entry: FlattenedLedger) => new Date(entry.timestamp).toLocaleString(),
+      header: t("accounts.tableHeaderTimestamp"),
+      accessor: (entry: FlattenedLedger) => formatDateTime(entry.timestamp, locale),
     },
     {
-      header: "Voucher Type",
+      header: t("accounts.tableHeaderType"),
       accessor: (entry: FlattenedLedger) => <StatusBadge status={entry.transactionType} />,
     },
     {
-      header: "Reference No",
+      header: t("accounts.tableHeaderRef"),
       accessor: (entry: FlattenedLedger) => (
         <span className="font-mono font-bold text-text-theme">{entry.referenceNo}</span>
       ),
     },
     {
-      header: "Debit (Amount Owed)",
+      header: t("accounts.tableHeaderDebit"),
       accessor: (entry: FlattenedLedger) => (
         <span className="text-rose-600 font-semibold">
-          {entry.debit > 0 ? `$${entry.debit.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "-"}
+          {entry.debit > 0 ? formatCurrency(entry.debit, "BDT", locale) : "-"}
         </span>
       ),
       cellClassName: "text-right",
     },
     {
-      header: "Credit (Amount Paid)",
+      header: t("accounts.tableHeaderCredit"),
       accessor: (entry: FlattenedLedger) => (
         <span className="text-emerald-600 font-semibold">
-          {entry.credit > 0 ? `$${entry.credit.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "-"}
+          {entry.credit > 0 ? formatCurrency(entry.credit, "BDT", locale) : "-"}
         </span>
       ),
       cellClassName: "text-right",
     },
     {
-      header: "Running Balance",
+      header: t("accounts.tableHeaderBalance"),
       accessor: (entry: FlattenedLedger) => (
         <span className="font-bold text-text-theme">
-          ${entry.runningBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          {formatCurrency(entry.runningBalance, "BDT", locale)}
         </span>
       ),
       cellClassName: "text-right",
@@ -166,6 +171,10 @@ export default function AccountsPage() {
   // Render 403 Forbidden specifically or custom Perms gate
   const isBlockedRole = activeRoleName === "Agent" || activeRoleName === "Applicant";
 
+  const accessLockedMessage = locale === "bn"
+    ? "করপোরেট অ্যাকাউন্টস লগ, ব্যালেন্স শিট এবং অডিট রসিদে প্রবেশাধিকার সোর্সিং এজেন্ট এবং প্রার্থীদের জন্য লক করা রয়েছে।"
+    : "Access to corporate accounts logs, balance sheets, and audit receipts is locked for recruitment officers, agents, and candidates.";
+
   if (isBlockedRole || error === "FORBIDDEN") {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
@@ -173,9 +182,11 @@ export default function AccountsPage() {
           <ShieldAlert className="h-8 w-8 text-rose-500" />
         </div>
         <div className="space-y-2 max-w-md">
-          <h2 className="text-lg font-bold text-text-theme">Access Locked</h2>
+          <h2 className="text-lg font-bold text-text-theme">
+            {locale === "bn" ? "প্রবেশাধিকার লক করা হয়েছে" : "Access Locked"}
+          </h2>
           <p className="text-xs text-text-muted">
-            Access to corporate accounts logs, balance sheets, and audit receipts is locked for recruitment officers, agents, and candidates.
+            {accessLockedMessage}
           </p>
         </div>
       </div>
@@ -187,12 +198,15 @@ export default function AccountsPage() {
       <PermissionGate
         permission="VIEW_ACCOUNTS"
         showFallback={true}
-        fallbackMessage="Access to corporate accounts logs, balance sheets, and audit receipts is locked for recruitment officers, agents, and candidates."
+        fallbackMessage={accessLockedMessage}
       >
         <PageHeader
-          title="Accounts & Forensic Ledgers"
-          description="Consolidated agency financial statements. Track receivables, bank transfers, and candidate double-entry postings."
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Accounts" }]}
+          title={t("accounts.pageTitle")}
+          description={t("accounts.pageDesc")}
+          breadcrumbs={[
+            { label: locale === "bn" ? "ড্যাশবোর্ড" : "ERP Hub", href: "/dashboard" },
+            { label: locale === "bn" ? "হিসাব খাতা" : "Accounts" }
+          ]}
           actions={
             <button
               onClick={handleExport}
@@ -204,7 +218,7 @@ export default function AccountsPage() {
               ) : (
                 <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
               )}
-              {isExporting ? "Exporting..." : "Export CSV"}
+              {isExporting ? (locale === "bn" ? "এক্সপোর্ট হচ্ছে..." : "Exporting...") : (locale === "bn" ? "CSV এক্সপোর্ট" : "Export CSV")}
             </button>
           }
         />
@@ -212,28 +226,27 @@ export default function AccountsPage() {
         {/* Financial Stat Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            title="Total Invoiced Package Fees"
-            value={`$${stats.totalBilled.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            description="Total billed candidate accounts"
+            title={locale === "bn" ? "মোট ইনভয়েসকৃত সার্ভিস ফি" : "Total Invoiced Package Fees"}
+            value={formatCurrency(stats.totalBilled, "BDT", locale)}
+            description={locale === "bn" ? "মোট বিলিং চার্জকৃত প্রার্থী হিসাব" : "Total billed candidate accounts"}
             iconName="TrendingUp"
           />
           <StatCard
-            title="Cash Desk Collected"
-            value={`$${stats.totalCollected.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            description="Electronic and cash payments cleared"
+            title={locale === "bn" ? "ক্যাশ ডেস্ক মোট সংগ্রহ" : "Cash Desk Collected"}
+            value={formatCurrency(stats.totalCollected, "BDT", locale)}
+            description={locale === "bn" ? "ইলেকট্রনিক ও নগদ সংগ্রহ সম্পন্ন" : "Electronic and cash payments cleared"}
             iconName="Landmark"
           />
           <StatCard
-            title="Outstanding Receivables"
-            value={`$${stats.totalOutstanding.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            description="Remaining candidate arrears outstanding"
+            title={locale === "bn" ? "মোট বকেয়া ব্যালেন্স" : "Outstanding Receivables"}
+            value={formatCurrency(stats.totalOutstanding, "BDT", locale)}
+            description={locale === "bn" ? "প্রার্থীদের থেকে মোট পাওনা বকেয়া" : "Remaining candidate arrears outstanding"}
             iconName="CreditCard"
-            trend={{ value: "11%", isPositive: false }}
           />
           <StatCard
-            title="Agent Commission Obligations"
-            value={`$${stats.totalCommissionsAccrued.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            description="Estimated payments outstanding to agents"
+            title={locale === "bn" ? "এজেন্ট কমিশন দায়সমূহ" : "Agent Commission Obligations"}
+            value={formatCurrency(stats.totalCommissionsAccrued, "BDT", locale)}
+            description={locale === "bn" ? "সোর্সিং পার্টনারদের প্রদেয় মোট কমিশন" : "Estimated payments outstanding to agents"}
             iconName="Percent"
           />
         </div>
@@ -241,36 +254,36 @@ export default function AccountsPage() {
         {/* Global Forensic Ledger Table */}
         <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
           <h3 className="text-xs font-bold text-text-theme uppercase tracking-wider mb-4">
-            Unified Double-Entry Ledger Logs
+            {locale === "bn" ? "সমন্বিত ডাবল-এন্ট্রি লেজার লগ" : "Unified Double-Entry Ledger Logs"}
           </h3>
 
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-3">
               <Loader2 className="h-7 w-7 text-indigo-600 animate-spin" />
-              <p className="text-xs text-slate-500 font-bold">Synchronizing double-entry transactions...</p>
+              <p className="text-xs text-slate-500 font-bold">{locale === "bn" ? "ডাবল-এন্ট্রি লেনদেনসমূহ সিঙ্ক হচ্ছে..." : "Synchronizing double-entry transactions..."}</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-16 text-center space-y-4 bg-rose-50/50 dark:bg-rose-950/5 rounded-lg border border-rose-100 dark:border-rose-950/20">
               <AlertCircle className="h-10 w-10 text-rose-500" />
               <div className="space-y-1 max-w-sm">
-                <h4 className="text-sm font-bold text-rose-900 dark:text-rose-400">Failed to Load Ledger</h4>
+                <h4 className="text-sm font-bold text-rose-900 dark:text-rose-400">{locale === "bn" ? "লেজার লোড করতে ব্যর্থ" : "Failed to Load Ledger"}</h4>
                 <p className="text-xs text-rose-700/80 dark:text-rose-400/70">{error}</p>
               </div>
               <button
                 onClick={fetchLedgers}
-                className="rounded-lg bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-500"
+                className="rounded-lg bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-500 cursor-pointer"
               >
-                Retry Request
+                {locale === "bn" ? "পুনরায় চেষ্টা করুন" : "Retry Request"}
               </button>
             </div>
           ) : (
             <DataTable
               data={ledgers}
               columns={tableColumns}
-              searchPlaceholder="Search entries by candidate name..."
+              searchPlaceholder={t("accounts.searchPlaceholder")}
               searchField="applicantName"
-              emptyStateTitle="No ledger transactions recorded"
-              emptyStateDescription="Verify candidate invoices and desk desk payment clearances under the dossier tab."
+              emptyStateTitle={locale === "bn" ? "কোনো লেজার লেনদেন রেকর্ড করা হয়নি" : "No ledger transactions recorded"}
+              emptyStateDescription={locale === "bn" ? "প্রার্থীর নথির হিসাব ট্যাব থেকে ভাউচার ও কিস্তি পেমেন্ট অডিট করুন।" : "Verify candidate invoices and desk desk payment clearances under the dossier tab."}
             />
           )}
         </div>
@@ -278,3 +291,4 @@ export default function AccountsPage() {
     </div>
   );
 }
+

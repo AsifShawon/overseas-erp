@@ -6,11 +6,14 @@ import { DataTable } from "@/components/shared/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StatCard } from "@/components/ui/StatCard";
 import { PermissionGate } from "@/components/ui/PermissionGate";
-import { MOCK_APPLICANTS, WORKFLOW_LABELS, WorkflowStage, MockApplicant } from "@/lib/mockData";
+import { MOCK_APPLICANTS, WorkflowStage, MockApplicant } from "@/lib/mockData";
 import { GitCommit, AlertOctagon, ArrowRight } from "lucide-react";
+import { useT } from "@/i18n/useT";
 import Link from "next/link";
 
 export default function WorkflowPage() {
+  const { t, locale } = useT();
+
   // Funnel calculations
   const stageCounts = MOCK_APPLICANTS.reduce((acc, app) => {
     acc[app.currentStage] = (acc[app.currentStage] || 0) + 1;
@@ -44,30 +47,33 @@ export default function WorkflowPage() {
     <div className="space-y-6">
       <PermissionGate permission="VIEW_DASHBOARD" showFallback={true}>
         <PageHeader
-          title="Recruitment Stage Pipeline"
-          description="Logistics bottleneck summary. Monitor candidate workflow funnels, medical clearances, and visa sticker acquisitions."
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Workflow tracking" }]}
+          title={t("pipelinePage.title")}
+          description={t("pipelinePage.description")}
+          breadcrumbs={[
+            { label: locale === "bn" ? "ড্যাশবোর্ড" : "ERP Hub", href: "/dashboard" },
+            { label: t("pipelinePage.tracking") }
+          ]}
         />
 
         {/* Funnel Stats */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
-            title="Active Emigration Files"
+            title={t("pipelinePage.activeFiles")}
             value={activePipelinesCount}
-            description="Active vetting & logistics folders"
+            description={t("pipelinePage.activeFilesDesc")}
             iconName="Activity"
           />
           <StatCard
-            title="Halted Bottlenecks"
+            title={t("pipelinePage.haltedBottlenecks")}
             value={haltedCandidates.length}
-            description="Medical unfit or embassy declines"
+            description={t("pipelinePage.haltedBottlenecksDesc")}
             iconName="AlertOctagon"
             className="border-rose-100 bg-rose-50/10"
           />
           <StatCard
-            title="Boarded & Deployed"
+            title={t("pipelinePage.boardedDeployed")}
             value={deployedCount}
-            description="Emigrants who successfully boarded flights"
+            description={t("pipelinePage.boardedDeployedDesc")}
             iconName="UserCheck"
           />
         </div>
@@ -75,12 +81,12 @@ export default function WorkflowPage() {
         {/* Funnel visual columns */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
           <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-6">
-            Logistics Pipeline Distribution
+            {t("pipelinePage.pipelineDistribution")}
           </h3>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             {mainStagesList.map((stage) => {
               const count = stageCounts[stage] || 0;
-              const title = WORKFLOW_LABELS[stage];
+              const title = t(`workflow.${stage}`);
               return (
                 <div key={stage} className="rounded-xl border border-slate-100 bg-slate-50/40 p-4 text-center dark:border-slate-800 dark:bg-slate-900/20">
                   <span className="relative flex h-2 w-2 mx-auto mb-2">
@@ -106,11 +112,11 @@ export default function WorkflowPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
             <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-              <AlertOctagon className="h-4.5 w-4.5 text-rose-500" /> Vetting Exception Queue (Halted Stages)
+              <AlertOctagon className="h-4.5 w-4.5 text-rose-500" /> {t("pipelinePage.exceptionQueue")}
             </h3>
             {haltedCandidates.length === 0 ? (
               <div className="text-center py-8 text-slate-400 text-xs">
-                No active candidate pipelines are currently in halted status.
+                {t("pipelinePage.noHaltedPipelines")}
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -118,7 +124,9 @@ export default function WorkflowPage() {
                   <div key={app.id} className="py-3 flex items-center justify-between">
                     <div>
                       <h4 className="text-xs font-bold text-slate-900 dark:text-white">{app.fullName}</h4>
-                      <p className="text-[10px] text-slate-400">Trade Category: {app.trade} • Passport No: {app.passportNumber}</p>
+                      <p className="text-[10px] text-slate-400">
+                        {locale === "bn" ? `কাজের বিভাগ: ${app.trade} • পাসপোর্ট নং: ${app.passportNumber}` : `Trade Category: ${app.trade} • Passport No: ${app.passportNumber}`}
+                      </p>
                     </div>
                     <div className="flex items-center gap-3">
                       <StatusBadge status={app.currentStage} />
@@ -126,7 +134,7 @@ export default function WorkflowPage() {
                         href={`/applicants/${app.id}`}
                         className="flex items-center gap-0.5 rounded border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400"
                       >
-                        Inspect Dossier <ArrowRight className="h-3 w-3" />
+                        {t("pipelinePage.inspectDossier")} <ArrowRight className="h-3 w-3" />
                       </Link>
                     </div>
                   </div>
@@ -138,25 +146,24 @@ export default function WorkflowPage() {
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 flex flex-col justify-between">
             <div>
               <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                Logistics Guidelines
+                {t("pipelinePage.logisticsGuidelines")}
               </h3>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Candidates must progress through linear workflows to generate emigration clearance certificates. 
-                Vetting officers are reminded that visa stamping or flight ticket allocations require document checklists to be fully vetted and verified beforehand.
+                {t("pipelinePage.guidelinesText")}
               </p>
               <div className="mt-4 space-y-2">
                 <div className="flex items-start gap-2 text-[10px] text-slate-600 dark:text-slate-400">
                   <GitCommit className="h-4 w-4 text-indigo-500 shrink-0 mt-0.5" />
-                  <span>Medical unfit halts prevent passport consulate submissions.</span>
+                  <span>{t("pipelinePage.guideline1")}</span>
                 </div>
                 <div className="flex items-start gap-2 text-[10px] text-slate-600 dark:text-slate-400">
                   <GitCommit className="h-4 w-4 text-indigo-500 shrink-0 mt-0.5" />
-                  <span>Embassy visa declines log visa sticker as rejected.</span>
+                  <span>{t("pipelinePage.guideline2")}</span>
                 </div>
               </div>
             </div>
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400">
-              For system overrides, contact the Super Admin team.
+              {t("pipelinePage.overrideNotice")}
             </div>
           </div>
         </div>
@@ -164,28 +171,28 @@ export default function WorkflowPage() {
         {/* Global Pipeline Directory */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
           <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">
-            Pipeline Cohort Directory
+            {t("pipelinePage.cohortDirectory")}
           </h3>
           <DataTable
             data={MOCK_APPLICANTS}
             columns={[
-              { header: "Candidate Name", accessor: (a: MockApplicant) => a.fullName },
-              { header: "Applied Trade", accessor: (a: MockApplicant) => a.trade },
-              { header: "Passport No.", accessor: (a: MockApplicant) => <span className="font-mono">{a.passportNumber}</span> },
-              { header: "Workflow Stage", accessor: (a: MockApplicant) => <StatusBadge status={a.currentStage} /> },
+              { header: t("pipelinePage.candidateName"), accessor: (a: MockApplicant) => a.fullName },
+              { header: t("pipelinePage.appliedTrade"), accessor: (a: MockApplicant) => a.trade },
+              { header: t("pipelinePage.passportNo"), accessor: (a: MockApplicant) => <span className="font-mono">{a.passportNumber}</span> },
+              { header: t("pipelinePage.workflowStage"), accessor: (a: MockApplicant) => <StatusBadge status={a.currentStage} /> },
               {
-                header: "Folder Link",
+                header: t("pipelinePage.folderLink"),
                 accessor: (a: MockApplicant) => (
                   <Link
                     href={`/applicants/${a.id}`}
                     className="text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400"
                   >
-                    Open Workspace
+                    {t("pipelinePage.openWorkspace")}
                   </Link>
                 ),
               },
             ]}
-            searchPlaceholder="Search pipeline..."
+            searchPlaceholder={t("pipelinePage.searchPipeline")}
             searchField="fullName"
           />
         </div>

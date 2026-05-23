@@ -11,6 +11,8 @@ import { useToast } from "@/context/ToastContext";
 import { AppModal } from "@/components/ui/AppModal";
 import { AppInput } from "@/components/ui/AppInput";
 import { AppSelect } from "@/components/ui/AppSelect";
+import { useT } from "@/i18n/useT";
+import { formatCurrency, formatNumber } from "@/i18n/format";
 import {
   MapPin,
   FileSpreadsheet,
@@ -52,12 +54,13 @@ const getCurrencyByCountry = (country: string) => {
   if (c.includes("singapore") || c.includes("sgp")) return "SGD";
   if (c.includes("kuwait") || c.includes("kwt")) return "KWD";
   if (c.includes("bahrain") || c.includes("bhr")) return "BHD";
-  return "USD";
+  return "BDT";
 };
 
 export default function JobOrdersPage() {
   const { hasAccess, accessToken, activeRoleName } = useMockAuth();
   const toast = useToast();
+  const { t, locale } = useT();
 
   const [jobOrders, setJobOrders] = useState<JobOrder[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -123,7 +126,10 @@ export default function JobOrdersPage() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to load job orders registry.");
+        throw new Error(
+          errorData.error || 
+          (locale === "bn" ? "জব অর্ডার রেজিস্ট্রি লোড করতে ব্যর্থ হয়েছে।" : "Failed to load job orders registry.")
+        );
       }
 
       const data = await res.json();
@@ -131,7 +137,10 @@ export default function JobOrdersPage() {
       setStats(data.stats || null);
     } catch (err: any) {
       console.error("Error fetching job orders:", err);
-      setError(err.message || "An unexpected error occurred while loading job orders.");
+      setError(
+        err.message || 
+        (locale === "bn" ? "জব অর্ডার লোড করার সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred while loading job orders.")
+      );
     } finally {
       setLoading(false);
     }
@@ -166,22 +175,34 @@ export default function JobOrdersPage() {
 
     // Client validations
     const validationErrors: Record<string, string> = {};
-    if (!formData.employerName.trim()) validationErrors.employerName = "Employer/Company Name is required";
-    if (!formData.country.trim()) validationErrors.country = "Country is required";
-    if (!formData.trade.trim()) validationErrors.trade = "Trade role is required";
+    if (!formData.employerName.trim()) {
+      validationErrors.employerName = locale === "bn" ? "নিয়োগকর্তা / কোম্পানির নাম আবশ্যক" : "Employer/Company Name is required";
+    }
+    if (!formData.country.trim()) {
+      validationErrors.country = locale === "bn" ? "দেশ আবশ্যক" : "Country is required";
+    }
+    if (!formData.trade.trim()) {
+      validationErrors.trade = locale === "bn" ? "কাজের ধরন / ট্রেড রোল আবশ্যক" : "Trade role is required";
+    }
 
     const sal = parseFloat(formData.salary);
-    if (isNaN(sal) || sal <= 0) validationErrors.salary = "Salary must be a positive number";
+    if (isNaN(sal) || sal <= 0) {
+      validationErrors.salary = locale === "bn" ? "বেতন অবশ্যই একটি ধনাত্মক সংখ্যা হতে হবে" : "Salary must be a positive number";
+    }
 
     const quota = parseInt(formData.totalQuota, 10);
-    if (isNaN(quota) || quota <= 0) validationErrors.totalQuota = "Total quota capacity must be a positive integer";
+    if (isNaN(quota) || quota <= 0) {
+      validationErrors.totalQuota = locale === "bn" ? "মোট কোটা অবশ্যই একটি ধনাত্মক পূর্ণসংখ্যা হতে হবে" : "Total quota capacity must be a positive integer";
+    }
 
     const comm = parseFloat(formData.commissionAmount);
-    if (isNaN(comm) || comm < 0) validationErrors.commissionAmount = "Commission must be a non-negative number";
+    if (isNaN(comm) || comm < 0) {
+      validationErrors.commissionAmount = locale === "bn" ? "কমিশন অবশ্যই একটি অ-ঋণাত্মক সংখ্যা হতে হবে" : "Commission must be a non-negative number";
+    }
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      setFormError("Please satisfy all highlighted requirements.");
+      setFormError(locale === "bn" ? "অনুগ্রহ করে সব আবশ্যক ঘর পূরণ করুন।" : "Please satisfy all highlighted requirements.");
       return;
     }
 
@@ -213,16 +234,16 @@ export default function JobOrdersPage() {
 
       const resData = await res.json();
       if (!res.ok) {
-        throw new Error(resData.error || "Failed to register job order.");
+        throw new Error(resData.error || (locale === "bn" ? "জব অর্ডার নিবন্ধন করতে ব্যর্থ হয়েছে।" : "Failed to register job order."));
       }
 
-      toast.success("Foreign job order registered successfully!");
+      toast.success(locale === "bn" ? "বিদেশি জব অর্ডার সফলভাবে নিবন্ধিত হয়েছে!" : "Foreign job order registered successfully!");
       setIsCreateModalOpen(false);
       setFormData(initialFormState);
       fetchJobOrders();
     } catch (err: any) {
-      setFormError(err.message || "An unexpected error occurred during creation.");
-      toast.error(err.message || "Failed to register job order.");
+      setFormError(err.message || (locale === "bn" ? "তৈরি করার সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred during creation."));
+      toast.error(err.message || (locale === "bn" ? "জব অর্ডার নিবন্ধন করতে ব্যর্থ হয়েছে।" : "Failed to register job order."));
     } finally {
       setIsSubmitting(false);
     }
@@ -255,60 +276,74 @@ export default function JobOrdersPage() {
 
     // Client validations
     const validationErrors: Record<string, string> = {};
-    if (!editForm.employerName.trim()) validationErrors.employerName = "Employer/Company Name is required";
-    if (!editForm.country.trim()) validationErrors.country = "Country is required";
-    if (!editForm.trade.trim()) validationErrors.trade = "Trade role is required";
+    if (!editForm.employerName.trim()) {
+      validationErrors.employerName = locale === "bn" ? "নিয়োগকর্তা / কোম্পানির নাম আবশ্যক" : "Employer/Company Name is required";
+    }
+    if (!editForm.country.trim()) {
+      validationErrors.country = locale === "bn" ? "দেশ আবশ্যক" : "Country is required";
+    }
+    if (!editForm.trade.trim()) {
+      validationErrors.trade = locale === "bn" ? "কাজের ধরন / ট্রেড রোল আবশ্যক" : "Trade role is required";
+    }
 
     const sal = parseFloat(editForm.salary);
-    if (isNaN(sal) || sal <= 0) validationErrors.salary = "Salary must be a positive number";
+    if (isNaN(sal) || sal <= 0) {
+      validationErrors.salary = locale === "bn" ? "বেতন অবশ্যই একটি ধনাত্মক সংখ্যা হতে হবে" : "Salary must be a positive number";
+    }
 
     const quota = parseInt(editForm.totalQuota, 10);
     if (isNaN(quota) || quota <= 0) {
-      validationErrors.totalQuota = "Total quota must be a positive integer";
+      validationErrors.totalQuota = locale === "bn" ? "মোট কোটা অবশ্যই একটি ধনাত্মক পূর্ণসংখ্যা হতে হবে" : "Total quota must be a positive integer";
     } else if (quota < selectedOrder.allocatedQuota) {
-      validationErrors.totalQuota = `Quota cannot be lowered than currently active placements (${selectedOrder.allocatedQuota})`;
+      validationErrors.totalQuota = locale === "bn" 
+        ? `কোটা বর্তমান সক্রিয় প্লেসমেন্টের (${selectedOrder.allocatedQuota}) চেয়ে কমানো সম্ভব নয়` 
+        : `Quota cannot be lowered than currently active placements (${selectedOrder.allocatedQuota})`;
     }
 
     const comm = parseFloat(editForm.commissionAmount);
-    if (isNaN(comm) || comm < 0) validationErrors.commissionAmount = "Commission must be a non-negative number";
+    if (isNaN(comm) || comm < 0) {
+      validationErrors.commissionAmount = locale === "bn" ? "কমিশন অবশ্যই একটি অ-ঋণাত্মক সংখ্যা হতে হবে" : "Commission must be a non-negative number";
+    }
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      setFormError("Please satisfy all highlighted requirements.");
+      setFormError(locale === "bn" ? "অনুগ্রহ করে সব আবশ্যক ঘর পূরণ করুন।" : "Please satisfy all highlighted requirements.");
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const payload = {
+        employerName: editForm.employerName.trim(),
+        country: editForm.country.trim(),
+        trade: editForm.trade.trim(),
+        salary: sal,
+        totalQuota: quota,
+        commissionAmount: comm,
+        status: editForm.status,
+      };
+
       const res = await fetch(`/api/job-orders/${editForm.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({
-          employerName: editForm.employerName.trim(),
-          country: editForm.country.trim(),
-          trade: editForm.trade.trim(),
-          salary: sal,
-          totalQuota: quota,
-          commissionAmount: comm,
-          status: editForm.status,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const resData = await res.json();
       if (!res.ok) {
-        throw new Error(resData.error || "Failed to update job order.");
+        throw new Error(resData.error || (locale === "bn" ? "জব অর্ডার আপডেট করতে ব্যর্থ হয়েছে।" : "Failed to update job order."));
       }
 
-      toast.success("Job demand order modified successfully!");
+      toast.success(locale === "bn" ? "জব ডিমান্ড অর্ডার সফলভাবে সংশোধন করা হয়েছে!" : "Job demand order modified successfully!");
       setIsEditModalOpen(false);
       setSelectedOrder(null);
       fetchJobOrders();
     } catch (err: any) {
-      setFormError(err.message || "An unexpected error occurred during modification.");
-      toast.error(err.message || "Failed to update job order.");
+      setFormError(err.message || (locale === "bn" ? "সংশোধনের সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred during modification."));
+      toast.error(err.message || (locale === "bn" ? "জব অর্ডার আপডেট করতে ব্যর্থ হয়েছে।" : "Failed to update job order."));
     } finally {
       setIsSubmitting(false);
     }
@@ -332,7 +367,10 @@ export default function JobOrdersPage() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to generate CSV export.");
+        throw new Error(
+          errorData.error || 
+          (locale === "bn" ? "CSV এক্সপোর্ট জেনারেট করতে ব্যর্থ হয়েছে।" : "Failed to generate CSV export.")
+        );
       }
 
       const csvText = await res.text();
@@ -347,10 +385,13 @@ export default function JobOrdersPage() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
 
-      toast.success("CSV registry exported successfully!");
+      toast.success(locale === "bn" ? "CSV রেজিস্ট্রি সফলভাবে এক্সপোর্ট করা হয়েছে!" : "CSV registry exported successfully!");
     } catch (err: any) {
       console.error("Export error:", err);
-      toast.error(err.message || "Failed to execute bulk export.");
+      toast.error(
+        err.message || 
+        (locale === "bn" ? "বাল্ক এক্সপোর্ট সম্পন্ন করতে ব্যর্থ হয়েছে।" : "Failed to execute bulk export.")
+      );
     }
   };
 
@@ -370,16 +411,18 @@ export default function JobOrdersPage() {
 
   const tableColumns = [
     {
-      header: "Order Reference",
+      header: t("jobOrders.orderReference"),
       accessor: (jo: JobOrder) => (
         <div className="flex flex-col gap-0.5">
           <span className="font-semibold text-text-theme">{jo.orderNumber}</span>
-          <span className="text-[10px] text-text-soft">Employer: {jo.employerName}</span>
+          <span className="text-[10px] text-text-soft">
+            {t("jobOrders.employer", { name: jo.employerName })}
+          </span>
         </div>
       ),
     },
     {
-      header: "Country / Location",
+      header: t("jobOrders.countryLocation"),
       accessor: (jo: JobOrder) => (
         <div className="flex items-center gap-1 text-text-theme">
           <MapPin className="h-3.5 w-3.5 text-text-soft" />
@@ -387,27 +430,32 @@ export default function JobOrdersPage() {
         </div>
       ),
     },
-    { header: "Trade Role", accessor: (jo: JobOrder) => jo.trade },
+    { header: t("jobOrders.tableHeaderTrade"), accessor: (jo: JobOrder) => jo.trade },
     {
-      header: "Monthly Salary",
+      header: t("jobOrders.monthlySalary"),
       accessor: (jo: JobOrder) => {
         const curr = getCurrencyByCountry(jo.country);
         return (
           <span className="font-semibold text-text-theme">
-            {Number(jo.salary).toLocaleString(undefined, { minimumFractionDigits: 2 })} {curr}
+            {formatCurrency(jo.salary, curr, locale)}
           </span>
         );
       },
     },
     {
-      header: "Quota Allocation Progress",
+      header: t("jobOrders.quotaAllocationProgress"),
       accessor: (jo: JobOrder) => {
         const pct = Math.min(100, Math.round((jo.allocatedQuota / jo.totalQuota) * 100)) || 0;
         return (
           <div className="w-48 space-y-1">
             <div className="flex justify-between text-[10px] text-text-soft font-bold">
-              <span>{jo.allocatedQuota} / {jo.totalQuota} Filled</span>
-              <span>{pct}%</span>
+              <span>
+                {t("jobOrders.filled", {
+                  allocated: formatNumber(jo.allocatedQuota, locale),
+                  total: formatNumber(jo.totalQuota, locale)
+                })}
+              </span>
+              <span>{formatNumber(pct, locale)}%</span>
             </div>
             <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
               <div
@@ -426,21 +474,21 @@ export default function JobOrdersPage() {
       },
     },
     {
-      header: "Agency Commission",
+      header: t("jobOrders.agencyCommission"),
       accessor: (jo: JobOrder) => (
         <span className="font-semibold text-text-theme">
-          ${Number(jo.commissionAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })} / candidate
+          {t("jobOrders.perCandidate", { amount: formatNumber(jo.commissionAmount, locale) })}
         </span>
       ),
     },
     {
-      header: "Status",
+      header: t("jobOrders.tableHeaderStatus"),
       accessor: (jo: JobOrder) => <StatusBadge status={jo.status} />,
     },
     ...(canManage
       ? [
           {
-            header: "Actions",
+            header: t("common.actions"),
             accessor: (jo: JobOrder) => (
               <button
                 onClick={(e) => {
@@ -448,7 +496,7 @@ export default function JobOrdersPage() {
                   handleEditClick(jo);
                 }}
                 className="p-1.5 text-text-soft hover:text-primary-theme hover:bg-bg-muted rounded-lg transition-colors cursor-pointer"
-                title="Edit Job Demand Order"
+                title={t("jobOrders.editJobDemandOrder")}
               >
                 <Edit className="h-4 w-4" />
               </button>
@@ -463,12 +511,15 @@ export default function JobOrdersPage() {
       <PermissionGate 
         permission="VIEW_DASHBOARD" 
         showFallback={true} 
-        fallbackMessage="Access to Job Order demand allocations is locked for external partners or applicants."
+        fallbackMessage={t("common.accessDenied")}
       >
         <PageHeader
-          title="Foreign Job Orders"
-          description="Manage active recruitment demands and allocated emigration slots sourced from corporate employers."
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Job Orders" }]}
+          title={t("jobOrders.pageTitle")}
+          description={t("jobOrders.pageDesc")}
+          breadcrumbs={[
+            { label: t("nav.dashboard"), href: "/dashboard" },
+            { label: t("nav.jobOrders") }
+          ]}
           actions={
             <div className="flex items-center gap-2">
               {canManage && (
@@ -476,14 +527,14 @@ export default function JobOrdersPage() {
                   onClick={() => setIsCreateModalOpen(true)}
                   className="flex items-center gap-1.5 rounded-lg bg-primary-theme px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-hover shadow-primary-theme/20 cursor-pointer"
                 >
-                  <Plus className="h-4 w-4" /> Add Demand Order
+                  <Plus className="h-4 w-4" /> {t("jobOrders.addDemandBtn")}
                 </button>
               )}
               <button 
                 onClick={handleExportCSV}
                 className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3.5 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted transition-colors cursor-pointer"
               >
-                <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export CSV
+                <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> {t("common.exportCsv")}
               </button>
             </div>
           }
@@ -499,21 +550,32 @@ export default function JobOrdersPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <StatCard
-              title="Total Quota Capacity"
-              value={stats?.totalQuota ?? 0}
-              description="Across all registered foreign employers"
+              title={t("jobOrders.totalQuotaCapacity")}
+              value={stats?.totalQuota !== undefined ? formatNumber(stats.totalQuota, locale) : "0"}
+              description={t("jobOrders.totalQuotaDesc")}
               iconName="Briefcase"
             />
             <StatCard
-              title="Quota Utilization"
-              value={`${stats?.allocatedQuota ?? 0} Placed`}
-              description={`${stats?.remainingQuota ?? 0} unallocated slots remaining`}
+              title={t("jobOrders.quotaUtilization")}
+              value={
+                locale === "bn" 
+                  ? `${formatNumber(stats?.allocatedQuota ?? 0, locale)} জন নিয়োজিত` 
+                  : `${stats?.allocatedQuota ?? 0} Placed`
+              }
+              description={t("jobOrders.slotsRemaining", { count: formatNumber(stats?.remainingQuota ?? 0, locale) })}
               iconName="Activity"
             />
             <StatCard
-              title="Open Demand Contracts"
-              value={`${stats?.openOrders ?? 0} Open`}
-              description={`${stats?.closedOrders ?? 0} Closed / ${stats?.completedOrders ?? 0} Completed demands`}
+              title={t("jobOrders.openDemandContracts")}
+              value={
+                locale === "bn" 
+                  ? `${formatNumber(stats?.openOrders ?? 0, locale)} টি উন্মুক্ত` 
+                  : `${stats?.openOrders ?? 0} Open`
+              }
+              description={t("jobOrders.completedDemandsDesc", {
+                closed: formatNumber(stats?.closedOrders ?? 0, locale),
+                completed: formatNumber(stats?.completedOrders ?? 0, locale)
+              })}
               iconName="TrendingUp"
             />
           </div>
@@ -522,7 +584,7 @@ export default function JobOrdersPage() {
         {/* Filters Toolbar */}
         <div className="flex flex-col gap-4 rounded-xl border border-border-theme bg-surface p-5 shadow-sm sm:flex-row sm:items-center">
           <div className="flex items-center gap-2 text-text-soft text-xs font-bold mr-2">
-            <span>Filter Status:</span>
+            <span>{t("jobOrders.filterStatus")}</span>
           </div>
           <div className="flex gap-2">
             {["ALL", "OPEN", "CLOSED", "COMPLETED"].map((status) => (
@@ -535,7 +597,7 @@ export default function JobOrdersPage() {
                     : "bg-surface text-text-soft border-border-theme hover:bg-bg-muted"
                 }`}
               >
-                {status === "ALL" ? "All Demands" : status}
+                {status === "ALL" ? t("jobOrders.allDemands") : t(`statuses.${status}`)}
               </button>
             ))}
           </div>
@@ -547,31 +609,31 @@ export default function JobOrdersPage() {
             <div className="relative h-12 w-12 rounded-2xl bg-surface border border-border-theme flex items-center justify-center shadow-lg">
               <Loader2 className="h-6 w-6 text-primary-theme animate-spin" />
             </div>
-            <p className="text-xs text-text-soft font-bold animate-pulse">Querying live job orders registry...</p>
+            <p className="text-xs text-text-soft font-bold animate-pulse">{t("jobOrders.queryingLiveOrders")}</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-rose-100 bg-rose-50/50 p-6 text-center shadow-sm dark:border-rose-950/10 dark:bg-rose-950/5 space-y-4">
             <AlertCircle className="h-10 w-10 text-rose-500" />
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-rose-900 dark:text-rose-400">Failed to Load Job Orders</h3>
+              <h3 className="text-sm font-bold text-rose-900 dark:text-rose-400">{t("dashboard.failedToLoad")}</h3>
               <p className="text-xs text-rose-700/80 dark:text-rose-400/70 max-w-md">{error}</p>
             </div>
             <button
               onClick={fetchJobOrders}
               className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 shadow-sm cursor-pointer"
             >
-              Retry Connection
+              {t("dashboard.retryBtn")}
             </button>
           </div>
         ) : (
           <DataTable
             data={filteredOrders}
             columns={tableColumns}
-            searchPlaceholder="Search by Employer, Ref, Country or Trade..."
+            searchPlaceholder={t("jobOrders.searchPlaceholder")}
             searchField="searchKey"
             onRowClick={canManage ? handleEditClick : undefined}
-            emptyStateTitle="No job orders match your filter"
-            emptyStateDescription="Verify if the demands have been registered in the database or record a new one to begin."
+            emptyStateTitle={t("jobOrders.noJobOrdersMatchFilter")}
+            emptyStateDescription={t("jobOrders.verifyDemandsRegistered")}
           />
         )}
 
@@ -581,7 +643,7 @@ export default function JobOrdersPage() {
         <AppModal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
-          title="Add Foreign Job Order"
+          title={t("jobOrders.addForeignJobOrder")}
           size="lg"
         >
           <form onSubmit={handleCreateSubmit} className="space-y-6">
@@ -596,11 +658,11 @@ export default function JobOrdersPage() {
               {/* Section A: Employer Details */}
               <div className="space-y-3">
                 <h4 className="text-[11px] font-bold text-primary-theme uppercase tracking-wider border-b border-border-theme pb-1">
-                  A. Employer Details
+                  {t("jobOrders.employerDetails")}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <AppInput
-                    label="Employer / Company Name *"
+                    label={t("jobOrders.employerCompanyName")}
                     value={formData.employerName}
                     onChange={(e) => setFormData((prev) => ({ ...prev, employerName: e.target.value }))}
                     error={errors.employerName}
@@ -608,7 +670,7 @@ export default function JobOrdersPage() {
                     required
                   />
                   <AppSelect
-                    label="Country / Destination *"
+                    label={t("jobOrders.countryDestination")}
                     value={formData.country}
                     onChange={(e) => handleCountryChange(e.target.value)}
                     error={errors.country}
@@ -629,11 +691,11 @@ export default function JobOrdersPage() {
               {/* Section B: Job Details */}
               <div className="space-y-3 pt-2">
                 <h4 className="text-[11px] font-bold text-primary-theme uppercase tracking-wider border-b border-border-theme pb-1">
-                  B. Job Details
+                  {t("jobOrders.jobDetails")}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <AppInput
-                    label="Trade / Role Category *"
+                    label={t("jobOrders.tradeRoleCategory")}
                     value={formData.trade}
                     onChange={(e) => setFormData((prev) => ({ ...prev, trade: e.target.value }))}
                     error={errors.trade}
@@ -643,7 +705,7 @@ export default function JobOrdersPage() {
                   <div className="grid grid-cols-3 gap-2">
                     <div className="col-span-2">
                       <AppInput
-                        label="Monthly Salary *"
+                        label={t("jobOrders.monthlySalaryAsterisk")}
                         type="number"
                         step="0.01"
                         value={formData.salary}
@@ -655,7 +717,7 @@ export default function JobOrdersPage() {
                     </div>
                     <div>
                       <AppSelect
-                        label="Currency *"
+                        label={t("jobOrders.currencyAsterisk")}
                         value={formData.currency}
                         onChange={(e) => setFormData((prev) => ({ ...prev, currency: e.target.value }))}
                         error={errors.currency}
@@ -669,12 +731,12 @@ export default function JobOrdersPage() {
                         <option value="SGD">SGD</option>
                         <option value="KWD">KWD</option>
                         <option value="BHD">BHD</option>
-                        <option value="USD">USD</option>
+                        <option value="BDT">BDT (৳)</option>
                       </AppSelect>
                     </div>
                   </div>
                   <AppInput
-                    label="Total Quota Capacity *"
+                    label={t("jobOrders.totalQuotaCapacityAsterisk")}
                     type="number"
                     value={formData.totalQuota}
                     onChange={(e) => setFormData((prev) => ({ ...prev, totalQuota: e.target.value }))}
@@ -688,11 +750,11 @@ export default function JobOrdersPage() {
               {/* Section C: Agency Terms */}
               <div className="space-y-3 pt-2">
                 <h4 className="text-[11px] font-bold text-primary-theme uppercase tracking-wider border-b border-border-theme pb-1">
-                  C. Agency Terms & Reference
+                  {t("jobOrders.agencyTermsReference")}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <AppInput
-                    label="Commission Per Candidate (USD) *"
+                    label={t("jobOrders.commissionPerCandidate")}
                     type="number"
                     step="0.01"
                     value={formData.commissionAmount}
@@ -702,22 +764,22 @@ export default function JobOrdersPage() {
                     required
                   />
                   <AppInput
-                    label="Custom Order Number (Optional - Auto Gen if blank)"
+                    label={t("jobOrders.customOrderNumber")}
                     value={formData.orderNumber}
                     onChange={(e) => setFormData((prev) => ({ ...prev, orderNumber: e.target.value }))}
                     error={errors.orderNumber}
                     placeholder="e.g. JO-KSA-2026-001"
                   />
                   <AppSelect
-                    label="Initial Demand Status *"
+                    label={t("jobOrders.initialDemandStatus")}
                     value={formData.status}
                     onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value as any }))}
                     error={errors.status}
                     required
                   >
-                    <option value="OPEN">OPEN (Placements Allowed)</option>
-                    <option value="CLOSED">CLOSED (Placements Locked)</option>
-                    <option value="COMPLETED">COMPLETED (Demand Met)</option>
+                    <option value="OPEN">{t("jobOrders.openPlacementsAllowed")}</option>
+                    <option value="CLOSED">{t("jobOrders.closedPlacementsLocked")}</option>
+                    <option value="COMPLETED">{t("jobOrders.completedDemandMet")}</option>
                   </AppSelect>
                 </div>
               </div>
@@ -731,7 +793,7 @@ export default function JobOrdersPage() {
                 disabled={isSubmitting}
                 className="rounded-xl border border-border-theme bg-surface px-4 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"
@@ -741,10 +803,10 @@ export default function JobOrdersPage() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Registering...
+                    {t("jobOrders.registering")}
                   </>
                 ) : (
-                  "Register Demand Order"
+                  t("jobOrders.registerDemandOrder")
                 )}
               </button>
             </div>
@@ -760,7 +822,7 @@ export default function JobOrdersPage() {
             setIsEditModalOpen(false);
             setSelectedOrder(null);
           }}
-          title="Edit Job Demand Order"
+          title={t("jobOrders.editJobDemandOrder")}
           size="lg"
         >
           {selectedOrder && (
@@ -775,21 +837,26 @@ export default function JobOrdersPage() {
               <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
                 {/* Reference tag info */}
                 <div className="rounded-xl border border-border-theme bg-bg-muted p-4 space-y-1">
-                  <span className="text-[10px] font-bold text-text-soft uppercase tracking-wide">Recruitment Reference Number</span>
+                  <span className="text-[10px] font-bold text-text-soft uppercase tracking-wide">
+                    {t("jobOrders.recruitmentReferenceNumber")}
+                  </span>
                   <p className="font-mono text-sm text-text-theme font-bold">{selectedOrder.orderNumber}</p>
                   <p className="text-[10px] text-text-soft">
-                    Placements Status: <span className="font-bold text-indigo-600 dark:text-indigo-400">{selectedOrder.allocatedQuota} / {selectedOrder.totalQuota} filled</span>
+                    {t("jobOrders.placementsStatus", {
+                      allocated: formatNumber(selectedOrder.allocatedQuota, locale),
+                      total: formatNumber(selectedOrder.totalQuota, locale)
+                    })}
                   </p>
                 </div>
 
                 {/* Section A: Employer Details */}
                 <div className="space-y-3">
                   <h4 className="text-[11px] font-bold text-primary-theme uppercase tracking-wider border-b border-border-theme pb-1">
-                    A. Employer Details
+                    {t("jobOrders.employerDetails")}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AppInput
-                      label="Employer / Company Name *"
+                      label={t("jobOrders.employerCompanyName")}
                       value={editForm.employerName}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, employerName: e.target.value }))}
                       error={errors.employerName}
@@ -797,7 +864,7 @@ export default function JobOrdersPage() {
                       required
                     />
                     <AppSelect
-                      label="Country / Destination *"
+                      label={t("jobOrders.countryDestination")}
                       value={editForm.country}
                       onChange={(e) => handleEditCountryChange(e.target.value)}
                       error={errors.country}
@@ -818,11 +885,11 @@ export default function JobOrdersPage() {
                 {/* Section B: Job Details */}
                 <div className="space-y-3 pt-2">
                   <h4 className="text-[11px] font-bold text-primary-theme uppercase tracking-wider border-b border-border-theme pb-1">
-                    B. Job Details
+                    {t("jobOrders.jobDetails")}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AppInput
-                      label="Trade / Role Category *"
+                      label={t("jobOrders.tradeRoleCategory")}
                       value={editForm.trade}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, trade: e.target.value }))}
                       error={errors.trade}
@@ -832,7 +899,7 @@ export default function JobOrdersPage() {
                     <div className="grid grid-cols-3 gap-2">
                       <div className="col-span-2">
                         <AppInput
-                          label="Monthly Salary *"
+                          label={t("jobOrders.monthlySalaryAsterisk")}
                           type="number"
                           step="0.01"
                           value={editForm.salary}
@@ -844,7 +911,7 @@ export default function JobOrdersPage() {
                       </div>
                       <div>
                         <AppSelect
-                          label="Currency *"
+                          label={t("jobOrders.currencyAsterisk")}
                           value={editForm.currency}
                           onChange={(e) => setEditForm((prev) => ({ ...prev, currency: e.target.value }))}
                           error={errors.currency}
@@ -858,12 +925,12 @@ export default function JobOrdersPage() {
                           <option value="SGD">SGD</option>
                           <option value="KWD">KWD</option>
                           <option value="BHD">BHD</option>
-                          <option value="USD">USD</option>
+                          <option value="BDT">BDT (৳)</option>
                         </AppSelect>
                       </div>
                     </div>
                     <AppInput
-                      label="Total Quota Capacity *"
+                      label={t("jobOrders.totalQuotaCapacityAsterisk")}
                       type="number"
                       value={editForm.totalQuota}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, totalQuota: e.target.value }))}
@@ -877,11 +944,11 @@ export default function JobOrdersPage() {
                 {/* Section C: Agency Terms */}
                 <div className="space-y-3 pt-2">
                   <h4 className="text-[11px] font-bold text-primary-theme uppercase tracking-wider border-b border-border-theme pb-1">
-                    C. Agency Terms & Reference
+                    {t("jobOrders.agencyTermsReference")}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AppInput
-                      label="Commission Per Candidate (USD) *"
+                      label={t("jobOrders.commissionPerCandidate")}
                       type="number"
                       step="0.01"
                       value={editForm.commissionAmount}
@@ -891,15 +958,15 @@ export default function JobOrdersPage() {
                       required
                     />
                     <AppSelect
-                      label="Demand Status *"
+                      label={t("jobOrders.demandStatus")}
                       value={editForm.status}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, status: e.target.value as any }))}
                       error={errors.status}
                       required
                     >
-                      <option value="OPEN">OPEN (Placements Allowed)</option>
-                      <option value="CLOSED">CLOSED (Placements Locked)</option>
-                      <option value="COMPLETED">COMPLETED (Demand Met)</option>
+                      <option value="OPEN">{t("jobOrders.openPlacementsAllowed")}</option>
+                      <option value="CLOSED">{t("jobOrders.closedPlacementsLocked")}</option>
+                      <option value="COMPLETED">{t("jobOrders.completedDemandMet")}</option>
                     </AppSelect>
                   </div>
                 </div>
@@ -916,7 +983,7 @@ export default function JobOrdersPage() {
                   disabled={isSubmitting}
                   className="rounded-xl border border-border-theme bg-surface px-4 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -926,10 +993,10 @@ export default function JobOrdersPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Saving changes...
+                      {t("jobOrders.savingChanges")}
                     </>
                   ) : (
-                    "Save Changes"
+                    t("common.save")
                   )}
                 </button>
               </div>

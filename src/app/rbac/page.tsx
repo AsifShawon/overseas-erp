@@ -6,8 +6,10 @@ import { StatCard } from "@/components/ui/StatCard";
 import { PermissionGate } from "@/components/ui/PermissionGate";
 import { SYSTEM_ROLES, PermissionCode } from "@/lib/permissions";
 import { ToggleLeft, ToggleRight, AlertTriangle } from "lucide-react";
+import { useT } from "@/i18n/useT";
 
 export default function RbacPage() {
+  const { t } = useT();
   // Let's create a local state for the roles so they can interactively toggle permissions!
   const [rolesMap, setRolesMap] = useState<typeof SYSTEM_ROLES>(SYSTEM_ROLES);
 
@@ -54,31 +56,35 @@ export default function RbacPage() {
 
   return (
     <div className="space-y-6">
-      <PermissionGate permission="MANAGE_RBAC" showFallback={true} fallbackMessage="Access to system security policies, database privilege tables, and role-mapping matrices is locked to Super Admins only.">
+      <PermissionGate 
+        permission="MANAGE_RBAC" 
+        showFallback={true} 
+        fallbackMessage={t("rbac.adminOnlyNotice") || "Access to system security policies, database privilege tables, and role-mapping matrices is locked to Super Admins only."}
+      >
         <PageHeader
-          title="Role-Based Access Control (RBAC)"
-          description="Security policies cockpit. Manage system security flags, adjust module permissions, and inspect user mappings."
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "RBAC Settings" }]}
+          title={t("rbac.pageTitle")}
+          description={t("rbac.pageDesc")}
+          breadcrumbs={[{ label: t("nav.dashboard"), href: "/dashboard" }, { label: t("nav.rbacSettings") }]}
         />
 
         {/* Aggregate Info */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
-            title="Total Custom Roles Seeding"
-            value="8 Active Roles"
-            description="Super Admin down to Placing Applicants"
+            title={t("rbac.totalRoles")}
+            value={t("rbac.activeRolesVal", { count: 8 })}
+            description={t("rbac.rolesDesc")}
             iconName="ShieldCheck"
           />
           <StatCard
-            title="Security Privileges Seeding"
-            value="19 Access Codes"
-            description="Granular module permission toggles"
+            title={t("rbac.privilegesSeeding")}
+            value={t("rbac.accessCodesVal", { count: 19 })}
+            description={t("rbac.privilegesDesc")}
             iconName="Info"
           />
           <StatCard
-            title="Policy Engine Status"
-            value="Active & Locked"
-            description="Policy updates committed dynamically"
+            title={t("rbac.policyEngineStatus")}
+            value={t("rbac.activeLockedVal")}
+            description={t("rbac.policyEngineDesc")}
             iconName="ShieldCheck"
           />
         </div>
@@ -88,7 +94,7 @@ export default function RbacPage() {
           <div className="flex gap-2">
             <AlertTriangle className="h-4.5 w-4.5 text-amber-700 shrink-0 mt-0.5" />
             <p className="text-[10px] text-amber-800 dark:text-amber-400">
-              <strong>Enterprise Vetting Policy Warning:</strong> Modifying the RBAC matrix adjusts dynamic routing layouts and sidebar visibility instantenously across the entire ERP app shell for client demonstration purposes.
+              <strong>{t("rbac.vettingWarningTitle")}</strong> {t("rbac.vettingWarningDesc")}
             </p>
           </div>
         </div>
@@ -96,54 +102,65 @@ export default function RbacPage() {
         {/* Permission Grid Matrix */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 overflow-hidden">
           <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-6">
-            Dynamic Role-Privileges Toggle Matrix
+            {t("rbac.toggleMatrixTitle")}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50 font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900/30">
-                  <th className="px-4 py-3 max-w-xs">Module Privilege (Access Code)</th>
-                  {Object.keys(rolesMap).map((roleKey) => (
-                    <th key={roleKey} className="px-3 py-3 text-center tracking-wider truncate text-[10px] uppercase">
-                      {rolesMap[roleKey].name.split(" ")[0]}..
-                      <div className="absolute hidden group-hover:block bg-slate-950 text-white rounded p-1 text-[8px] z-10">
-                        {rolesMap[roleKey].name}
-                      </div>
-                    </th>
-                  ))}
+                  <th className="px-4 py-3 max-w-xs">{t("rbac.tableColPrivilege")}</th>
+                  {Object.keys(rolesMap).map((roleKey) => {
+                    const fullRoleName = t(`roles.${rolesMap[roleKey].name}` as any) || rolesMap[roleKey].name;
+                    const splitRoleName = fullRoleName.split(" ")[0];
+                    return (
+                      <th key={roleKey} className="px-3 py-3 text-center tracking-wider truncate text-[10px] uppercase group relative cursor-help">
+                        {splitRoleName}..
+                        <div className="absolute hidden group-hover:block bg-slate-950 text-white rounded p-2 text-[8px] z-10 whitespace-nowrap shadow-lg -bottom-8 left-1/2 transform -translate-x-1/2 dark:bg-slate-800 border border-slate-700">
+                          {fullRoleName}
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {permissionList.map((perm) => (
-                  <tr key={perm.code} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-slate-900 dark:text-white">{perm.name}</span>
-                        <span className="text-[9px] text-slate-400 font-medium font-mono">{perm.code}</span>
-                      </div>
-                    </td>
-                    {Object.keys(rolesMap).map((roleKey) => {
-                      const role = rolesMap[roleKey];
-                      const isChecked = role.permissions.includes(perm.code);
-                      return (
-                        <td key={roleKey} className="px-3 py-3 text-center">
-                          <button
-                            onClick={() => handleTogglePermission(roleKey, perm.code)}
-                            className={`inline-flex items-center justify-center transition-colors duration-200 ${
-                              isChecked ? "text-indigo-600 dark:text-indigo-400" : "text-slate-300 dark:text-slate-700"
-                            }`}
-                          >
-                            {isChecked ? (
-                              <ToggleRight className="h-6 w-6 cursor-pointer" />
-                            ) : (
-                              <ToggleLeft className="h-6 w-6 cursor-pointer" />
-                            )}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                {permissionList.map((perm) => {
+                  const permName = t(`rbac.permissions.${perm.code}.name` as any) || perm.name;
+                  const permDesc = t(`rbac.permissions.${perm.code}.desc` as any) || perm.desc;
+                  return (
+                    <tr key={perm.code} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-0.5 group relative cursor-help">
+                          <span className="font-bold text-slate-900 dark:text-white">{permName}</span>
+                          <span className="text-[9px] text-slate-400 font-medium font-mono">{perm.code}</span>
+                          <div className="absolute hidden group-hover:block bg-slate-950 text-white rounded p-2 text-[8px] z-10 shadow-lg left-0 -top-8 dark:bg-slate-800 border border-slate-700">
+                            {permDesc}
+                          </div>
+                        </div>
+                      </td>
+                      {Object.keys(rolesMap).map((roleKey) => {
+                        const role = rolesMap[roleKey];
+                        const isChecked = role.permissions.includes(perm.code);
+                        return (
+                          <td key={roleKey} className="px-3 py-3 text-center">
+                            <button
+                              onClick={() => handleTogglePermission(roleKey, perm.code)}
+                              className={`inline-flex items-center justify-center transition-colors duration-200 ${
+                                isChecked ? "text-indigo-600 dark:text-indigo-400" : "text-slate-300 dark:text-slate-700"
+                              }`}
+                            >
+                              {isChecked ? (
+                                <ToggleRight className="h-6 w-6 cursor-pointer" />
+                              ) : (
+                                <ToggleLeft className="h-6 w-6 cursor-pointer" />
+                              )}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

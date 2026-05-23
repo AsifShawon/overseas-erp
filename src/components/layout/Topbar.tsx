@@ -6,11 +6,14 @@ import { Bell, Search, LogOut, ChevronDown, User as UserIcon, Lock } from "lucid
 import { useRouter } from "next/navigation";
 import { MOCK_NOTIFICATIONS } from "@/lib/mockData";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { LanguageToggle } from "@/components/language/LanguageToggle";
+import { useT } from "@/i18n/useT";
 
 export function Topbar() {
   const { user, allUsers, switchRole, logout } = useMockAuth();
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const { t, locale } = useT();
 
   // Compute unread notifications for this mock user
   const unreadNotifications = MOCK_NOTIFICATIONS.filter(
@@ -44,7 +47,7 @@ export function Topbar() {
             </span>
             <input
               type="text"
-              placeholder="Search applicants by passport or name (Ctrl + K)..."
+              placeholder={t("applicants.searchPlaceholder")}
               className="w-full rounded-lg border border-border-theme bg-bg py-1.5 pl-10 pr-4 text-xs outline-none transition-all focus:border-primary-theme focus:bg-surface focus:ring-1 focus:ring-primary-theme text-text-theme"
             />
           </div>
@@ -59,22 +62,25 @@ export function Topbar() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
           </span>
-          <span>DEMO MODE:</span>
+          <span>{t("auth.complianceNotice")}:</span>
           <select
             value={user.id}
             onChange={handleRoleChange}
-            className="border-none bg-transparent font-bold text-amber-950 dark:text-amber-300 outline-none cursor-pointer"
+            className="border-none bg-transparent font-bold text-amber-950 dark:text-amber-300 outline-none cursor-pointer text-xs"
           >
             {allUsers.map((u) => (
               <option key={u.id} value={u.id} className="text-text-theme bg-surface">
-                {u.fullName} ({u.roleName})
+                {u.fullName} ({t(`roles.${u.roleName}`) || u.roleName})
               </option>
             ))}
           </select>
         </div>
 
         {/* Notifications Icon with Badge */}
-        <div className="relative cursor-pointer rounded-lg p-2 text-text-soft hover:bg-bg-muted hover:text-text-theme">
+        <div
+          onClick={() => router.push("/notifications")}
+          className="relative cursor-pointer rounded-lg p-2 text-text-soft hover:bg-bg-muted hover:text-text-theme"
+        >
           <Bell className="h-5 w-5" />
           {unreadNotifications.length > 0 && (
             <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[8px] font-bold text-white">
@@ -82,6 +88,9 @@ export function Topbar() {
             </span>
           )}
         </div>
+
+        {/* Language Toggle Pill */}
+        <LanguageToggle />
 
         {/* Theme Toggle Switcher */}
         <ThemeToggle />
@@ -100,7 +109,7 @@ export function Topbar() {
                 {user.fullName}
               </span>
               <span className="mt-0.5 text-[9px] text-text-soft font-medium">
-                {user.roleName}
+                {t(`roles.${user.roleName}`) || user.roleName}
               </span>
             </div>
             <ChevronDown className="h-3 w-3 text-text-soft" />
@@ -109,7 +118,7 @@ export function Topbar() {
           {dropdownOpen && (
             <div className="absolute right-0 mt-2 w-48 rounded-xl border border-border-theme bg-surface py-1 shadow-lg z-30">
               <div className="px-4 py-2 border-b border-border-theme">
-                <p className="text-[10px] text-text-soft">Signed in as</p>
+                <p className="text-[10px] text-text-soft">{locale === "bn" ? "সাইন-ইন করা আছে" : "Signed in as"}</p>
                 <p className="text-xs font-semibold text-text-theme truncate">{user.email}</p>
               </div>
               <button
@@ -119,7 +128,7 @@ export function Topbar() {
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs text-text-muted hover:bg-bg-muted"
               >
-                <Bell className="h-3.5 w-3.5" /> Notifications
+                <Bell className="h-3.5 w-3.5" /> {t("nav.notifications")}
               </button>
               <button
                 onClick={() => {
@@ -128,13 +137,13 @@ export function Topbar() {
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs text-text-muted hover:bg-bg-muted"
               >
-                <Lock className="h-3.5 w-3.5" /> Account Security
+                <Lock className="h-3.5 w-3.5" /> {locale === "bn" ? "অ্যাকাউন্ট সিকিউরিটি" : "Account Security"}
               </button>
               <button
                 onClick={handleLogoutClick}
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-semibold text-danger-theme hover:bg-danger-soft"
               >
-                <LogOut className="h-3.5 w-3.5" /> Log Out
+                <LogOut className="h-3.5 w-3.5" /> {locale === "bn" ? "লগ আউট" : "Log Out"}
               </button>
             </div>
           )}
@@ -143,3 +152,5 @@ export function Topbar() {
     </header>
   );
 }
+
+export default Topbar;

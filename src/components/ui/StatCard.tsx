@@ -1,5 +1,6 @@
 import React from "react";
 import * as Icons from "lucide-react";
+import { useT } from "@/i18n/useT";
 
 interface StatCardProps {
   title: string;
@@ -15,6 +16,7 @@ interface StatCardProps {
 
 export function StatCard({ title, value, description, iconName, trend, className = "" }: StatCardProps) {
   const IconComponent = iconName ? Icons[iconName] as React.ComponentType<{ className?: string }> : null;
+  const { locale } = useT();
 
   return (
     <div
@@ -47,7 +49,9 @@ export function StatCard({ title, value, description, iconName, trend, className
           >
             {trend.isPositive ? "↑" : "↓"} {trend.value}
           </span>
-          <span className="text-[10px] text-text-soft">vs last month</span>
+          <span className="text-[10px] text-text-soft">
+            {locale === "bn" ? "গত মাসের তুলনায়" : "vs last month"}
+          </span>
         </div>
       )}
     </div>

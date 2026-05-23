@@ -1,6 +1,6 @@
 # 14 — Demo Script for Client
 
-This is a practical walkthrough for demonstrating OverseasERP to a client, investor, or business stakeholder. Follow the steps in order for a smooth, impressive demo.
+This is a practical walkthrough for demonstrating **VisaTek ERP** to a client, investor, or business stakeholder. Follow the steps in order for a smooth, impressive demo.
 
 **Setup before the demo:**
 - Database seeded with demo data (`npm run db:seed`)
@@ -9,7 +9,21 @@ This is a practical walkthrough for demonstrating OverseasERP to a client, inves
 
 ---
 
-## Scene 1: Login as Super Admin
+## Scene 0: Bangla-First Default & Dynamic Language Toggle
+
+1. Open a new Incognito browser window at http://localhost:3000.
+2. Observe that the page loads **fully in Bangla by default** (e.g. fields, titles, buttons are naturally translated).
+3. Open the browser's developer console (F12) and inspect the `<html>` node. Show that `lang="bn-BD"` is dynamically injected.
+4. Locate the **Language Toggle** in the Topbar (marked as `EN` or `English`). Click it.
+5. Watch the entire UI shift seamlessly to English **without a page reload**.
+6. Inspect the `<html>` node again and show that the language attribute has dynamically transitioned to `lang="en"`.
+7. Refresh the page (F5) and observe that English persists (via `localStorage`).
+8. Toggle it back to Bangla and observe that it returns to Bangla and persists on subsequent refreshes.
+9. Click the **Theme Toggle** next to the language switch to show that light/dark theme settings operate smoothly and independently of the active language.
+
+**Talking point:** "VisaTek ERP is built Bangla-first because it is custom-designed for local recruitment agency staff in Bangladesh. However, with a single click, any user can toggle the interface to English dynamically. The preference is stored securely in the browser's local storage and runs independently of the user's theme selection."
+
+---
 
 1. Open the browser at http://localhost:3000
 2. You will be redirected to the login page

@@ -390,7 +390,7 @@ async function main() {
       salary:           1800.00, // SAR
       totalQuota:       50,
       allocatedQuota:   14,
-      commissionAmount: 500.00, // USD per candidate
+      commissionAmount: 500.00, // BDT per candidate
       status:           "OPEN",
     },
   });

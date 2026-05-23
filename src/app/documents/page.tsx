@@ -8,6 +8,8 @@ import { StatCard } from "@/components/ui/StatCard";
 import { PermissionGate } from "@/components/ui/PermissionGate";
 import { MOCK_APPLICANTS, MockDocument } from "@/lib/mockData";
 import { CheckCircle, XCircle, ShieldCheck } from "lucide-react";
+import { useT } from "@/i18n/useT";
+import { DOCUMENT_TYPE_LABELS } from "@/components/shared/DocumentChecklist";
 
 interface FlattenedDoc extends MockDocument {
   applicantId: string;
@@ -17,6 +19,7 @@ interface FlattenedDoc extends MockDocument {
 }
 
 export default function DocumentsPage() {
+  const { t, locale } = useT();
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   // Flatten all documents across all applicants
@@ -59,60 +62,68 @@ export default function DocumentsPage() {
 
   const tableColumns = [
     {
-      header: "Billed Candidate",
+      header: locale === "bn" ? "আবেদনকারী প্রার্থী" : "Billed Candidate",
       accessor: (doc: FlattenedDoc) => (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5 text-text-theme">
           <span className="font-semibold text-slate-900 dark:text-white">{doc.applicantName}</span>
-          <span className="text-[10px] text-slate-400">Passport: {doc.passportNumber} • Trade: {doc.trade}</span>
+          <span className="text-[10px] text-slate-400">
+            {locale === "bn" ? "পাসপোর্ট" : "Passport"}: {doc.passportNumber} • {locale === "bn" ? "পেশা" : "Trade"}: {doc.trade}
+          </span>
         </div>
       ),
     },
     {
-      header: "Document Registry Type",
-      accessor: (doc: FlattenedDoc) => (
-        <span className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
-          {doc.documentType}
-        </span>
-      ),
+      header: t("documents.tableHeaderType"),
+      accessor: (doc: FlattenedDoc) => {
+        const labels = DOCUMENT_TYPE_LABELS[locale];
+        return (
+          <span className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+            {labels && doc.documentType in labels ? labels[doc.documentType] : doc.documentType.replace("_", " ")}
+          </span>
+        );
+      },
     },
-    { header: "Attestation File Name", accessor: (doc: FlattenedDoc) => doc.fileName },
+    { header: t("documents.tableHeaderFile"), accessor: (doc: FlattenedDoc) => doc.fileName },
     {
-      header: "Verification Status",
+      header: t("documents.tableHeaderStatus"),
       accessor: (doc: FlattenedDoc) => <StatusBadge status={doc.status} />,
     },
     {
-      header: "Auditing Inspector",
+      header: t("documents.tableHeaderVerifiedBy"),
       accessor: (doc: FlattenedDoc) =>
         doc.verifiedBy ? (
-          <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-            <ShieldCheck className="h-3.5 w-3.5" /> {doc.verifiedBy}
+          <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold font-sans">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+            {doc.verifiedBy === "Lawrence Wilde (Staff)" && locale === "bn" ? "লরেন্স ওয়াইল্ড (স্টাফ)" : doc.verifiedBy}
           </span>
         ) : (
-          <span className="text-[10px] text-slate-400">Awaiting Vetting Audits</span>
+          <span className="text-[10px] text-slate-400">{locale === "bn" ? "যাচাইকরণের অপেক্ষায়" : "Awaiting Vetting Audits"}</span>
         ),
     },
     {
-      header: "Vetting Audits",
+      header: locale === "bn" ? "অডিট অ্যাকশন" : "Vetting Audits",
       accessor: (doc: FlattenedDoc) => (
         <div className="flex items-center justify-end gap-2">
           {doc.status !== "VERIFIED" && (
             <>
               <button
                 onClick={() => handleVerify(doc.id, "VERIFIED")}
-                className="flex items-center gap-0.5 rounded bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20"
+                className="flex items-center gap-0.5 rounded bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 cursor-pointer"
               >
-                <CheckCircle className="h-3 w-3 shrink-0" /> Approve
+                <CheckCircle className="h-3 w-3 shrink-0" /> {locale === "bn" ? "অনুমোদন" : "Approve"}
               </button>
               <button
                 onClick={() => handleVerify(doc.id, "REJECTED")}
-                className="flex items-center gap-0.5 rounded bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20"
+                className="flex items-center gap-0.5 rounded bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 cursor-pointer"
               >
-                <XCircle className="h-3 w-3 shrink-0" /> Reject
+                <XCircle className="h-3 w-3 shrink-0" /> {locale === "bn" ? "প্রত্যাখ্যান" : "Reject"}
               </button>
             </>
           )}
           {doc.status === "VERIFIED" && (
-            <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded">Vetted & Locked</span>
+            <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded">
+              {locale === "bn" ? "অনুমোদিত ও লকড" : "Vetted & Locked"}
+            </span>
           )}
         </div>
       ),
@@ -120,61 +131,68 @@ export default function DocumentsPage() {
     },
   ];
 
+  const getStatusLabel = (status: string) => {
+    if (status === "ALL") return locale === "bn" ? "সকল ডসিয়ার" : "All Dossiers";
+    return t(`statuses.${status}`);
+  };
+
   return (
     <div className="space-y-6">
       <PermissionGate permission="UPLOAD_DOCUMENT" showFallback={true}>
         <PageHeader
-          title="Compliance Documents Auditing"
-          description="Vetting files catalog. Review and audit police clearances, medical reports, and consulate visa stamps."
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Documents" }]}
+          title={t("documents.pageTitle")}
+          description={t("documents.pageDesc")}
+          breadcrumbs={[
+            { label: locale === "bn" ? "ড্যাশবোর্ড" : "ERP Hub", href: "/dashboard" },
+            { label: locale === "bn" ? "ডকুমেন্ট রেজিস্টার" : "Documents" }
+          ]}
         />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            title="Total Uploaded Dossiers"
+            title={locale === "bn" ? "মোট আপলোডকৃত ডসিয়ার" : "Total Uploaded Dossiers"}
             value={totalFiles}
-            description="Across all sourced candidates"
+            description={locale === "bn" ? "সকল সোর্সকৃত প্রার্থীর নথি" : "Across all sourced candidates"}
             iconName="FileText"
           />
           <StatCard
-            title="Awaiting Vetting review"
+            title={locale === "bn" ? "যাচাইকরণের অপেক্ষায়" : "Awaiting Vetting review"}
             value={pendingVetting}
-            description="Required seal & passport audits"
+            description={locale === "bn" ? "ভিসা ও পুলিশ ক্লিয়ারেন্স অডিট" : "Required seal & passport audits"}
             iconName="FileSearch"
-            trend={{ value: "22%", isPositive: false }}
           />
           <StatCard
-            title="Passed & Approved"
+            title={locale === "bn" ? "অনুমোদিত ও সফল" : "Passed & Approved"}
             value={verifiedFiles}
-            description="Compliance criteria satisfied"
+            description={locale === "bn" ? "সকল কমপ্লায়েন্স যোগ্যতা পূরণ" : "Compliance criteria satisfied"}
             iconName="ShieldCheck"
           />
           <StatCard
-            title="Rejected (Re-uploads)"
+            title={locale === "bn" ? "প্রত্যাখ্যাত নথি" : "Rejected (Re-uploads)"}
             value={rejectedFiles}
-            description="Fails biometric or scanner checks"
+            description={locale === "bn" ? "সঠিক ও স্পষ্ট ফাইল আপলোড করুন" : "Fails biometric or scanner checks"}
             iconName="XCircle"
           />
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center dark:border-slate-200/5 dark:bg-slate-950">
           <div className="flex items-center gap-2 text-slate-500 text-xs font-bold mr-2">
-            <span>Vetting Status Filter:</span>
+            <span>{locale === "bn" ? "অডিট স্ট্যাটাস ফিল্টার:" : "Vetting Status Filter:"}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {["ALL", "PENDING_VERIFICATION", "VERIFIED", "REJECTED", "PENDING_UPLOAD"].map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition cursor-pointer ${
                   statusFilter === status
                     ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400"
                 }`}
               >
-                {status === "ALL" ? "All Dossiers" : status.replace("_", " ")}
+                {getStatusLabel(status)}
               </button>
             ))}
           </div>
@@ -184,11 +202,12 @@ export default function DocumentsPage() {
         <DataTable
           data={filteredDocs}
           columns={tableColumns}
-          searchPlaceholder="Search by Candidate Name..."
+          searchPlaceholder={t("documents.searchPlaceholder")}
           searchField="applicantName"
-          emptyStateTitle="No compliance dossiers match this selection"
+          emptyStateTitle={locale === "bn" ? "এই ফিল্টারে কোনো কমপ্লায়েন্স নথি পাওয়া যায়নি" : "No compliance dossiers match this selection"}
         />
       </PermissionGate>
     </div>
   );
 }
+

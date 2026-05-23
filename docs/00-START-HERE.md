@@ -1,6 +1,6 @@
 # 00 — Start Here
 
-Welcome to the **Overseas Manpower ERP** documentation.
+Welcome to the **VisaTek ERP** documentation.
 
 This folder contains everything you need to understand, operate, develop, or demo the system.
 Read this file first to find the right document for your role.
@@ -9,7 +9,7 @@ Read this file first to find the right document for your role.
 
 ## What Is This System?
 
-**OverseasERP** is a web-based Enterprise Resource Planning and CRM system for overseas manpower recruitment agencies.
+**VisaTek ERP** is a web-based Enterprise Resource Planning and CRM system for overseas manpower recruitment agencies in Bangladesh. The user interface is **Bangla-First** by default, tailored for Bangladeshi office users, with a real-time **English** runtime switch.
 
 It manages the complete lifecycle of a job placement:  
 from sourcing a candidate → through medical, documents, and visa processing → to deployment and post-placement accounting.
@@ -72,7 +72,7 @@ Built with:
 
 | File | Title | Description |
 |------|-------|-------------|
-| [01-PRODUCT-OVERVIEW.md](./01-PRODUCT-OVERVIEW.md) | Product Overview | What OverseasERP is, who uses it, and the business journey |
+| [01-PRODUCT-OVERVIEW.md](./01-PRODUCT-OVERVIEW.md) | Product Overview | What VisaTek ERP is, who uses it, and the business journey |
 | [02-SYSTEM-ARCHITECTURE.md](./02-SYSTEM-ARCHITECTURE.md) | System Architecture | Frontend, backend, database, auth, storage, and data flow |
 | [03-ROLE-BASED-NAVIGATION.md](./03-ROLE-BASED-NAVIGATION.md) | Role-Based Navigation | Per-role sidebar items, capabilities, and role-matrix table |
 | [04-USER-FLOWS.md](./04-USER-FLOWS.md) | User Flows | End-to-end step-by-step flows for every role and scenario |
@@ -88,6 +88,7 @@ Built with:
 | [14-DEMO-SCRIPT-FOR-CLIENT.md](./14-DEMO-SCRIPT-FOR-CLIENT.md) | Demo Script | Step-by-step client demo walkthrough |
 | [15-QA-CHECKLIST.md](./15-QA-CHECKLIST.md) | QA Checklist | Module-by-module QA test cases |
 | [16-ROADMAP-NEXT-PHASES.md](./16-ROADMAP-NEXT-PHASES.md) | Roadmap | Planned next development phases and features |
+| [17-BANGLA-LOCALIZATION-GUIDE.md](./17-BANGLA-LOCALIZATION-GUIDE.md) | Bangla Localization | Technical architecture, terms glossary, and developer rules |
 
 ---
 

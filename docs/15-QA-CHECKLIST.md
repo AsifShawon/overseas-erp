@@ -287,3 +287,43 @@ This checklist covers every module and scenario that should be tested before a r
 - [ ] Database connection works in production environment
 - [ ] HttpOnly cookie `Secure: true` in production (NODE_ENV=production)
 - [ ] HTTPS enforced in production (cookie will not work over HTTP with Secure=true)
+
+---
+
+## 16. i18n & Bangla-First Localization
+
+### Locale Default and Dynamic Switching
+- [ ] Clear localStorage → App loads fully in Bangla (`bn`) by default
+- [ ] Switch to English via Topbar toggle → Interface shifts to English instantly without page reload
+- [ ] Inspect `<html>` node in Bangla mode → dynamically shows `<html lang="bn-BD">`
+- [ ] Inspect `<html>` node in English mode → dynamically shows `<html lang="en">`
+- [ ] Select English → Refresh page → Interface remains in English (persisted in `localStorage`)
+- [ ] Select Bangla → Refresh page → Interface remains in Bangla (persisted in `localStorage`)
+
+### System Coexistence
+- [ ] Toggle theme (Light/Dark) → Language selection does not reset or alter
+- [ ] Toggle language → Active theme does not reset or alter
+- [ ] Log out → Log back in → Language preference persists across the auth session boundary
+- [ ] Switch demo roles via switcher → Active language preference remains intact
+
+### Visual & Layout QA (Bangla Mode)
+- [ ] Card sizes and modal windows do not overflow or experience text clipping
+- [ ] Dynamic table columns containing Bangla names wrap cleanly and maintain proportional widths
+- [ ] Vertically tall Bangla conjunct characters (like `ক্ষ`, `স্ত`, `শৃঙ্খল`) are fully legible with no clipping in headers, buttons, or list items
+- [ ] Buttons containing localized actions (e.g. `সংরক্ষণ করুন`, `বাতিল`) do not warp or overlap surrounding components
+- [ ] Status badges fit properly inside tables and dashboards without breaking column alignment
+- [ ] Dropdowns and `<select>` fields remain legible with correct padding
+
+### Data Integrity & Numerals Formatting
+- [ ] Passport numbers remain in standard Latin numerals (e.g. `EG123456`) in both language modes
+- [ ] Phone numbers remain in standard Latin digits (e.g. `+88017...`) in both language modes
+- [ ] National Identity (NID) numbers remain in standard Latin digits in both language modes
+- [ ] Financial invoice/receipt/transaction IDs remain in Latin text/numbers to maintain system searchability
+- [ ] Currency values are formatted properly according to locale context (e.g. `SAR 5,000` or `BDT 85,000` inside finance lists)
+
+### Localized Subpages & Exports
+- [ ] Access Denied page (`/denied`) is fully translated in both Bangla and English
+- [ ] Applicant self-service portal (`/applicant/portal`) shows proper greetings and fully translated checklists/invoices
+- [ ] CSV Export buttons display correct localized labels
+- [ ] Exported CSVs maintain clean database strings (untouched enums and Latin numerals) so Excel doesn't break encoding or parsing
+

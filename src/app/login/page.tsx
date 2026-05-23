@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { useRouter } from "next/navigation";
 import { Globe2, ShieldAlert, ArrowRight, UserCheck, Lock, Mail, Loader2, AlertCircle } from "lucide-react";
+import { useT } from "@/i18n/useT";
 
 // Password map for seeded users to power developer quick sign-in cards
 const SEEDED_PASSWORDS: Record<string, string> = {
@@ -24,6 +25,7 @@ const SEEDED_PASSWORDS: Record<string, string> = {
 export default function LoginPage() {
   const { allUsers, login } = useMockAuth();
   const router = useRouter();
+  const { t } = useT();
 
   // Form states
   const [email, setEmail] = useState("");
@@ -34,7 +36,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setError("Please fill in all fields.");
+      setError(t("auth.fillAllFields"));
       return;
     }
 
@@ -44,7 +46,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(err.message || "Invalid credentials.");
+      setError(err.message || t("auth.invalidCredentials"));
       setIsSubmitting(false);
     }
   };
@@ -62,7 +64,7 @@ export default function LoginPage() {
     try {
       await login(mockEmail, mockPassword);
     } catch (err: any) {
-      setError(err.message || "Quick login failed.");
+      setError(err.message || t("auth.quickLoginFailed"));
       setIsSubmitting(false);
     }
   };
@@ -71,14 +73,18 @@ export default function LoginPage() {
     <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:py-16">
       {/* Brand Header */}
       <div className="text-center space-y-3 mb-8">
-        <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-primary-theme shadow-xl border border-border-theme">
-          <Globe2 className="h-7 w-7 text-primary-theme animate-spin-slow" />
+        <div className="inline-flex items-center justify-center">
+          <img
+            src="/visatek_logo_transparent.png"
+            alt="VisaTek Logo"
+            className="h-16 w-auto object-contain"
+          />
         </div>
         <h2 className="text-3xl font-extrabold tracking-tight text-text-theme">
-          Overseas Manpower ERP
+          VisaTek ERP
         </h2>
         <p className="mx-auto max-w-md text-xs text-text-soft font-medium">
-          Secure Regulatory Logistics, Biometric Clearance, and Commission Ledger Authority.
+          {t("auth.subtitle")}
         </p>
       </div>
 
@@ -86,17 +92,17 @@ export default function LoginPage() {
         {/* Left Side: Real Credentials Login Form */}
         <div className="lg:col-span-5 rounded-2xl border border-border-theme bg-surface/80 backdrop-blur-md p-6 lg:p-8 shadow-xl">
           <h3 className="text-lg font-bold text-text-theme mb-2">
-            Secure Staff & Partner Sign In
+            {t("auth.title")}
           </h3>
           <p className="text-[11px] text-text-soft mb-6 leading-relaxed">
-            Enter your cryptographically registered enterprise email and secure password.
+            {t("auth.subtitle")}
           </p>
 
           {error && (
             <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-100 bg-rose-50/50 p-3.5 text-xs text-rose-700 dark:border-rose-950/30 dark:bg-rose-950/10 dark:text-rose-400 animate-shake">
               <AlertCircle className="h-4.5 w-4.5 shrink-0 text-rose-600 mt-0.5" />
               <div>
-                <strong className="font-bold block text-[11px] mb-0.5">Authentication Error</strong>
+                <strong className="font-bold block text-[11px] mb-0.5">{t("auth.authErrorTitle")}</strong>
                 <p className="text-[10px] text-rose-600/90 dark:text-rose-400/90 font-medium">{error}</p>
               </div>
             </div>
@@ -105,7 +111,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[11px] font-bold text-text-soft uppercase tracking-wider mb-1.5">
-                Enterprise Email
+                {t("auth.emailLabel")}
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-text-soft">
@@ -124,7 +130,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-[11px] font-bold text-text-soft uppercase tracking-wider mb-1.5">
-                Security Password
+                {t("auth.passwordLabel")}
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-text-soft">
@@ -149,11 +155,11 @@ export default function LoginPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
-                  <span>Verifying Authority...</span>
+                  <span>{t("auth.verifying")}</span>
                 </>
               ) : (
                 <>
-                  <span>Sign In to Portal</span>
+                  <span>{t("auth.signInBtn")}</span>
                   <ArrowRight className="h-4 w-4 text-white" />
                 </>
               )}
@@ -164,7 +170,7 @@ export default function LoginPage() {
           <div className="mt-6 flex gap-2 rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 dark:border-amber-950/40 dark:bg-amber-950/20">
             <ShieldAlert className="h-4 w-4 text-amber-700 shrink-0 mt-0.5 dark:text-amber-500" />
             <p className="text-[9px] text-amber-800/80 leading-relaxed font-medium dark:text-amber-400/80">
-              <strong>Compliance Notice:</strong> Dynamic IP security protocols log unauthorized attempts directly into the system audit ledger.
+              <strong>{t("auth.complianceNotice")}:</strong> {t("auth.complianceNoteDesc")}
             </p>
           </div>
         </div>
@@ -173,10 +179,10 @@ export default function LoginPage() {
         <div className="lg:col-span-7 space-y-4">
           <div className="rounded-2xl border border-border-theme bg-surface-soft p-5">
             <h3 className="text-sm font-bold text-text-theme mb-1">
-              Development Quick Sign-In (Dynamic RBAC Simulator)
+              {t("auth.devQuickSignIn")}
             </h3>
             <p className="text-[10px] text-text-soft leading-relaxed">
-              Click any card to autofill preset credentials and trigger an authentic backend JWT authentication flow against your local database.
+              {t("auth.devQuickSignInDesc")}
             </p>
           </div>
 
@@ -201,7 +207,7 @@ export default function LoginPage() {
                 >
                   <div className="flex items-center justify-between">
                     <span className={`rounded-full border px-2 py-0.5 text-[8px] font-bold tracking-wide uppercase ${badgeColor}`}>
-                      {mockUser.roleName}
+                      {t(`roles.${mockUser.roleName}`) || mockUser.roleName}
                     </span>
                     {isUserSubmitting ? (
                       <Loader2 className="h-4 w-4 animate-spin text-primary-theme" />
@@ -216,7 +222,7 @@ export default function LoginPage() {
                     {mockUser.email}
                   </p>
                   <div className="mt-3 flex items-center gap-1 text-[8px] font-bold text-primary-theme opacity-0 group-hover:opacity-100 transition-all">
-                    Sign In Directly <ArrowRight className="h-2.5 w-2.5" />
+                    {t("auth.signInDirectly")} <ArrowRight className="h-2.5 w-2.5" />
                   </div>
                 </div>
               );

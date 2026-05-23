@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { EmptyState } from "../ui/EmptyState";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useT } from "@/i18n/useT";
+import { formatNumber } from "@/i18n/format";
 
 export interface Column<T> {
   header: string;
@@ -24,16 +26,21 @@ interface DataTableProps<T> {
 export function DataTable<T>({
   data,
   columns,
-  searchPlaceholder = "Search entries...",
+  searchPlaceholder,
   searchField,
   filterComponent,
   onRowClick,
-  emptyStateTitle = "No records found",
-  emptyStateDescription = "Try adjusting your filters or search query to find what you are looking for.",
+  emptyStateTitle,
+  emptyStateDescription,
 }: DataTableProps<T>) {
+  const { t, locale } = useT();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+
+  const resolvedSearchPlaceholder = searchPlaceholder || t("common.search") + "...";
+  const resolvedEmptyTitle = emptyStateTitle || t("common.noRecords");
+  const resolvedEmptyDesc = emptyStateDescription || (locale === "bn" ? "প্রদর্শন করার মতো কোনো রেকর্ড নেই।" : "Try adjusting your filters or search query to find what you are looking for.");
 
   // Filter Data
   const filteredData = data.filter((item) => {
@@ -72,7 +79,7 @@ export function DataTable<T>({
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder={searchPlaceholder}
+            placeholder={resolvedSearchPlaceholder}
             className="w-full rounded-lg border border-border-theme bg-bg py-1.5 pl-10 pr-4 text-xs outline-none focus:border-primary-theme focus:ring-1 focus:ring-primary-theme text-text-theme"
           />
         </div>
@@ -83,7 +90,7 @@ export function DataTable<T>({
       <div className="overflow-x-auto">
         {paginatedData.length === 0 ? (
           <div className="p-8">
-            <EmptyState title={emptyStateTitle} description={emptyStateDescription} />
+            <EmptyState title={resolvedEmptyTitle} description={resolvedEmptyDesc} />
           </div>
         ) : (
           <table className="w-full border-collapse text-left text-xs">
@@ -121,23 +128,29 @@ export function DataTable<T>({
       {filteredData.length > 0 && (
         <div className="flex items-center justify-between border-t border-border-theme px-6 py-4">
           <span className="text-[11px] text-text-soft">
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems} entries
+            {t("common.showingEntries", {
+              from: formatNumber(startIndex + 1, locale),
+              to: formatNumber(Math.min(startIndex + itemsPerPage, totalItems), locale),
+              total: formatNumber(totalItems, locale),
+            })}
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrevPage}
               disabled={currentPage === 1}
-              className="rounded-md border border-border-theme p-1 text-text-soft hover:bg-bg-muted disabled:opacity-40 transition-colors"
+              className="rounded-md border border-border-theme p-1 text-text-soft hover:bg-bg-muted disabled:opacity-40 transition-colors cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <span className="text-xs font-semibold text-text-theme">
-              Page {currentPage} of {totalPages}
+              {locale === "bn"
+                ? `পৃষ্ঠা ${formatNumber(currentPage, locale)} / ${formatNumber(totalPages, locale)}`
+                : `Page ${currentPage} of ${totalPages}`}
             </span>
             <button
               onClick={handleNextPage}
               disabled={currentPage === totalPages}
-              className="rounded-md border border-border-theme p-1 text-text-soft hover:bg-bg-muted disabled:opacity-40 transition-colors"
+              className="rounded-md border border-border-theme p-1 text-text-soft hover:bg-bg-muted disabled:opacity-40 transition-colors cursor-pointer"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

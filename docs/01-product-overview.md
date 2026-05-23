@@ -1,10 +1,12 @@
 # 01 — Product Overview
 
-## What Is OverseasERP?
+## What Is VisaTek ERP?
 
-**OverseasERP** is a full-stack web application designed for overseas manpower recruitment agencies. It replaces spreadsheets, paper trails, and disconnected tools with a single integrated platform that manages every stage of the recruitment-to-deployment lifecycle.
+**VisaTek ERP** is a full-stack web application designed for overseas manpower recruitment agencies in Bangladesh. It replaces spreadsheets, paper trails, and disconnected tools with a single integrated platform that manages every stage of the recruitment-to-deployment lifecycle.
 
-The system is built as a minimum viable product (MVP) with real database connections, authentication, role-based access control, document management, financial accounting, and audit logging — all working live.
+The system features a **Bangla-First** design pattern, ensuring that the entire interface is optimized for Bangladeshi recruitment agency operations by default, with a dynamic runtime switch to English.
+
+The system is built as an enterprise-grade solution with real database connections, authentication, dynamic role-based access control, document management, financial accounting, and audit logging — all working live.
 
 ---
 
@@ -20,7 +22,7 @@ Overseas manpower recruitment involves many departments, external agents, and go
 - Staff accessing data they shouldn't see
 - No self-service portal for agents or placed candidates
 
-**OverseasERP** solves all of this in one system.
+**VisaTek ERP** solves all of this in one system.
 
 ---
 
@@ -120,6 +122,7 @@ Placed candidate with a self-service portal. Can view their own profile, current
 
 ## What Makes This ERP Presentable as an MVP
 
+- **Bangla-First default UI** with dynamic, real-time English runtime toggle and localStorage persistence
 - **All core modules are functional end-to-end** with real database data
 - **JWT authentication** with access + refresh token architecture
 - **Dynamic RBAC** pulled from the database at login — permissions are not hardcoded per user

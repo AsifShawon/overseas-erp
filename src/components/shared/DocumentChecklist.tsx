@@ -8,6 +8,7 @@ import { MockDocument } from "@/lib/mockData";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { FileUp, XCircle, CheckCircle, Loader2 } from "lucide-react";
 import { DocumentCard } from "./DocumentCard";
+import { useT } from "@/i18n/useT";
 
 interface DocumentChecklistProps {
   documents: MockDocument[];
@@ -16,8 +17,32 @@ interface DocumentChecklistProps {
   onDownload?: (docId: string, fileName: string) => void;
 }
 
+export const DOCUMENT_TYPE_LABELS: Record<string, Record<string, string>> = {
+  bn: {
+    PASSPORT: "পাসপোর্ট স্ক্যান (Passport Scan)",
+    PHOTO: "আবেদনকারীর পাসপোর্ট ছবি (Passport Photo)",
+    CV: "জীবনবৃত্তান্ত (CV)",
+    MEDICAL_REPORT: "মেডিকেল ফিটনেস রিপোর্ট (Medical Report)",
+    POLICE_CLEARANCE: "পুলিশ ক্লিয়ারেন্স কার্ড (Police Clearance)",
+    VISA_STICKER: "দূতাবাস ভিসা স্টিকার (Visa Sticker)",
+    AIR_TICKET: "বিমান টিকিট (Air Ticket)",
+    OTHER: "অন্যান্য প্রশংসাপত্র/দলিল (Other Document)",
+  },
+  en: {
+    PASSPORT: "Passport Scan",
+    PHOTO: "Applicant Passport Photo",
+    CV: "Curriculum Vitae (CV)",
+    MEDICAL_REPORT: "Medical Fitness Report",
+    POLICE_CLEARANCE: "Police Clearance Card",
+    VISA_STICKER: "Embassy Visa Sticker",
+    AIR_TICKET: "Airline Flight Ticket",
+    OTHER: "Other Attestation Document",
+  }
+};
+
 export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }: DocumentChecklistProps) {
   const { user } = useMockAuth();
+  const { t, locale } = useT();
   
   // Local form states
   const [selectedDocType, setSelectedDocType] = useState("PASSPORT");
@@ -40,19 +65,19 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
     setLocalSuccess(null);
 
     if (!selectedFile) {
-      setLocalError("Please select a file to upload.");
+      setLocalError(locale === "bn" ? "অনুগ্রহ করে আপলোড করার জন্য একটি ফাইল নির্বাচন করুন।" : "Please select a file to upload.");
       return;
     }
 
     // Client-side file size guard
     if (selectedFile.size > MAX_FILE_SIZE) {
-      setLocalError("File is too large. Max allowed file size is 5MB.");
+      setLocalError(locale === "bn" ? "ফাইলটি অনেক বড়। সর্বোচ্চ ফাইল সাইজ ৫ মেগাবাইট (5MB)।" : "File is too large. Max allowed file size is 5MB.");
       return;
     }
 
     // Client-side MIME-type guard
     if (!ALLOWED_MIME_TYPES.includes(selectedFile.type)) {
-      setLocalError("Unsupported file type. Only PDF, JPEG, and PNG files are allowed.");
+      setLocalError(locale === "bn" ? "অসমর্থিত ফাইল টাইপ। শুধুমাত্র PDF, JPEG, এবং PNG ফাইল আপলোড করা যাবে।" : "Unsupported file type. Only PDF, JPEG, and PNG files are allowed.");
       return;
     }
 
@@ -60,7 +85,7 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
       try {
         setUploading(true);
         await onUpload(selectedDocType, selectedFile, expiryDate || undefined, remarks || undefined);
-        setLocalSuccess("File successfully uploaded and saved to secure storage.");
+        setLocalSuccess(locale === "bn" ? "ফাইলটি সফলভাবে আপলোড এবং সুরক্ষিত স্টোরেজে সংরক্ষণ করা হয়েছে।" : "File successfully uploaded and saved to secure storage.");
         // Reset form inputs on successful upload
         setSelectedFile(null);
         setExpiryDate("");
@@ -69,7 +94,7 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
         const fileInput = document.getElementById("document-file-input") as HTMLInputElement;
         if (fileInput) fileInput.value = "";
       } catch (err: any) {
-        setLocalError(err.message || "An unexpected error occurred during document upload.");
+        setLocalError(err.message || (locale === "bn" ? "ডকুমেন্ট আপলোড করার সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred during document upload."));
       } finally {
         setUploading(false);
       }
@@ -84,34 +109,38 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
       {/* Real Document Upload Panel */}
       <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
         <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-          Upload Compliance Document
+          {locale === "bn" ? "কমপ্লায়েন্স ডকুমেন্ট আপলোড করুন" : "Upload Compliance Document"}
         </h3>
         
         <form onSubmit={handleUploadSubmit} className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* 1. Document Type */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400">Document Type</label>
+              <label className="text-[10px] font-bold text-slate-400">
+                {t("applicantDetail.documentType")}
+              </label>
               <select
                 value={selectedDocType}
                 onChange={(e) => setSelectedDocType(e.target.value)}
                 disabled={uploading}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
               >
-                <option value="PASSPORT">Passport Scan</option>
-                <option value="PHOTO">Applicant Passport Photo</option>
-                <option value="CV">Curriculum Vitae (CV)</option>
-                <option value="MEDICAL_REPORT">Medical Fitness Report</option>
-                <option value="POLICE_CLEARANCE">Police Clearance Card</option>
-                <option value="VISA_STICKER">Embassy Visa Sticker</option>
-                <option value="AIR_TICKET">Airline Flight Ticket</option>
-                <option value="OTHER">Other Attestation Document</option>
+                <option value="PASSPORT">{DOCUMENT_TYPE_LABELS[locale].PASSPORT}</option>
+                <option value="PHOTO">{DOCUMENT_TYPE_LABELS[locale].PHOTO}</option>
+                <option value="CV">{DOCUMENT_TYPE_LABELS[locale].CV}</option>
+                <option value="MEDICAL_REPORT">{DOCUMENT_TYPE_LABELS[locale].MEDICAL_REPORT}</option>
+                <option value="POLICE_CLEARANCE">{DOCUMENT_TYPE_LABELS[locale].POLICE_CLEARANCE}</option>
+                <option value="VISA_STICKER">{DOCUMENT_TYPE_LABELS[locale].VISA_STICKER}</option>
+                <option value="AIR_TICKET">{DOCUMENT_TYPE_LABELS[locale].AIR_TICKET}</option>
+                <option value="OTHER">{DOCUMENT_TYPE_LABELS[locale].OTHER}</option>
               </select>
             </div>
 
             {/* 2. File Input */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400">Select File (PDF, JPG, PNG - Max 5MB)</label>
+              <label className="text-[10px] font-bold text-slate-400">
+                {locale === "bn" ? "ফাইল নির্বাচন করুন (PDF, JPG, PNG - সর্বোচ্চ ৫ মেগাবাইট)" : "Select File (PDF, JPG, PNG - Max 5MB)"}
+              </label>
               <input
                 id="document-file-input"
                 type="file"
@@ -124,26 +153,30 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
 
             {/* 3. Optional Expiry Date */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400">Expiry Date (Optional)</label>
+              <label className="text-[10px] font-bold text-slate-400">
+                {t("applicantDetail.expiryDate")}
+              </label>
               <input
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
                 disabled={uploading}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
               />
             </div>
 
             {/* 4. Optional Remarks */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400">Remarks / Notes (Optional)</label>
+              <label className="text-[10px] font-bold text-slate-400">
+                {locale === "bn" ? "মন্তব্য / নোট (ঐচ্ছিক)" : "Remarks / Notes (Optional)"}
+              </label>
               <input
                 type="text"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
-                placeholder="e.g. Certified copy of passport page"
+                placeholder={locale === "bn" ? "যেমন: পাসপোর্টের সত্যায়িত কপি" : "e.g. Certified copy of passport page"}
                 disabled={uploading}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
               />
             </div>
           </div>
@@ -156,11 +189,11 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
             >
               {uploading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Uploading Sourced File...
+                  <Loader2 className="h-4 w-4 animate-spin" /> {locale === "bn" ? "ফাইল আপলোড হচ্ছে..." : "Uploading Sourced File..."}
                 </>
               ) : (
                 <>
-                  <FileUp className="h-4 w-4" /> Upload Document
+                  <FileUp className="h-4 w-4" /> {locale === "bn" ? "ডকুমেন্ট আপলোড করুন" : "Upload Document"}
                 </>
               )}
             </button>
@@ -186,12 +219,12 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
       {/* Document Registry Checklist Grid */}
       <div className="space-y-4">
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-          Compliance Attestation Dossiers
+          {locale === "bn" ? "কমপ্লায়েন্স সত্যায়ন ডসিয়ার" : "Compliance Attestation Dossiers"}
         </h3>
         
         {documents.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl bg-slate-50/30 text-slate-400 dark:border-slate-800">
-            No attestation documents listed.
+          <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl bg-slate-50/30 text-slate-400 dark:border-slate-800 text-xs">
+            {t("applicantDetail.noDocuments")}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -210,3 +243,4 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
     </div>
   );
 }
+

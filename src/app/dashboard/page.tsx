@@ -1,3 +1,4 @@
+// src/app/dashboard/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -7,6 +8,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DataTable } from "@/components/shared/DataTable";
+import { useT } from "@/i18n/useT";
+import { formatDate, formatDateTime, formatNumber, formatCurrency } from "@/i18n/format";
 import {
   WORKFLOW_LABELS,
   WorkflowStage,
@@ -21,6 +24,7 @@ import {
 export default function DashboardPage() {
   const { user, accessToken } = useMockAuth();
   const router = useRouter();
+  const { t, locale } = useT();
 
   // If Applicant, redirect to their personal portal immediately
   useEffect(() => {
@@ -76,7 +80,7 @@ export default function DashboardPage() {
       <div className="flex h-[50vh] items-center justify-center">
         <div className="text-center space-y-2">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent mx-auto"></div>
-          <p className="text-xs text-slate-500">Redirecting to Applicant Portal...</p>
+          <p className="text-xs text-slate-500">{t("dashboard.redirectingPortal")}</p>
         </div>
       </div>
     );
@@ -87,15 +91,15 @@ export default function DashboardPage() {
     return (
       <div className="space-y-8">
         <PageHeader
-          title="Command Dashboard"
-          description="Fetching operations analytics and compliance stages from secure database..."
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Dashboard" }]}
+          title={t("dashboard.pageTitle")}
+          description={t("dashboard.fetchingMetrics")}
+          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: t("nav.dashboard") }]}
         />
         <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-border-theme bg-surface p-5 shadow-sm space-y-4">
           <div className="relative h-12 w-12 rounded-2xl bg-surface border border-border-theme flex items-center justify-center shadow-lg animate-pulse">
             <Loader2 className="h-6 w-6 text-primary-theme animate-spin" />
           </div>
-          <p className="text-xs text-text-soft font-bold animate-pulse">Loading dynamic dashboard reports...</p>
+          <p className="text-xs text-text-soft font-bold animate-pulse">{t("common.loadingData")}</p>
         </div>
       </div>
     );
@@ -106,21 +110,21 @@ export default function DashboardPage() {
     return (
       <div className="space-y-8">
         <PageHeader
-          title="Command Dashboard"
+          title={t("dashboard.pageTitle")}
           description="Service Connection Interrupted"
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Dashboard" }]}
+          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: t("nav.dashboard") }]}
         />
         <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-rose-100 bg-rose-50/50 p-6 text-center shadow-sm dark:border-rose-950/10 dark:bg-rose-950/5 space-y-4">
           <AlertTriangle className="h-10 w-10 text-rose-500" />
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-rose-900 dark:text-rose-400">Failed to Load Dashboard</h3>
+            <h3 className="text-sm font-bold text-rose-900 dark:text-rose-400">{t("dashboard.failedToLoad")}</h3>
             <p className="text-xs text-rose-700/80 dark:text-rose-400/70 max-w-md">{error}</p>
           </div>
           <button
             onClick={fetchDashboardData}
             className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 shadow-sm"
           >
-            Retry Connection
+            {t("dashboard.retryBtn")}
           </button>
         </div>
       </div>
@@ -140,12 +144,6 @@ export default function DashboardPage() {
     totalInvoiced = 0,
     totalCollected = 0,
     totalOutstanding = 0,
-    totalCommissionAccrued = 0,
-    totalCommissionPaid = 0,
-    pendingCommission = 0,
-    stageCounts = {} as Record<string, number>,
-    recentAuditLogs = [],
-    recentNotifications = [],
     passportExpiryWarnings = [],
     documentPendingCount = 0,
     jobOrders = [],
@@ -173,14 +171,16 @@ export default function DashboardPage() {
     ownCommissionPaid = 0,
     ownApplicants = [],
     totalPlacedCount = 0,
+    stageCounts = {} as Record<string, number>,
+    recentAuditLogs = [],
   } = data || {};
 
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Command Dashboard"
-        description={`Welcome back, ${user.fullName}. Here is your logistics and compliance operations overview.`}
-        breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Dashboard" }]}
+        title={t("dashboard.pageTitle")}
+        description={t("dashboard.pageDesc", { name: user.fullName })}
+        breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: t("nav.dashboard") }]}
       />
 
       {/* ------------------ SUPER ADMIN DASHBOARD ------------------ */}
@@ -188,29 +188,29 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="Active Candidates"
-              value={activeApplicants}
-              description={`${archivedApplicants} soft-archived entries`}
+              title={t("dashboard.activeCandidates")}
+              value={formatNumber(activeApplicants, locale)}
+              description={t("dashboard.softArchivedEntries", { count: formatNumber(archivedApplicants, locale) })}
               iconName="Users"
               trend={{ value: "8.5%", isPositive: true }}
             />
             <StatCard
-              title="Job Orders Open"
-              value={`${openJobOrders} / ${totalJobOrders}`}
-              description={`${allocatedQuota} of ${totalQuota} quotas allocated`}
+              title={t("dashboard.jobOrdersOpen")}
+              value={`${formatNumber(openJobOrders, locale)} / ${formatNumber(totalJobOrders, locale)}`}
+              description={t("dashboard.quotasAllocated", { allocated: formatNumber(allocatedQuota, locale), total: formatNumber(totalQuota, locale) })}
               iconName="Briefcase"
             />
             <StatCard
-              title="Accounts Receivable"
-              value={`$${totalOutstanding.toLocaleString()}`}
-              description={`Total billed: $${totalInvoiced.toLocaleString()}`}
+              title={t("dashboard.accountsReceivable")}
+              value={formatCurrency(totalOutstanding, "BDT", locale)}
+              description={t("dashboard.totalBilled", { amount: formatCurrency(totalInvoiced, "BDT", locale) })}
               iconName="CreditCard"
               trend={{ value: "12%", isPositive: false }}
             />
             <StatCard
-              title="Sourcing Agents"
-              value={`${activeAgents} Active`}
-              description={`Out of ${totalAgents} registered tiers`}
+              title={t("dashboard.sourcingAgents")}
+              value={t("dashboard.activeAgentsCount", { active: formatNumber(activeAgents, locale) })}
+              description={t("dashboard.registeredTiers", { total: formatNumber(totalAgents, locale) })}
               iconName="UserCheck"
             />
           </div>
@@ -219,17 +219,17 @@ export default function DashboardPage() {
             {/* Pipeline Stage Summary */}
             <div className="lg:col-span-2 rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
               <h3 className="text-sm font-bold text-text-theme mb-4 flex items-center gap-2">
-                <TrendingUp className="h-4.5 w-4.5 text-primary-theme" /> Pipeline Stage Distribution
+                <TrendingUp className="h-4.5 w-4.5 text-primary-theme" /> {t("dashboard.pipelineStageDistribution")}
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {(["SELECTED", "MEDICAL_WAITING", "VISA_SUBMITTED", "DEPLOYED"] as WorkflowStage[]).map((stage) => {
                   const count = stageCounts[stage] || 0;
-                  const label = WORKFLOW_LABELS[stage];
+                  const label = t(`workflow.${stage}`) || WORKFLOW_LABELS[stage];
                   return (
                     <div key={stage} className="rounded-lg bg-surface-soft p-4 border border-border-theme">
                       <p className="text-[10px] font-semibold text-text-soft uppercase tracking-wider truncate">{label}</p>
-                      <h4 className="mt-2 text-2xl font-bold text-text-theme">{count}</h4>
-                      <p className="text-[9px] text-text-soft mt-1">Candidates in stage</p>
+                      <h4 className="mt-2 text-2xl font-bold text-text-theme">{formatNumber(count, locale)}</h4>
+                      <p className="text-[9px] text-text-soft mt-1">{t("dashboard.candidatesInStage")}</p>
                     </div>
                   );
                 })}
@@ -240,16 +240,20 @@ export default function DashboardPage() {
             <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm flex flex-col justify-between">
               <div>
                 <h3 className="text-sm font-bold text-text-theme mb-2 flex items-center gap-2">
-                  <AlertTriangle className="h-4.5 w-4.5 text-amber-500" /> Alerts & Vetting Warnings
+                  <AlertTriangle className="h-4.5 w-4.5 text-amber-500" /> {t("dashboard.alertsWarnings")}
                 </h3>
-                <p className="text-xs text-text-soft">System automated notifications indicating potential bottlenecks.</p>
+                <p className="text-xs text-text-soft">{t("dashboard.alertsDesc")}</p>
                 <div className="mt-4 space-y-3">
                   {passportExpiryWarnings.length > 0 ? (
                     passportExpiryWarnings.map((app: any) => (
                       <div key={app.id} className="flex gap-2 rounded-lg bg-rose-50/50 p-2.5 border border-rose-100/50 dark:bg-rose-950/10 dark:border-rose-900/10">
                         <span className="h-1.5 w-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0 animate-ping"></span>
                         <p className="text-[10px] text-rose-700 dark:text-rose-400">
-                          Candidate <strong>{app.fullName}</strong> passport ({app.passportNumber}) expires on {app.passportExpiry}. Urgent action required.
+                          {locale === "bn" ? (
+                            <>আবেদনকারী <strong>{app.fullName}</strong>-এর পাসপোর্ট ({app.passportNumber}) মেয়াদ {app.passportExpiry}-এ শেষ হবে। জরুরি ব্যবস্থা প্রয়োজন।</>
+                          ) : (
+                            <>Candidate <strong>{app.fullName}</strong> passport ({app.passportNumber}) expires on {app.passportExpiry}. Urgent action required.</>
+                          )}
                         </p>
                       </div>
                     ))
@@ -257,7 +261,7 @@ export default function DashboardPage() {
                     <div className="flex gap-2 rounded-lg bg-emerald-50/50 p-2.5 border border-emerald-100/50 dark:bg-emerald-950/10 dark:border-emerald-900/10">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span>
                       <p className="text-[10px] text-emerald-700 dark:text-emerald-400">
-                        No critical passport expiry warnings detected in active pipelines.
+                        {t("dashboard.noCriticalWarnings")}
                       </p>
                     </div>
                   )}
@@ -266,15 +270,15 @@ export default function DashboardPage() {
                     <div className="flex gap-2 rounded-lg bg-amber-50/50 p-2.5 border border-amber-100/50 dark:bg-amber-950/10 dark:border-amber-900/10">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
                       <p className="text-[10px] text-amber-700 dark:text-amber-400">
-                        There are <strong>{documentPendingCount}</strong> documents pending verification in Documentation queue.
+                        {t("dashboard.documentVerificationPending", { count: formatNumber(documentPendingCount, locale) })}
                       </p>
                     </div>
                   )}
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-border-theme flex justify-between items-center text-[10px] text-text-soft">
-                <span>Last updated: Just now</span>
-                <span className="font-semibold text-primary-theme cursor-pointer">Resolve all</span>
+                <span>{t("dashboard.lastUpdatedJustNow")}</span>
+                <span className="font-semibold text-primary-theme cursor-pointer">{t("dashboard.resolveAllBtn")}</span>
               </div>
             </div>
           </div>
@@ -282,21 +286,21 @@ export default function DashboardPage() {
           {/* Immutable Audit Logs widget */}
           <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
             <h3 className="text-sm font-bold text-text-theme mb-4 flex items-center gap-2">
-              <History className="h-4.5 w-4.5 text-primary-theme" /> Recent Immutable System Audits
+              <History className="h-4.5 w-4.5 text-primary-theme" /> {t("dashboard.recentSystemAudits")}
             </h3>
             <DataTable<any>
               data={recentAuditLogs}
               columns={[
-                { header: "Timestamp", accessor: (log: any) => new Date(log.timestamp).toLocaleString() },
-                { header: "Staff Member", accessor: (log: any) => `${log.userId} (${log.roleName})` },
-                { header: "Action", accessor: (log: any) => <span className="font-semibold text-text-theme">{log.actionType}</span> },
-                { header: "Module", accessor: (log: any) => log.tableName },
-                { header: "Vetting Record", accessor: (log: any) => <span className="font-mono text-[10px] bg-bg-muted border border-border-theme px-1 py-0.5 rounded text-text-theme">{log.recordId}</span> },
-                { header: "Vetting IP", accessor: (log: any) => log.ipAddress || "N/A" },
+                { header: t("auditLogs.tableHeaderTimestamp"), accessor: (log: any) => formatDateTime(log.timestamp, locale) },
+                { header: t("auditLogs.tableHeaderStaff"), accessor: (log: any) => `${log.userId} (${t(`roles.${log.roleName}`) || log.roleName})` },
+                { header: t("auditLogs.tableHeaderAction"), accessor: (log: any) => <span className="font-semibold text-text-theme">{log.actionType}</span> },
+                { header: t("auditLogs.tableHeaderModule"), accessor: (log: any) => log.tableName },
+                { header: t("auditLogs.tableHeaderRecord"), accessor: (log: any) => <span className="font-mono text-[10px] bg-bg-muted border border-border-theme px-1 py-0.5 rounded text-text-theme">{log.recordId}</span> },
+                { header: t("auditLogs.tableHeaderIp"), accessor: (log: any) => log.ipAddress || "N/A" },
               ]}
-              searchPlaceholder="Filter audit trail..."
+              searchPlaceholder={t("dashboard.filterAuditTrailPlaceholder")}
               searchField="actionType"
-              emptyStateTitle="No audits recorded"
+              emptyStateTitle={t("common.noRecords")}
             />
           </div>
         </div>
@@ -307,34 +311,34 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="Allocated Quotas"
-              value={`${allocatedQuota} Placed`}
-              description={`Out of ${totalQuota} total foreign slots`}
+              title={t("dashboard.allocatedQuotas")}
+              value={`${formatNumber(allocatedQuota, locale)} ${locale === "bn" ? "টি পাঠানো হয়েছে" : "Placed"}`}
+              description={t("dashboard.totalForeignSlots", { total: formatNumber(totalQuota, locale) })}
               iconName="Briefcase"
               trend={{ value: "4.8%", isPositive: true }}
             />
             <StatCard
-              title="Candidates Under Review"
-              value={activeApplicants}
-              description="Vetting & compliance active files"
+              title={t("dashboard.candidatesUnderReview")}
+              value={formatNumber(activeApplicants, locale)}
+              description={t("dashboard.vettingComplianceFiles")}
               iconName="Users"
             />
             <StatCard
-              title="Mean Deployment Time"
-              value="28 Days"
-              description="From sourcing to boarding ticket"
+              title={t("dashboard.meanDeploymentTime")}
+              value={locale === "bn" ? "২৮ দিন" : "28 Days"}
+              description={t("dashboard.deploymentTimeDesc")}
               iconName="Clock"
             />
             <StatCard
-              title="Active Agents Registered"
-              value={`${activeAgents} / ${totalAgents}`}
-              description="External recruitment partners"
+              title={t("dashboard.activeAgentsRegistered")}
+              value={`${formatNumber(activeAgents, locale)} / ${formatNumber(totalAgents, locale)}`}
+              description={t("dashboard.externalPartners")}
               iconName="UserCheck"
             />
           </div>
 
           <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-text-theme mb-4">Foreign Job Orders Quota Utilization</h3>
+            <h3 className="text-sm font-bold text-text-theme mb-4">{t("dashboard.quotaUtilization")}</h3>
             {jobOrders.length > 0 ? (
               <div className="space-y-4">
                 {jobOrders.map((jo: any) => {
@@ -346,7 +350,7 @@ export default function DashboardPage() {
                           {jo.employerName} - <span className="text-text-soft">{jo.trade} ({jo.country})</span>
                         </span>
                         <span className="text-text-muted">
-                          {jo.allocatedQuota} / {jo.totalQuota} ({percentage}%)
+                          {formatNumber(jo.allocatedQuota, locale)} / {formatNumber(jo.totalQuota, locale)} ({formatNumber(percentage, locale)}%)
                         </span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-bg-muted overflow-hidden">
@@ -360,7 +364,7 @@ export default function DashboardPage() {
                 })}
               </div>
             ) : (
-              <p className="text-xs text-text-soft">No Job Orders registered in database yet.</p>
+              <p className="text-xs text-text-soft">{t("dashboard.noJobOrders")}</p>
             )}
           </div>
         </div>
@@ -371,43 +375,43 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="Sourced & Interviewed"
-              value={appliedCount + interviewedCount}
-              description="Awaiting official foreign selection"
+              title={t("dashboard.sourcedAndInterviewed")}
+              value={formatNumber(appliedCount + interviewedCount, locale)}
+              description={t("dashboard.awaitingForeignSelection")}
               iconName="Users"
             />
             <StatCard
-              title="Foreign Selections"
-              value={selectedCount}
-              description="Awaiting medical center schedules"
+              title={t("dashboard.foreignSelections")}
+              value={formatNumber(selectedCount, locale)}
+              description={t("dashboard.awaitingMedicalSchedules")}
               iconName="UserCheck"
             />
             <StatCard
-              title="Open Demands (Trades)"
-              value={openJobOrders}
-              description="Active foreign recruitment quotas"
+              title={t("dashboard.openDemandsTrades")}
+              value={formatNumber(openJobOrders, locale)}
+              description={t("dashboard.activeForeignQuotas")}
               iconName="Briefcase"
             />
             <StatCard
-              title="Total Candidates Placed"
-              value={totalPlacedCount}
-              description="Lifetime recruitments logged"
+              title={t("dashboard.totalCandidatesPlaced")}
+              value={formatNumber(totalPlacedCount, locale)}
+              description={t("dashboard.lifetimeRecruitments")}
               iconName="TrendingUp"
             />
           </div>
 
           <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-text-theme mb-4">Urgent Pre-Selection Screening Queue</h3>
+            <h3 className="text-sm font-bold text-text-theme mb-4">{t("dashboard.urgentScreeningQueue")}</h3>
             <DataTable<any>
               data={recruitmentQueue}
               columns={[
-                { header: "Candidate Name", accessor: (a: any) => a.fullName },
-                { header: "Passport No.", accessor: (a: any) => a.passportNumber },
-                { header: "Applied Trade", accessor: (a: any) => a.trade },
-                { header: "Status Stage", accessor: (a: any) => <StatusBadge status={a.currentStage} /> },
-                { header: "Submission Date", accessor: (a: any) => a.createdAt },
+                { header: t("applicants.tableHeaderName"), accessor: (a: any) => a.fullName },
+                { header: t("applicants.tableHeaderPassport"), accessor: (a: any) => a.passportNumber },
+                { header: t("applicants.tableHeaderTrade"), accessor: (a: any) => a.trade },
+                { header: t("applicants.tableHeaderStage"), accessor: (a: any) => <StatusBadge status={a.currentStage} /> },
+                { header: t("applicants.tableHeaderDate"), accessor: (a: any) => formatDate(a.createdAt, locale) },
               ]}
-              searchPlaceholder="Filter queue..."
+              searchPlaceholder={t("dashboard.filterQueuePlaceholder")}
               searchField="fullName"
             />
           </div>
@@ -419,41 +423,43 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="Pending Document Approvals"
-              value={pendingDocumentCount}
-              description="Awaiting verification & seal audits"
+              title={t("dashboard.pendingDocApprovals")}
+              value={formatNumber(pendingDocumentCount, locale)}
+              description={t("dashboard.awaitingVerificationSeal")}
               iconName="FileText"
               trend={{ value: "15%", isPositive: false }}
             />
             <StatCard
-              title="Completed Verifications"
-              value={verifiedDocumentCount}
-              description="Audited compliance records"
+              title={t("dashboard.completedVerifications")}
+              value={formatNumber(verifiedDocumentCount, locale)}
+              description={t("dashboard.auditedComplianceRecords")}
               iconName="ShieldCheck"
             />
             <StatCard
-              title="Pending Medical Appointments"
-              value={medicalWaitingCount}
-              description="Embassy approved labs"
+              title={t("dashboard.pendingMedicalAppts")}
+              value={formatNumber(medicalWaitingCount, locale)}
+              description={t("dashboard.embassyApprovedLabs")}
               iconName="Clock"
             />
             <StatCard
-              title="Medical fit"
-              value={medicalFitCount}
-              description="Passed bio-metric clearance"
+              title={t("dashboard.medicalFit")}
+              value={formatNumber(medicalFitCount, locale)}
+              description={t("dashboard.passedBiometricClearance")}
               iconName="UserCheck"
             />
           </div>
 
           <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-text-theme mb-4">Pending Vetting Reviews</h3>
+            <h3 className="text-sm font-bold text-text-theme mb-4">{t("dashboard.pendingVettingReviews")}</h3>
             {pendingDocumentApplicants.length > 0 ? (
               <div className="divide-y divide-border-theme">
                 {pendingDocumentApplicants.map((app: any) => (
                   <div key={app.id} className="py-3 flex items-center justify-between">
                     <div>
                       <h4 className="text-xs font-semibold text-text-theme">{app.fullName}</h4>
-                      <p className="text-[10px] text-text-soft">passport: {app.passportNumber} • Trade: {app.trade}</p>
+                      <p className="text-[10px] text-text-soft">
+                        {locale === "bn" ? "পাসপোর্ট" : "passport"}: {app.passportNumber} • {locale === "bn" ? "ট্রেড" : "Trade"}: {app.trade}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       {app.documents.map((d: any) => (
@@ -466,7 +472,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-text-soft py-2">No documents currently pending audit review.</p>
+              <p className="text-xs text-text-soft py-2">{t("dashboard.noPendingReviews")}</p>
             )}
           </div>
         </div>
@@ -477,43 +483,43 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="Visa Packets Sent"
-              value={visaSubmittedCount}
-              description="Awaiting consulate stickers"
+              title={t("dashboard.visaPacketsSent")}
+              value={formatNumber(visaSubmittedCount, locale)}
+              description={t("dashboard.awaitingConsulateStickers")}
               iconName="FileText"
             />
             <StatCard
-              title="Visa Stamps Recorded"
-              value={visaStampedCount}
-              description="Sticker matches locked"
+              title={t("dashboard.visaStampsRecorded")}
+              value={formatNumber(visaStampedCount, locale)}
+              description={t("dashboard.stickerMatchesLocked")}
               iconName="UserCheck"
             />
             <StatCard
-              title="Embassy Refusals"
-              value={visaRejectedCount}
-              description="Appeals pipeline active"
+              title={t("dashboard.embassyRefusals")}
+              value={formatNumber(visaRejectedCount, locale)}
+              description={t("dashboard.appealsPipelineActive")}
               iconName="AlertTriangle"
             />
             <StatCard
-              title="Awaiting Embassy Packets"
-              value={clearedForVisaCount}
-              description="Cleared for consulate submittal"
+              title={t("dashboard.awaitingEmbassyPackets")}
+              value={formatNumber(clearedForVisaCount, locale)}
+              description={t("dashboard.clearedConsulateSubmittal")}
               iconName="Clock"
             />
           </div>
 
           <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-text-theme mb-4">Embassy Consulate Packets List</h3>
+            <h3 className="text-sm font-bold text-text-theme mb-4">{t("dashboard.consulatePacketsList")}</h3>
             <DataTable<any>
               data={visaQueue}
               columns={[
-                { header: "Candidate", accessor: (a: any) => a.fullName },
-                { header: "Passport No.", accessor: (a: any) => a.passportNumber },
-                { header: "Target Country", accessor: (a: any) => a.country },
-                { header: "Consulate Stage", accessor: (a: any) => <StatusBadge status={a.currentStage} /> },
-                { header: "Expiry Warning", accessor: (a: any) => a.passportExpiry },
+                { header: t("documents.tableHeaderCandidate"), accessor: (a: any) => a.fullName },
+                { header: t("applicants.tableHeaderPassport"), accessor: (a: any) => a.passportNumber },
+                { header: t("jobOrders.tableHeaderCountry"), accessor: (a: any) => a.country },
+                { header: t("applicants.tableHeaderStage"), accessor: (a: any) => <StatusBadge status={a.currentStage} /> },
+                { header: t("applicants.formPassportExpiry"), accessor: (a: any) => formatDate(a.passportExpiry, locale) },
               ]}
-              searchPlaceholder="Search embassy status..."
+              searchPlaceholder={t("dashboard.searchEmbassyStatusPlaceholder")}
               searchField="fullName"
             />
           </div>
@@ -525,48 +531,48 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="Outstanding Receivables"
-              value={`$${totalOutstanding.toLocaleString()}`}
-              description="Active invoice collections"
+              title={t("dashboard.outstandingReceivables")}
+              value={formatCurrency(totalOutstanding, "BDT", locale)}
+              description={t("dashboard.activeInvoiceCollections")}
               iconName="CreditCard"
               trend={{ value: "10%", isPositive: false }}
             />
             <StatCard
-              title="Total Fees Billed"
-              value={`$${totalInvoiced.toLocaleString()}`}
-              description="Logistics & logistics fees"
+              title={t("dashboard.totalFeesBilled")}
+              value={formatCurrency(totalInvoiced, "BDT", locale)}
+              description={t("dashboard.logisticsFees")}
               iconName="TrendingUp"
             />
             <StatCard
-              title="Cash Balance Collected"
-              value={`$${totalCollected.toLocaleString()}`}
-              description="Bank transfers & cash receipts"
+              title={t("dashboard.cashBalanceCollected")}
+              value={formatCurrency(totalCollected, "BDT", locale)}
+              description={t("dashboard.transfersAndReceipts")}
               iconName="UserCheck"
             />
             <StatCard
-              title="Commissions Due"
-              value={`$${pendingCommissions.toLocaleString()}`}
-              description={`Paid commissions: $${paidCommissions.toLocaleString()}`}
+              title={t("dashboard.commissionsDue")}
+              value={formatCurrency(pendingCommissions, "BDT", locale)}
+              description={t("dashboard.paidCommissionsValue", { amount: formatCurrency(paidCommissions, "BDT", locale) })}
               iconName="Percent"
             />
           </div>
 
           <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-text-theme mb-4">Pending Invoice Ledgers</h3>
+            <h3 className="text-sm font-bold text-text-theme mb-4">{t("dashboard.pendingInvoiceLedgers")}</h3>
             <DataTable<any>
               data={pendingInvoices}
               columns={[
-                { header: "Invoice Number", accessor: (inv: any) => inv.invoiceNo },
-                { header: "Applicant Name", accessor: (inv: any) => inv.applicantId },
-                { header: "Billed Total", accessor: (inv: any) => `$${inv.amount.toLocaleString()}` },
-                { header: "Outstanding Balance", accessor: (inv: any) => (
+                { header: t("invoicesReceipts.tableHeaderInvoice"), accessor: (inv: any) => inv.invoiceNo },
+                { header: t("documents.tableHeaderCandidate"), accessor: (inv: any) => inv.applicantId },
+                { header: t("dashboard.totalFeesBilled"), accessor: (inv: any) => formatCurrency(inv.amount, "BDT", locale) },
+                { header: t("invoicesReceipts.tableHeaderOutstanding"), accessor: (inv: any) => (
                   <span className={`font-semibold ${inv.outstanding > 0 ? "text-rose-600" : "text-emerald-600"}`}>
-                    ${inv.outstanding.toLocaleString()}
+                    {formatCurrency(inv.outstanding, "BDT", locale)}
                   </span>
                 )},
-                { header: "Due Date", accessor: (inv: any) => inv.dueDate },
+                { header: t("invoicesReceipts.tableHeaderDueDate"), accessor: (inv: any) => formatDate(inv.dueDate, locale) },
               ]}
-              searchPlaceholder="Search invoices..."
+              searchPlaceholder={t("dashboard.searchInvoicesPlaceholder")}
               searchField="invoiceNo"
             />
           </div>
@@ -578,43 +584,43 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              title="My Candidates Sourced"
-              value={ownTotalApplicants}
-              description="Total registrations submitted"
+              title={t("dashboard.myCandidatesSourced")}
+              value={formatNumber(ownTotalApplicants, locale)}
+              description={t("dashboard.registrationsSubmitted")}
               iconName="Users"
             />
             <StatCard
-              title="Active Pipelines"
-              value={ownActiveApplicants - ownDeployedApplicants}
-              description="Logistics & visa processing"
+              title={t("dashboard.activePipelines")}
+              value={formatNumber(ownActiveApplicants - ownDeployedApplicants, locale)}
+              description={t("dashboard.logisticsVisaProcessing")}
               iconName="Clock"
             />
             <StatCard
-              title="Total Commission Earned"
-              value={`$${ownCommissionAccrued.toLocaleString()}`}
-              description="All submitted candidates"
+              title={t("dashboard.totalCommissionEarned")}
+              value={formatCurrency(ownCommissionAccrued, "BDT", locale)}
+              description={t("dashboard.allSubmittedCandidates")}
               iconName="Percent"
             />
             <StatCard
-              title="Paid Commissions"
-              value={`$${ownCommissionPaid.toLocaleString()}`}
-              description="Cleared to bank account"
+              title={t("dashboard.paidCommissions")}
+              value={formatCurrency(ownCommissionPaid, "BDT", locale)}
+              description={t("dashboard.clearedToBank")}
               iconName="UserCheck"
             />
           </div>
 
           <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-text-theme mb-4">My Sourced Candidate Statuses</h3>
+            <h3 className="text-sm font-bold text-text-theme mb-4">{t("dashboard.mySourcedCandidates")}</h3>
             <DataTable<any>
               data={ownApplicants}
               columns={[
-                { header: "Candidate Name", accessor: (a: any) => a.fullName },
-                { header: "Passport No.", accessor: (a: any) => a.passportNumber },
-                { header: "Trade", accessor: (a: any) => a.trade },
-                { header: "Current Stage", accessor: (a: any) => <StatusBadge status={a.currentStage} /> },
-                { header: "Archived Status", accessor: (a: any) => a.isArchived ? <span className="text-rose-600 font-semibold">Archived</span> : <span className="text-emerald-600 font-semibold">Active</span> },
+                { header: t("applicants.tableHeaderName"), accessor: (a: any) => a.fullName },
+                { header: t("applicants.tableHeaderPassport"), accessor: (a: any) => a.passportNumber },
+                { header: t("applicants.tableHeaderTrade"), accessor: (a: any) => a.trade },
+                { header: t("applicants.tableHeaderStage"), accessor: (a: any) => <StatusBadge status={a.currentStage} /> },
+                { header: t("agents.tableHeaderStatus"), accessor: (a: any) => a.isArchived ? <span className="text-rose-600 font-semibold">{t("statuses.CANCELLED")}</span> : <span className="text-emerald-600 font-semibold">{t("statuses.ACTIVE")}</span> },
               ]}
-              searchPlaceholder="Filter my candidates..."
+              searchPlaceholder={t("dashboard.filterCandidatesPlaceholder")}
               searchField="fullName"
             />
           </div>

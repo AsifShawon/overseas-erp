@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { DialogProvider } from "@/context/DialogContext";
+import { LanguageProvider } from "@/i18n/LanguageContext";
 
 export function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -30,13 +31,15 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
   };
 
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <DialogProvider>
-          {renderContent()}
-        </DialogProvider>
-      </ToastProvider>
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <DialogProvider>
+            {renderContent()}
+          </DialogProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </LanguageProvider>
   );
 }
 

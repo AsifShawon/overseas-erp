@@ -1,5 +1,6 @@
 import React from "react";
 import { WORKFLOW_LABELS, WorkflowStage } from "@/lib/mockData";
+import { useT } from "@/i18n/useT";
 
 interface StatusBadgeProps {
   status: string;
@@ -7,12 +8,20 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
+  const { t } = useT();
   // Resolve standard or technical enums
   let label = status;
   let themeClass = "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800";
 
-  // Check if status is a workflow stage
-  if (status in WORKFLOW_LABELS) {
+  // Check if status is a workflow stage or standard status
+  const workflowTranslated = t(`workflow.${status}`);
+  const statusTranslated = t(`statuses.${status}`);
+
+  if (workflowTranslated !== `workflow.${status}`) {
+    label = workflowTranslated;
+  } else if (statusTranslated !== `statuses.${status}`) {
+    label = statusTranslated;
+  } else if (status in WORKFLOW_LABELS) {
     label = WORKFLOW_LABELS[status as WorkflowStage];
   }
 

@@ -6,7 +6,7 @@ This document explains the light/dark theme system, CSS variables, design tokens
 
 ## Design Philosophy
 
-OverseasERP uses a **light-mode-first design** with an optional manual dark mode toggle. The system does NOT use OS preference (`prefers-color-scheme`) automatically. The user must explicitly switch to dark mode using the theme toggle button in the Topbar.
+VisaTek ERP uses a **light-mode-first design** with an optional manual dark mode toggle. The system does NOT use OS preference (`prefers-color-scheme`) automatically. The user must explicitly switch to dark mode using the theme toggle button in the Topbar.
 
 This approach was chosen to:
 - Ensure consistent, predictable rendering across all devices and operating systems
@@ -278,3 +278,45 @@ const { theme, toggleTheme } = useTheme();
 ```
 
 The Topbar is part of the `AppShell` layout that wraps all authenticated pages.
+
+---
+
+## Bangla Spacing and Layout Guidelines
+
+Because VisaTek ERP is **Bangla-first**, layouts must dynamically adapt to the physical height and structure of the Bangla script (which uses *matras*, vowel signs, and complex conjunct characters). Follow these rules during development:
+
+### 1. Vertically Accommodative Spacing
+- **Rule**: Bangla characters are physically taller than Latin equivalents. If vertical space is too tight, characters may clip or appear illegible.
+- **Implementation**:
+  - Use generous line-heights. Prefer `leading-relaxed` (or `line-height: 1.625`) for descriptive paragraphs.
+  - Set adequate vertical padding on button and badge containers. Prefer `py-2` or `py-2.5` over extremely tight `py-1` elements to ensure the characters breathe.
+  - Keep modal header heights slightly larger to prevent clipping of titles containing top/bottom modifiers (e.g., `ন`, `ী`, `ু` markers).
+
+### 2. Flexible Widths & Word Wrapping
+- **Rule**: Bangla words are often longer in length than their English counterparts, which can trigger horizontal overflows on cards, badges, and sidebars.
+- **Implementation**:
+  - Keep button and status badge text as short as possible. Use brief terms (e.g. `খুলুন` instead of `বিস্তারিত দেখুন`).
+  - Use `whitespace-nowrap` only on elements with guaranteed small sizes, or apply `break-words` and `hyphens-auto` for block text.
+  - Ensure table columns containing names or descriptions have fluid width allocations (`flex-1` or percentage-based) rather than fixed pixel widths.
+  - Avoid hardcoded horizontal margins or widths on cards and forms; let elements wrap using flexbox or responsive grids.
+
+### 3. Clear Label and Helper Separation
+- **Rule**: Fitting long descriptions or instructions into a `<label>` element makes form fields look cluttered and hard to read.
+- **Implementation**:
+  - Keep the `<label>` short and clear (e.g. `জাতীয় পরিচয়পত্র (NID)`).
+  - Place explanatory text in a secondary helper paragraph below the input:
+    ```tsx
+    <label className="block text-xs font-medium text-text-theme mb-1">
+      {t("form.nid")}
+    </label>
+    <input className="app-input w-full" ... />
+    <p className="text-[10px] text-text-soft mt-1">
+      {t("form.nid_helper")}
+    </p>
+    ```
+
+### 4. Non-translation of Key Internal Strings
+- **Rule**: Passport numbers, phone numbers, transaction IDs, invoice numbers, currency units (SAR, USD, BDT), and codes must remain in standard Latin numerals (e.g. `123456`) to maintain systemic query consistency.
+- **Implementation**:
+  - Never parse numeric fields containing unique business keys into Bangla numerals (`১২৩৪৫৬`).
+  - Keep dashboard monetary figures formatted correctly utilizing locales (e.g. `BDT 50,000` or `SAR 5,000` via format helpers).

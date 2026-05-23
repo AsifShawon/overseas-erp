@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Overseas Recruitment & Manpower ERP",
-  description: "Enterprise Grade Overseas Recruitment Logistics & Finance ERP Hub",
+  title: "VisaTek ERP",
+  description: "Enterprise Grade VisaTek Logistics & Finance ERP Hub",
+  icons: {
+    icon: "/visatek_glove_favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -25,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="bn-BD"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

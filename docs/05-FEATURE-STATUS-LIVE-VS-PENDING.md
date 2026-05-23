@@ -292,6 +292,25 @@ This document lists every implemented and planned feature with its current statu
 
 ---
 
+## Bangla Localization (i18n)
+
+| Feature | Status | Main Files | Notes |
+|---------|--------|-----------|-------|
+| Bangla-first default UI | ✅ LIVE | `src/i18n/LanguageContext.tsx` | Defaults to `"bn"` locale |
+| Dynamic English runtime toggle | ✅ LIVE | `src/components/theme/Topbar.tsx`, `LanguageContext.tsx` | Real-time locale state updates |
+| Language preference persistence | ✅ LIVE | `LanguageContext.tsx` | Saved in `localStorage` under `locale` key |
+| Dynamic HTML lang updates | ✅ LIVE | `LanguageContext.tsx` | Toggles `lang="bn-BD"` and `lang="en"` |
+| Complete coverage of staff modules | ✅ LIVE | All files under `src/app/` | Using dynamic `{t}` keys |
+| Fully localized Account Security | ✅ LIVE | `src/app/account/security/page.tsx` | |
+| Fully localized Workflow Stage Pipeline | ✅ LIVE | `src/app/workflow/page.tsx` | Dynamic status translations |
+| Fully localized Applicant Portal | ✅ LIVE | `src/app/applicant/portal/page.tsx` | |
+| Fully localized Access Denied (403) page | ✅ LIVE | `src/app/denied/page.tsx` | |
+| Standardized operations glossary | ✅ LIVE | `src/i18n/locales/` | match-structured `en.ts` and `bn.ts` |
+| Non-translation of database enums & digits | ✅ LIVE | `src/lib/` & `src/components/` | Enums remain Latin; NID/Passport digits stay standard |
+| Localized CSV export buttons | ✅ LIVE | All page files | Button labels are fully dynamic |
+
+---
+
 ## Applicant Portal
 
 | Feature | Status | Main Files | Notes |

@@ -17,11 +17,13 @@ import {
   MockInvoice,
 } from "@/lib/mockData";
 import { User, ShieldCheck, Mail, Phone, Calendar, Printer, FileText, XCircle, Loader2 } from "lucide-react";
+import { useT } from "@/i18n/useT";
 
 export default function ApplicantPortalPage() {
   const router = useRouter();
   const { user, accessToken } = useMockAuth();
   const toast = useToast();
+  const { t } = useT();
 
   // React state elements for dynamic API dossier rendering
   const [applicant, setApplicant] = useState<MockApplicant | null>(null);
@@ -118,7 +120,7 @@ export default function ApplicantPortalPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      throw new Error(data.error || "Failed to upload compliance file.");
+      throw new Error(data.error || t("applicantPortal.errorUpload"));
     }
 
     const updatedApplicant = await res.json();
@@ -170,7 +172,7 @@ export default function ApplicantPortalPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <Loader2 className="h-10 w-10 text-indigo-600 animate-spin dark:text-indigo-400" />
-        <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Retrieving Emigration Dossier...</p>
+        <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{t("applicantPortal.retrievingDossier")}</p>
       </div>
     );
   }
@@ -182,7 +184,7 @@ export default function ApplicantPortalPage() {
         <div className="flex gap-3">
           <XCircle className="h-6 w-6 text-rose-600 shrink-0 dark:text-rose-400" />
           <div>
-            <h4 className="text-sm font-bold text-rose-900 dark:text-rose-400 font-bold">Portal Access Restriction</h4>
+            <h4 className="text-sm font-bold text-rose-900 dark:text-rose-400 font-bold">{t("applicantPortal.portalRestriction")}</h4>
             <p className="mt-2 text-xs text-rose-700/80 dark:text-rose-400/80 leading-relaxed">
               {error}
             </p>
@@ -191,7 +193,7 @@ export default function ApplicantPortalPage() {
                 onClick={() => window.location.reload()}
                 className="rounded bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 transition"
               >
-                Retry Request Handshake
+                {t("applicantPortal.retryHandshake")}
               </button>
             </div>
           </div>
@@ -204,9 +206,9 @@ export default function ApplicantPortalPage() {
   if (!applicant) {
     return (
       <div className="text-center py-16 border border-dashed border-slate-200 rounded-xl bg-slate-50/30 text-slate-500 max-w-2xl mx-auto dark:border-slate-800 dark:bg-slate-950">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">No Active Dossier Linked</h3>
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">{t("applicantPortal.noActiveDossier")}</h3>
         <p className="mt-2 text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-          We could not find an active emigration recruitment dossier matching your credentials. Please contact your operations administrator.
+          {t("applicantPortal.noActiveDossierDesc")}
         </p>
       </div>
     );
@@ -224,17 +226,17 @@ export default function ApplicantPortalPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
-              Hello, {applicant.fullName}
+              {t("applicantPortal.hello", { name: applicant.fullName })}
             </h1>
             <p className="text-xs text-slate-400 font-medium">
-              Applied Placement: <span className="font-bold text-slate-600 dark:text-slate-300">{applicant.trade}</span> • Passport No: <span className="font-mono">{applicant.passportNumber}</span>
+              {t("applicantPortal.appliedPlacement")}: <span className="font-bold text-slate-600 dark:text-slate-300">{applicant.trade}</span> • {t("applicantPortal.passportNumber")}: <span className="font-mono">{applicant.passportNumber}</span>
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="text-[10px] rounded bg-indigo-50 border border-indigo-100 text-indigo-700 px-2.5 py-1 font-bold dark:bg-indigo-950 dark:border-indigo-900">
-            Portal Access Claimed
+            {t("applicantPortal.portalAccessClaimed")}
           </span>
           <StatusBadge status={applicant.currentStage} />
         </div>
@@ -250,7 +252,7 @@ export default function ApplicantPortalPage() {
               : "border-transparent text-slate-400 hover:text-slate-600"
           }`}
         >
-          My Emigration Timeline
+          {t("applicantPortal.tabTimeline")}
         </button>
         <button
           onClick={() => setActiveTab("documents")}
@@ -260,7 +262,7 @@ export default function ApplicantPortalPage() {
               : "border-transparent text-slate-400 hover:text-slate-600"
           }`}
         >
-          My Attestation Files ({documents.length})
+          {t("applicantPortal.tabDocuments", { count: documents.length })}
         </button>
         <button
           onClick={() => setActiveTab("ledger")}
@@ -270,7 +272,7 @@ export default function ApplicantPortalPage() {
               : "border-transparent text-slate-400 hover:text-slate-600"
           }`}
         >
-          My Accounts & Ledger
+          {t("applicantPortal.tabLedger")}
         </button>
       </div>
 
@@ -283,34 +285,34 @@ export default function ApplicantPortalPage() {
             {/* Demographics Summary Card */}
             <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
               <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 dark:border-slate-800">
-                My Placement Demographics
+                {t("applicantPortal.placementDemographics")}
               </h3>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-2 text-xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Contact Information</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">{t("applicantPortal.contactInfo")}</p>
                   <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                     <Phone className="h-3.5 w-3.5" /> <span>{applicant.phone}</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                    <Mail className="h-3.5 w-3.5" /> <span>{applicant.email || "No Email"}</span>
+                    <Mail className="h-3.5 w-3.5" /> <span>{applicant.email || t("applicantPortal.noEmail")}</span>
                   </div>
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Identity & Travel Documents</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">{t("applicants.personalDetailsSec")}</p>
                   <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                    <Calendar className="h-3.5 w-3.5" /> <span>DOB: {applicant.dateOfBirth}</span>
+                    <Calendar className="h-3.5 w-3.5" /> <span>{t("applicantPortal.dob", { date: applicant.dateOfBirth })}</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                    <FileText className="h-3.5 w-3.5" /> <span>Passport Expiry: {applicant.passportExpiry}</span>
+                    <FileText className="h-3.5 w-3.5" /> <span>{t("applicantPortal.passportExpiry", { date: applicant.passportExpiry })}</span>
                   </div>
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Interactive Warning Status</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">{t("applicantPortal.interactiveWarningStatus")}</p>
                   <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
                     <ShieldCheck className="h-4 w-4 shrink-0" />
-                    <span>Emigration clearance files checked</span>
+                    <span>{t("applicantPortal.clearanceChecked")}</span>
                   </div>
                 </div>
               </div>
@@ -334,20 +336,20 @@ export default function ApplicantPortalPage() {
             {receipts.length > 0 && (
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                 <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">
-                  My Official Print Vouchers
+                  {t("applicantPortal.printVouchers")}
                 </h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {receipts.map((rec) => (
                     <div key={rec.id} className="rounded-lg bg-slate-50 p-4 border border-slate-100 flex items-center justify-between dark:bg-slate-900/50 dark:border-slate-800">
                       <div>
                         <p className="text-xs font-bold text-slate-900 dark:text-white">{rec.receiptNo}</p>
-                        <p className="text-[10px] text-slate-400">Amount Paid: ${rec.amountPaid.toLocaleString()} • Date: {rec.createdAt}</p>
+                        <p className="text-[10px] text-slate-400">{t("applicantPortal.amountPaid")}: ${rec.amountPaid.toLocaleString()} • {t("applicantPortal.date")}: {rec.createdAt}</p>
                       </div>
                       <button
                         onClick={() => setSelectedReceipt(rec)}
                         className="flex items-center gap-1 rounded bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-400"
                       >
-                        <Printer className="h-3.5 w-3.5 shrink-0" /> Print Voucher
+                        <Printer className="h-3.5 w-3.5 shrink-0" /> {t("applicantPortal.printVoucherBtn")}
                       </button>
                     </div>
                   ))}

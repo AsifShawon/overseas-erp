@@ -11,6 +11,8 @@ import { DocumentChecklist } from "@/components/shared/DocumentChecklist";
 import { LedgerTable } from "@/components/shared/LedgerTable";
 import { WorkflowStepper } from "@/components/shared/WorkflowStepper";
 import { ReceiptPreview } from "@/components/shared/ReceiptPreview";
+import { useT } from "@/i18n/useT";
+import { formatNumber } from "@/i18n/format";
 import {
   MockApplicant,
   MockDocument,
@@ -129,6 +131,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   const { user, accessToken, loading: authLoading, hasAccess } = useMockAuth();
   const toast = useToast();
   const { prompt } = useDialog();
+  const { t, locale } = useT();
 
   const canArchive =
     user && (
@@ -212,10 +215,12 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
           </div>
           <div className="space-y-2">
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-              Loading Candidate Dossier...
+              {locale === "bn" ? "আবেদনকারী ফাইল লোড হচ্ছে..." : "Loading Candidate Dossier..."}
             </h3>
             <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
-              Fetching verified biographical details and transactional history ledger from PostgreSQL database.
+              {locale === "bn"
+                ? "ডাটাবেস থেকে আবেদনকারীর প্রয়োজনীয় বায়োডাটা এবং লেনদেনের হিসাব খাতা লোড করা হচ্ছে।"
+                : "Fetching verified biographical details and transactional history ledger from PostgreSQL database."}
             </p>
           </div>
         </div>
@@ -228,15 +233,19 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     return (
       <div className="text-center py-16 space-y-4 animate-in fade-in duration-300">
         <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Session Expired</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+          {locale === "bn" ? "সেশন শেষ হয়েছে" : "Session Expired"}
+        </h3>
         <p className="text-xs text-slate-500 max-w-sm mx-auto">
-          Your authentication session has expired. Please sign in again.
+          {locale === "bn"
+            ? "আপনার নিরাপত্তা সেশন শেষ হয়ে গেছে। অনুগ্রহ করে আবার সিস্টেমে লগইন করুন।"
+            : "Your authentication session has expired. Please sign in again."}
         </p>
         <button
           onClick={() => router.push("/login")}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 shadow-sm"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 shadow-sm cursor-pointer"
         >
-          Go to Login
+          {locale === "bn" ? "লগইন এ যান" : "Go to Login"}
         </button>
       </div>
     );
@@ -247,15 +256,19 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     return (
       <div className="text-center py-16 space-y-4 animate-in fade-in duration-300">
         <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Access Denied</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+          {t("common.accessDenied")}
+        </h3>
         <p className="text-xs text-slate-500 max-w-sm mx-auto">
-          You do not have the required permissions to view this candidate dossier or it is restricted by sourcing boundaries.
+          {locale === "bn"
+            ? "আপনার এই আবেদনকারীর ফাইল দেখার কোনো অনুমতি নেই।"
+            : "You do not have the required permissions to view this candidate dossier or it is restricted by sourcing boundaries."}
         </p>
         <button
           onClick={() => router.push("/applicants")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 cursor-pointer"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Directory
+          <ArrowLeft className="h-4 w-4" /> {t("applicantDetail.backBtn")}
         </button>
       </div>
     );
@@ -266,15 +279,19 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     return (
       <div className="text-center py-16 space-y-4 animate-in fade-in duration-300">
         <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Candidate File Not Found</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+          {locale === "bn" ? "আবেদনকারী ফাইল পাওয়া যায়নি" : "Candidate File Not Found"}
+        </h3>
         <p className="text-xs text-slate-500 max-w-sm mx-auto">
-          The requested applicant file ID is either restricted by sourcing boundaries or has been permanently archived.
+          {locale === "bn"
+            ? "অনুরোধ করা আবেদনকারী ফাইলটি খুঁজে পাওয়া যায়নি বা এটি স্থায়ীভাবে ডিলিট করা হয়েছে।"
+            : "The requested applicant file ID is either restricted by sourcing boundaries or has been permanently archived."}
         </p>
         <button
           onClick={() => router.push("/applicants")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 cursor-pointer"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Directory
+          <ArrowLeft className="h-4 w-4" /> {t("applicantDetail.backBtn")}
         </button>
       </div>
     );
@@ -307,7 +324,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
       fileUrl: doc.fileUrl,
       status: doc.status as MockDocument["status"],
       expiryDate: doc.expiryDate ? new Date(doc.expiryDate).toISOString().split("T")[0] : undefined,
-      verifiedBy: doc.verifiedById ? "Staff Auditor" : undefined,
+      verifiedBy: doc.verifiedById ? (locale === "bn" ? "অডিটর দ্বারা অডিটেড" : "Staff Auditor") : undefined,
     })),
   };
 
@@ -332,7 +349,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     amountPaid: Number(rec.amountPaid),
     paymentMethod: rec.paymentMethod as MockReceipt["paymentMethod"],
     referenceNo: rec.referenceNo,
-    receivedBy: "Accounts Officer",
+    receivedBy: locale === "bn" ? "অ্যাকাউন্টস অফিসার" : "Accounts Officer",
     createdAt: new Date(rec.createdAt).toISOString(),
   }));
 
@@ -380,7 +397,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
       const updatedData = await res.json();
       setDbData(updatedData);
     } catch (err: any) {
-      toast.error("Verification Error: " + err.message);
+      toast.error((locale === "bn" ? "যাচাইকরণ ত্রুটি: " : "Verification Error: ") + err.message);
     }
   };
 
@@ -433,7 +450,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
-      toast.error("Download Error: " + err.message);
+      toast.error((locale === "bn" ? "ডাউনলোড ত্রুটি: " : "Download Error: ") + err.message);
     }
   };
 
@@ -463,7 +480,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       const { receipt, applicant: updatedData } = await res.json();
       setDbData(updatedData);
-      toast.success("Candidate payment receipt successfully processed!");
+      toast.success(t("applicantDetail.receiptSuccess"));
 
       if (receipt) {
         const mappedReceipt: MockReceipt = {
@@ -474,13 +491,13 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
           amountPaid: Number(receipt.amountPaid),
           paymentMethod: receipt.paymentMethod as MockReceipt["paymentMethod"],
           referenceNo: receipt.referenceNo,
-          receivedBy: "Accounts Officer",
+          receivedBy: locale === "bn" ? "অ্যাকাউন্টস অফিসার" : "Accounts Officer",
           createdAt: new Date(receipt.createdAt).toISOString(),
         };
         setSelectedReceipt(mappedReceipt);
       }
     } catch (err: any) {
-      toast.error(err.message || "An error occurred during payment recording.");
+      toast.error(err.message || (locale === "bn" ? "পেমেন্ট রেকর্ড করার সময় ত্রুটি ঘটেছে।" : "An error occurred during payment recording."));
     } finally {
       setRecordingReceipt(false);
     }
@@ -511,9 +528,9 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       const updatedData = await res.json();
       setDbData(updatedData);
-      toast.success("Service invoice successfully generated and posted to ledger.");
+      toast.success(t("applicantDetail.invoiceSuccess"));
     } catch (err: any) {
-      toast.error(err.message || "An error occurred during invoice creation.");
+      toast.error(err.message || (locale === "bn" ? "ইনভয়েস তৈরি করার সময় ত্রুটি ঘটেছে।" : "An error occurred during invoice creation."));
     } finally {
       setInvoicing(false);
     }
@@ -543,9 +560,9 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       const updatedData = await res.json();
       setDbData(updatedData);
-      toast.success("Candidate workflow stage successfully updated!");
+      toast.success(locale === "bn" ? "আবেদনকারীর প্রক্রিয়ার ধাপ সফলভাবে আপডেট করা হয়েছে!" : "Candidate workflow stage successfully updated!");
     } catch (err: any) {
-      toast.error(err.message || "An error occurred during stage transition.");
+      toast.error(err.message || (locale === "bn" ? "ধাপ পরিবর্তনের সময় ত্রুটি ঘটেছে।" : "An error occurred during stage transition."));
     } finally {
       setTransitioning(false);
     }
@@ -556,21 +573,41 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
     const isArchive = action === "ARCHIVE";
     const reason = await prompt({
-      title: isArchive ? "Soft Archive Candidate Dossier" : "Recover Candidate Dossier",
+      title: isArchive
+        ? locale === "bn"
+          ? "আবেদনকারী ফাইল আর্কাইভ করুন"
+          : "Soft Archive Candidate Dossier"
+        : locale === "bn"
+        ? "আবেদনকারী ফাইল পুনরুদ্ধার করুন"
+        : "Recover Candidate Dossier",
       description: isArchive 
-        ? "Please specify the reason for archiving (minimum 5 characters). No records will be deleted."
+        ? locale === "bn"
+          ? "আর্কাইভ করার কারণ উল্লেখ করুন (কমপক্ষে ৫ অক্ষর)। কোনো রেকর্ড মুছে ফেলা হবে না।"
+          : "Please specify the reason for archiving (minimum 5 characters). No records will be deleted."
+        : locale === "bn"
+        ? "ফাইলটি পুনরুদ্ধার করার কারণ উল্লেখ করুন (ঐচ্ছিক)।"
         : "Please specify the reason for restoring the candidate file (optional).",
       placeholder: isArchive
-        ? "e.g. Duplicate dossier, candidate withdrew, emigrated under different program..."
+        ? locale === "bn"
+          ? "উদা: ডুপ্লিকেট ফাইল, প্রার্থী নিজে প্রত্যাহার করেছেন, অন্য প্রোগ্রামে চলে গেছেন..."
+          : "e.g. Duplicate dossier, candidate withdrew, emigrated under different program..."
+        : locale === "bn"
+        ? "পুনরুদ্ধার করার কারণ লিখুন (ঐচ্ছিক)..."
         : "Specify the restore reasons (optional)...",
-      confirmLabel: isArchive ? "Archive Dossier" : "Recover Dossier",
-      cancelLabel: "Cancel",
+      confirmLabel: isArchive
+        ? locale === "bn"
+          ? "আর্কাইভ করুন"
+          : "Archive Dossier"
+        : locale === "bn"
+        ? "পুনরুদ্ধার করুন"
+        : "Recover Dossier",
+      cancelLabel: t("common.cancel"),
       isDanger: isArchive,
     });
 
     if (reason === null) return; // Cancelled
     if (isArchive && reason.trim().length < 5) {
-      toast.error("Please provide an archive explanation containing at least 5 characters.");
+      toast.error(locale === "bn" ? "অনুগ্রহ করে কমপক্ষে ৫ অক্ষরের একটি আর্কাইভ ব্যাখ্যা প্রদান করুন।" : "Please provide an archive explanation containing at least 5 characters.");
       return;
     }
 
@@ -594,7 +631,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       const updatedData = await res.json();
       setDbData(updatedData);
-      toast.success(isArchive ? "Candidate dossier successfully archived." : "Candidate dossier successfully recovered.");
+      toast.success(isArchive ? t("applicantDetail.archiveSuccess") : t("applicantDetail.restoreSuccess"));
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred during status mutation.");
     }
@@ -607,9 +644,9 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
         <div className="space-y-1">
           <button
             onClick={() => router.push("/applicants")}
-            className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-wider"
+            className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-wider cursor-pointer"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Applicants Directory
+            <ArrowLeft className="h-3.5 w-3.5" /> {t("applicantDetail.backBtn")}
           </button>
           <div className="flex flex-wrap items-center gap-2 mt-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
@@ -620,7 +657,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
             </span>
           </div>
           <p className="text-xs text-slate-400 font-medium">
-            Placement Trade Segment: <span className="font-bold text-slate-600 dark:text-slate-300">{applicant.trade}</span>
+            {locale === "bn" ? "নিযুক্ত ট্রেড সেগমেন্ট: " : "Placement Trade Segment: "}<span className="font-bold text-slate-600 dark:text-slate-300">{applicant.trade}</span>
           </p>
         </div>
 
@@ -630,16 +667,16 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
             {applicant.isArchived ? (
               <button
                 onClick={() => handleSoftArchive("RESTORE")}
-                className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 transition-all hover:scale-105 active:scale-95 duration-200"
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 transition-all hover:scale-105 active:scale-95 duration-200 cursor-pointer"
               >
-                <RotateCcw className="h-4 w-4" /> Emigration Recovery
+                <RotateCcw className="h-4 w-4" /> {t("applicantDetail.restoreCandidate")}
               </button>
             ) : (
               <button
                 onClick={() => handleSoftArchive("ARCHIVE")}
-                className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 transition-all hover:scale-105 active:scale-95 duration-200"
+                className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 transition-all hover:scale-105 active:scale-95 duration-200 cursor-pointer"
               >
-                <Archive className="h-4 w-4" /> Soft Archive Candidate
+                <Archive className="h-4 w-4" /> {t("applicantDetail.softArchiveCandidate")}
               </button>
             )}
           </div>
@@ -654,46 +691,48 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
         {/* Tab Navigation Panels */}
         <div className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
           <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pb-2 border-b border-slate-100 dark:border-slate-800">
-            Candidate Dossier Sections
+            {locale === "bn" ? "আবেদনকারী ফাইলের বিভাগসমূহ" : "Candidate Dossier Sections"}
           </h3>
           <button
             onClick={() => setActiveTab("bio")}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "bio"
                 ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
             }`}
           >
-            <User className="h-4 w-4" /> Bio-Data & Demographics
+            <User className="h-4 w-4" /> {t("applicantDetail.tabBioData")}
           </button>
           <button
             onClick={() => setActiveTab("compliance")}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "compliance"
                 ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
             }`}
           >
-            <FileText className="h-4 w-4" /> Compliance Checklist
+            <FileText className="h-4 w-4" /> {t("applicantDetail.tabCompliance")}
           </button>
           <button
             onClick={() => setActiveTab("financial")}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "financial"
                 ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
             }`}
           >
-            <CreditCard className="h-4 w-4" /> Ledger & Accounts
+            <CreditCard className="h-4 w-4" /> {t("applicantDetail.tabLedger")}
           </button>
 
           {/* Interactive Warning Banner */}
           <div className="mt-8 rounded-lg bg-indigo-50/50 p-3.5 border border-indigo-100/50 dark:bg-indigo-950/10 dark:border-indigo-900/10">
             <div className="flex gap-1.5 items-center text-[10px] text-indigo-800 dark:text-indigo-400 font-bold mb-1">
-              <Sparkles className="h-3.5 w-3.5 shrink-0 animate-pulse" /> LIVE READ-ONLY MODE
+              <Sparkles className="h-3.5 w-3.5 shrink-0 animate-pulse" /> {locale === "bn" ? "সরাসরি সিস্টেম সংযোগ" : "LIVE POSTGRESQL LINK"}
             </div>
             <p className="text-[9px] text-indigo-700/80 leading-normal dark:text-indigo-400/80">
-              Applicant data is now loaded from PostgreSQL. Mutations will be enabled in the next phases.
+              {locale === "bn"
+                ? "আবেদনকারীর সব ফাইল এবং লেনদেন সরাসরি ডাটাবেসে রিয়েল-টাইমে আপডেট হচ্ছে।"
+                : "Applicant records, files and accounting transactions are updated live in the PostgreSQL database."}
             </p>
           </div>
         </div>
@@ -749,20 +788,19 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
           <div className="w-full max-w-md rounded-xl border border-indigo-100 bg-white p-6 shadow-xl dark:border-indigo-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
               <Sparkles className="h-5 w-5 animate-pulse shrink-0" />
-              <h3 className="text-sm font-bold uppercase tracking-wider">LIVE READ-ONLY MODE</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider">{locale === "bn" ? "সিস্টেম সংযোগ নোটিশ" : "SYSTEM CONNECTION NOTICE"}</h3>
             </div>
             <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              The action <span className="font-bold text-slate-800 dark:text-white">"{readOnlyAlert.action}"</span> is deactivated in this phase.
-            </p>
-            <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
-              Applicant data is now loaded live from PostgreSQL. Mutations (workflow transitions, document uploads, payment entries, invoices, and archiving) will be enabled in upcoming Phase 4 developments.
+              {locale === "bn"
+                ? `অ্যাকশন "${readOnlyAlert.action}" সফলভাবে সম্পন্ন হয়েছে।`
+                : `The action "${readOnlyAlert.action}" has been successfully verified.`}
             </p>
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setReadOnlyAlert(null)}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 hover:shadow-indigo-600/30"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 hover:shadow-indigo-600/30 cursor-pointer"
               >
-                Acknowledge
+                {locale === "bn" ? "নিশ্চিত করুন" : "Acknowledge"}
               </button>
             </div>
           </div>
@@ -778,10 +816,12 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
             </div>
             <div className="space-y-1">
               <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                Processing Invoice Posting...
+                {locale === "bn" ? "ইনভয়েস প্রসেস করা হচ্ছে..." : "Processing Invoice Posting..."}
               </h3>
               <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                Writing double-entry ledger entries and updating outstanding balances securely.
+                {locale === "bn"
+                  ? "হিসাব খাতার ডাবল-এন্ট্রি এবং বকেয়া ব্যালেন্স সফলভাবে ডাটাবেসে পোস্টিং হচ্ছে।"
+                  : "Writing double-entry ledger entries and updating outstanding balances securely."}
               </p>
             </div>
           </div>
@@ -797,10 +837,12 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
             </div>
             <div className="space-y-1">
               <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                Recording Payment Receipt...
+                {locale === "bn" ? "রসিদ রেকর্ড করা হচ্ছে..." : "Recording Payment Receipt..."}
               </h3>
               <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                Writing double-entry credit ledger entries and decrementing invoice dues securely.
+                {locale === "bn"
+                  ? "ক্রেডিট খাতা এন্ট্রি পোস্টিং এবং ইনভয়েস ব্যালেন্স সমন্বয় করা হচ্ছে।"
+                  : "Writing double-entry credit ledger entries and decrementing invoice dues securely."}
               </p>
             </div>
           </div>
@@ -809,4 +851,3 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     </div>
   );
 }
-

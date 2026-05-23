@@ -5,10 +5,12 @@ import { useMockAuth } from "@/context/MockAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Eye, EyeOff, Lock, ShieldAlert, CheckCircle, Loader2 } from "lucide-react";
+import { useT } from "@/i18n/useT";
 
 export default function AccountSecurityPage() {
   const { accessToken, logout } = useMockAuth();
   const toast = useToast();
+  const { t, locale } = useT();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -29,19 +31,19 @@ export default function AccountSecurityPage() {
 
     // 1. Client-side validations
     if (!currentPassword) {
-      setErrorMsg("Current password is required.");
+      setErrorMsg(t("security.currentPasswordRequired"));
       return;
     }
     if (newPassword.length < 8) {
-      setErrorMsg("New password must be at least 8 characters long.");
+      setErrorMsg(t("security.passwordMinLength"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setErrorMsg("New passwords do not match.");
+      setErrorMsg(t("security.passwordsDoNotMatch"));
       return;
     }
     if (newPassword === currentPassword) {
-      setErrorMsg("New password must be different from current password.");
+      setErrorMsg(t("security.passwordMustBeDifferent"));
       return;
     }
 
@@ -64,11 +66,11 @@ export default function AccountSecurityPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to update your password.");
+        throw new Error(data.error || t("security.failedUpdatePassword"));
       }
 
-      setSuccessMsg("Password changed successfully! Logging out in 3 seconds...");
-      toast.success("Password changed successfully.");
+      setSuccessMsg(t("security.passwordSuccess"));
+      toast.success(t("security.passwordSuccessToast"));
       
       // Clear inputs
       setCurrentPassword("");
@@ -81,7 +83,7 @@ export default function AccountSecurityPage() {
       }, 3000);
 
     } catch (err: any) {
-      const msg = err.message || "An error occurred during password update.";
+      const msg = err.message || t("security.passwordErrorDefault");
       setErrorMsg(msg);
       toast.error(msg);
     } finally {
@@ -92,9 +94,12 @@ export default function AccountSecurityPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Account Security"
-        description="Strengthen your login access by changing your credentials."
-        breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Security" }]}
+        title={t("security.title")}
+        description={t("security.description")}
+        breadcrumbs={[
+          { label: locale === "bn" ? "ড্যাশবোর্ড" : "ERP Hub", href: "/dashboard" },
+          { label: t("security.title") }
+        ]}
       />
 
       <div className="max-w-2xl mx-auto">
@@ -107,8 +112,8 @@ export default function AccountSecurityPage() {
               <Lock className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-text-theme">Change Password</h2>
-              <p className="text-xs text-text-soft">Provide your current password and choose a strong new password.</p>
+              <h2 className="text-base font-bold text-text-theme">{t("security.changePassword")}</h2>
+              <p className="text-xs text-text-soft">{t("security.changePasswordDesc")}</p>
             </div>
           </div>
 
@@ -130,7 +135,7 @@ export default function AccountSecurityPage() {
             {/* Current Password Field */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-text-theme" htmlFor="currentPassword">
-                Current Password
+                {t("security.currentPassword")}
               </label>
               <div className="relative">
                 <input
@@ -138,7 +143,7 @@ export default function AccountSecurityPage() {
                   type={showCurrent ? "text" : "password"}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password"
+                  placeholder={t("security.enterCurrentPassword")}
                   disabled={loading}
                   className="w-full rounded-lg border border-border-theme bg-bg py-2 pl-3 pr-10 text-xs outline-none transition-all focus:border-primary-theme focus:bg-surface focus:ring-1 focus:ring-primary-theme text-text-theme"
                 />
@@ -155,7 +160,7 @@ export default function AccountSecurityPage() {
             {/* New Password Field */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-text-theme" htmlFor="newPassword">
-                New Password
+                {t("security.newPassword")}
               </label>
               <div className="relative">
                 <input
@@ -163,7 +168,7 @@ export default function AccountSecurityPage() {
                   type={showNew ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Choose a strong new password"
+                  placeholder={t("security.chooseNewPassword")}
                   disabled={loading}
                   className="w-full rounded-lg border border-border-theme bg-bg py-2 pl-3 pr-10 text-xs outline-none transition-all focus:border-primary-theme focus:bg-surface focus:ring-1 focus:ring-primary-theme text-text-theme"
                 />
@@ -175,13 +180,13 @@ export default function AccountSecurityPage() {
                   {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-[10px] text-text-soft">Password must be at least 8 characters long.</p>
+              <p className="text-[10px] text-text-soft">{t("security.passwordLengthHelp")}</p>
             </div>
 
             {/* Confirm New Password Field */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-text-theme" htmlFor="confirmPassword">
-                Confirm New Password
+                {t("security.confirmNewPassword")}
               </label>
               <div className="relative">
                 <input
@@ -189,7 +194,7 @@ export default function AccountSecurityPage() {
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
+                  placeholder={t("security.confirmNewPasswordPlaceholder")}
                   disabled={loading}
                   className="w-full rounded-lg border border-border-theme bg-bg py-2 pl-3 pr-10 text-xs outline-none transition-all focus:border-primary-theme focus:bg-surface focus:ring-1 focus:ring-primary-theme text-text-theme"
                 />
@@ -213,10 +218,10 @@ export default function AccountSecurityPage() {
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Updating Credentials...
+                    {t("security.updatingCredentials")}
                   </>
                 ) : (
-                  "Change Password"
+                  t("security.changePassword")
                 )}
               </button>
             </div>

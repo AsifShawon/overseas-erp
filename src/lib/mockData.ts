@@ -121,7 +121,7 @@ export const MOCK_JOB_ORDERS: MockJobOrder[] = [
     salary: 1800, // SAR
     totalQuota: 50,
     allocatedQuota: 14,
-    commissionAmount: 500, // USD per candidate
+    commissionAmount: 500, // BDT per candidate
     status: "OPEN",
   },
   {
@@ -301,7 +301,7 @@ export const MOCK_INVOICES: MockInvoice[] = [
     id: "inv-1",
     invoiceNo: "INV-2026-042",
     applicantId: "app-1",
-    amount: 2500, // USD
+    amount: 2500, // BDT
     outstanding: 1200,
     dueDate: "2026-06-10",
     description: "KSA Electrician Package Fee (Consulate, Training & Service Charge)",

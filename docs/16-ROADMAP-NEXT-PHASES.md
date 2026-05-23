@@ -1,6 +1,25 @@
 # 16 — Roadmap: Next Phases
 
-This document outlines planned development phases beyond the current MVP (Phase 6E). Features are listed in priority order within each phase. **Nothing in this document is built — these are future plans only.**
+This document outlines completed and planned development phases for **VisaTek ERP**. Completed phases are marked as **LIVE**, while future phases outline targeted milestones.
+
+---
+
+## Phase 6F: Bangla Localization (i18n)
+
+**Priority:** Critical  
+**Estimated effort:** Medium  
+**Status:** ✅ LIVE  
+
+### What was built
+
+We have successfully migrated the ERP into a **Bangla-First** application that fully satisfies dynamic localized requirements:
+- **Default Bangla Locale**: The application dynamically loads in Bangla (`bn`) by default for all unauthenticated and authenticated sessions.
+- **Dynamic Language Toggle**: A runtime switcher located in the Topbar toggles the interface seamlessly between Bangla and English without a page reload.
+- **Persistent State**: User language preferences are stored inside the browser's `localStorage` and persist through full page refreshes, logouts, and role switches.
+- **Dynamic HTML Metadata**: The parent `<html>` tag dynamically reflects `<html lang="bn-BD">` in Bangla mode and `<html lang="en">` in English mode to comply with accessibility standards.
+- **Localized Applicant Portal & Subpages**: The applicant self-service portal (`/applicant/portal`), access denied subpages (`/denied`), and account security (`/account/security`) are fully localized with customized translations.
+- **Visual Safety Constraints**: Implemented layout strategies (generous vertical margins/padding, wrapping tables, abbreviated badge labels) to prevent tall Bangla conjunct glyphs from clipping.
+- **Latin Numeral Safeguards**: Enforced strict rules preserving passport numbers, phone numbers, transaction/invoice keys, NID codes, and enums in their raw Latin numeral formats to protect database queries and search functionality.
 
 ---
 
@@ -254,6 +273,7 @@ Use an external cron service or a background job runner:
 
 | Phase | Priority | Effort | Status |
 |-------|----------|--------|--------|
+| 6F: Bangla Localization (i18n) | Critical | Medium | ✅ LIVE |
 | 6D-B: Alert/Confirm/Toast/Modal | High | Small | ❌ Not built |
 | 7A: Applicant Portal Full | High | Medium | 🔶 Partial |
 | 7B: Agent Portal Polish | Medium | Medium | 🔶 Partial |

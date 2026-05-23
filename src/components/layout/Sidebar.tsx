@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { PermissionCode } from "@/lib/permissions";
+import { useT } from "@/i18n/useT";
 import {
   LayoutDashboard,
   Users,
@@ -53,9 +54,28 @@ const SIDEBAR_LINKS: SidebarLink[] = [
 export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { hasAccess, user } = useMockAuth();
+  const { t } = useT();
 
   // Applicants don't see the staff sidebar (they use their own mobile portal)
   if (user.roleName === "Applicant") return null;
+
+  const getNavLinkKey = (label: string) => {
+    switch (label) {
+      case "Dashboard": return "dashboard";
+      case "Applicants": return "applicants";
+      case "Job Orders": return "jobOrders";
+      case "Agents": return "agents";
+      case "Documents": return "documents";
+      case "Accounts": return "accounts";
+      case "Commissions": return "commissions";
+      case "Receipts & Invoices": return "receiptsInvoices";
+      case "Reports": return "reports";
+      case "Notifications": return "notifications";
+      case "Audit Logs": return "auditLogs";
+      case "RBAC Settings": return "rbacSettings";
+      default: return "";
+    }
+  };
 
   return (
     <aside
@@ -67,13 +87,13 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
       <div className="flex h-16 items-center justify-between px-4 border-b border-border-theme bg-surface-soft">
         {!collapsed && (
           <div className="flex items-center gap-2 font-bold text-text-theme text-base">
-            <Globe2 className="h-5 w-5 text-primary-theme animate-spin-slow" />
-            <span className="tracking-wide">Overseas<span className="text-primary-theme">ERP</span></span>
+            <img src="/visatek_logo_transparent.png" alt="VisaTek Logo" className="h-6 w-auto object-contain" />
+            <span className="tracking-wide">{t("nav.brandTitle") || "Visa"}<span className="text-primary-theme">{t("nav.brandTitleHighlight") || "Tek"}</span></span>
           </div>
         )}
         {collapsed && (
           <div className="mx-auto">
-            <Globe2 className="h-5 w-5 text-primary-theme" />
+            <img src="/visatek_glove_favicon.ico" alt="VisaTek Icon" className="h-6 w-6 object-contain" />
           </div>
         )}
         <button
@@ -97,6 +117,8 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
           const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href));
           const Icon = link.icon;
+          const navKey = getNavLinkKey(link.label);
+          const localizedLabel = navKey ? t(`nav.${navKey}`) : link.label;
 
           return (
             <Link
@@ -109,7 +131,7 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
               }`}
             >
               <Icon className={`h-5 w-5 shrink-0 ${isActive ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
-              {!collapsed && <span className="truncate">{link.label}</span>}
+              {!collapsed && <span className="truncate">{localizedLabel}</span>}
             </Link>
           );
         })}
@@ -120,14 +142,15 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         {!collapsed ? (
           <div className="flex flex-col gap-0.5">
             <p className="text-xs font-semibold text-text-theme truncate">{user.fullName}</p>
-            <p className="text-[10px] text-text-muted truncate">{user.roleName}</p>
+            <p className="text-[10px] text-text-muted truncate">{t(`roles.${user.roleName}`) || user.roleName}</p>
           </div>
         ) : (
           <div className="flex justify-center text-xs font-bold text-white rounded bg-primary-theme py-1 uppercase">
-            {user.roleName.substring(0, 2)}
+            {(t(`roles.${user.roleName}`) || user.roleName).substring(0, 2)}
           </div>
         )}
       </div>
     </aside>
   );
 }
+

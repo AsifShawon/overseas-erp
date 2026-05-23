@@ -10,6 +10,7 @@ import { useToast } from "@/context/ToastContext";
 import { AppModal } from "@/components/ui/AppModal";
 import { AppInput } from "@/components/ui/AppInput";
 import { AppSelect } from "@/components/ui/AppSelect";
+import { useT } from "@/i18n/useT";
 import { 
   Award, 
   FileSpreadsheet, 
@@ -25,8 +26,9 @@ import {
 } from "lucide-react";
 
 export default function AgentsPage() {
-  const { hasAccess, accessToken, activeRoleName } = useMockAuth();
+  const { hasAccess, accessToken } = useMockAuth();
   const toast = useToast();
+  const { t, locale } = useT();
 
   // Core registry data states
   const [agents, setAgents] = useState<any[]>([]);
@@ -90,14 +92,20 @@ export default function AgentsPage() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to load sourcing partners registry.");
+        throw new Error(
+          errorData.error || 
+          (locale === "bn" ? "সোর্সিং পার্টনারদের তালিকা লোড করতে ব্যর্থ হয়েছে।" : "Failed to load sourcing partners registry.")
+        );
       }
 
       const data = await res.json();
       setAgents(data.data || []);
     } catch (err: any) {
       console.error("Error fetching agents:", err);
-      setError(err.message || "An unexpected error occurred while loading sourcing partners.");
+      setError(
+        err.message || 
+        (locale === "bn" ? "সোর্সিং পার্টনার লোড করার সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred while loading sourcing partners.")
+      );
     } finally {
       setLoading(false);
     }
@@ -114,11 +122,11 @@ export default function AgentsPage() {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedField(field);
-      toast.success("Copied to clipboard!");
+      toast.success(locale === "bn" ? "ক্লিপবোর্ডে কপি করা হয়েছে!" : "Copied to clipboard!");
       setTimeout(() => setCopiedField(null), 2000);
     } catch (err) {
       console.error("Failed to copy text: ", err);
-      toast.error("Failed to copy credentials.");
+      toast.error(locale === "bn" ? "ক্রেডেন্সিয়াল কপি করা সম্ভব হয়নি।" : "Failed to copy credentials.");
     }
   };
 
@@ -146,20 +154,26 @@ export default function AgentsPage() {
 
     // Client-side validations
     const validationErrors: Record<string, string> = {};
-    if (!formData.companyName.trim()) validationErrors.companyName = "Agency / Company Name is required";
-    if (!formData.fullName.trim()) validationErrors.fullName = "Lead Representative Name is required";
-    
-    if (!formData.email.trim()) {
-      validationErrors.email = "Email address is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      validationErrors.email = "Please specify a valid email address";
+    if (!formData.companyName.trim()) {
+      validationErrors.companyName = locale === "bn" ? "এজেন্সি / কোম্পানির নাম আবশ্যক" : "Agency / Company Name is required";
+    }
+    if (!formData.fullName.trim()) {
+      validationErrors.fullName = locale === "bn" ? "প্রধান এজেন্টের নাম আবশ্যক" : "Lead Representative Name is required";
     }
     
-    if (!formData.phone.trim()) validationErrors.phone = "Contact number is required";
+    if (!formData.email.trim()) {
+      validationErrors.email = locale === "bn" ? "ইমেল ঠিকানা আবশ্যক" : "Email address is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      validationErrors.email = locale === "bn" ? "অনুগ্রহ করে একটি সঠিক ইমেল প্রদান করুন" : "Please specify a valid email address";
+    }
+    
+    if (!formData.phone.trim()) {
+      validationErrors.phone = locale === "bn" ? "যোগাযোগের মোবাইল নম্বর আবশ্যক" : "Contact number is required";
+    }
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      setFormError("Please satisfy all highlighted requirements.");
+      setFormError(locale === "bn" ? "অনুগ্রহ করে সব আবশ্যক ঘর পূরণ করুন।" : "Please satisfy all highlighted requirements.");
       return;
     }
 
@@ -190,10 +204,10 @@ export default function AgentsPage() {
       const resData = await res.json();
 
       if (!res.ok) {
-        throw new Error(resData.error || "Failed to register sourcing partner.");
+        throw new Error(resData.error || (locale === "bn" ? "সোর্সিং পার্টনার নিবন্ধন করতে ব্যর্থ হয়েছে।" : "Failed to register sourcing partner."));
       }
 
-      toast.success("Sourcing agent created successfully!");
+      toast.success(locale === "bn" ? "সোর্সিং এজেন্ট সফলভাবে তৈরি হয়েছে!" : "Sourcing agent created successfully!");
       
       // If temporary password or dev activation is provided, show credentials before closing
       if (resData.tempPassword || resData.devActivationLink) {
@@ -209,8 +223,8 @@ export default function AgentsPage() {
         fetchAgents();
       }
     } catch (err: any) {
-      setFormError(err.message || "An unexpected error occurred during creation.");
-      toast.error(err.message || "Failed to register sourcing agent.");
+      setFormError(err.message || (locale === "bn" ? "অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred during creation."));
+      toast.error(err.message || (locale === "bn" ? "এজেন্ট তৈরি করতে ব্যর্থ হয়েছে।" : "Failed to register sourcing agent."));
     } finally {
       setIsSubmitting(false);
     }
@@ -237,12 +251,16 @@ export default function AgentsPage() {
     setErrors({});
 
     const validationErrors: Record<string, string> = {};
-    if (!editForm.companyName.trim()) validationErrors.companyName = "Agency name is required";
-    if (!editForm.phone.trim()) validationErrors.phone = "Phone number is required";
+    if (!editForm.companyName.trim()) {
+      validationErrors.companyName = locale === "bn" ? "এজেন্সির নাম আবশ্যক" : "Agency name is required";
+    }
+    if (!editForm.phone.trim()) {
+      validationErrors.phone = locale === "bn" ? "মোবাইল নম্বর আবশ্যক" : "Phone number is required";
+    }
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      setFormError("Please satisfy all highlighted requirements.");
+      setFormError(locale === "bn" ? "অনুগ্রহ করে সব আবশ্যক ঘর পূরণ করুন।" : "Please satisfy all highlighted requirements.");
       return;
     }
 
@@ -267,15 +285,15 @@ export default function AgentsPage() {
       const resData = await res.json();
 
       if (!res.ok) {
-        throw new Error(resData.error || "Failed to update sourcing partner.");
+        throw new Error(resData.error || (locale === "bn" ? "সোর্সিং পার্টনার আপডেট করতে ব্যর্থ হয়েছে।" : "Failed to update sourcing partner."));
       }
 
-      toast.success("Sourcing agent updated successfully!");
+      toast.success(locale === "bn" ? "সোর্সিং এজেন্ট সফলভাবে আপডেট করা হয়েছে!" : "Sourcing agent updated successfully!");
       handleCancelEdit();
       fetchAgents();
     } catch (err: any) {
-      setFormError(err.message || "An unexpected error occurred during update.");
-      toast.error(err.message || "Failed to update agent.");
+      setFormError(err.message || (locale === "bn" ? "অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred during update."));
+      toast.error(err.message || (locale === "bn" ? "এজেন্ট আপডেট করতে ব্যর্থ হয়েছে।" : "Failed to update agent."));
     } finally {
       setIsSubmitting(false);
     }
@@ -284,7 +302,9 @@ export default function AgentsPage() {
   // PATCH Request - Quick Inline Suspend / Reactivate licensing state
   const handleToggleActive = async (agent: any) => {
     const nextState = !agent.isActive;
-    const actionText = nextState ? "activate" : "suspend";
+    const actionText = nextState 
+      ? (locale === "bn" ? "সক্রিয়" : "activate") 
+      : (locale === "bn" ? "স্থগিত" : "suspend");
     
     try {
       const res = await fetch(`/api/agents/${agent.id}`, {
@@ -300,33 +320,40 @@ export default function AgentsPage() {
 
       if (!res.ok) {
         const resData = await res.json().catch(() => ({}));
-        throw new Error(resData.error || `Failed to ${actionText} agent.`);
+        throw new Error(resData.error || (locale === "bn" ? `এজেন্ট ${actionText} করতে ব্যর্থ হয়েছে।` : `Failed to ${actionText} agent.`));
       }
 
-      toast.success(`Agent license ${nextState ? "activated" : "suspended"} successfully!`);
+      toast.success(
+        locale === "bn" 
+          ? `এজেন্ট লাইসেন্স সফলভাবে ${nextState ? "সক্রিয়" : "স্থগিত"} করা হয়েছে!` 
+          : `Agent license ${nextState ? "activated" : "suspended"} successfully!`
+      );
       fetchAgents();
     } catch (err: any) {
-      toast.error(err.message || `An error occurred while toggling agent state.`);
+      toast.error(err.message || (locale === "bn" ? `এজেন্টের অবস্থা পরিবর্তন করার সময় ত্রুটি ঘটেছে।` : `An error occurred while toggling agent state.`));
     }
   };
 
   // Excel/CSV Exporter (Client-side execution, fully offline/edge friendly)
   const handleExport = () => {
     if (agents.length === 0) {
-      toast.error("No sourcing partner records available to export.");
+      toast.error(locale === "bn" ? "এক্সপোর্ট করার জন্য কোনো সোর্সিং পার্টনার রেকর্ড পাওয়া যায়নি।" : "No sourcing partner records available to export.");
       return;
     }
 
-    const headers = ["Agent Code", "Agency Name", "License No", "Tier", "Lead Rep", "Email", "Phone", "Status"];
+    const headers = locale === "bn" 
+      ? ["এজেন্ট কোড", "এজেন্সি কোম্পানির নাম", "লাইসেন্স নম্বর", "পার্টনার ক্যাটাগরি", "প্রধান এজেন্টের নাম", "ইমেল", "মোবাইল নং", "অবস্থা"]
+      : ["Agent Code", "Agency Name", "License No", "Tier", "Lead Rep", "Email", "Phone", "Status"];
+
     const rows = filteredAgents.map(a => [
       a.agentCode,
       a.companyName,
       a.licenseNo || "N/A",
-      `Tier ${a.tier}`,
+      locale === "bn" ? `ক্যাটাগরি ${a.tier}` : `Tier ${a.tier}`,
       a.fullName,
       a.email,
       a.phone || "N/A",
-      a.isActive ? "Active Supply" : "Suspended"
+      locale === "bn" ? (a.isActive ? "সক্রিয় সরবরাহ" : "স্থগিত") : (a.isActive ? "Active Supply" : "Suspended")
     ]);
 
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -340,7 +367,7 @@ export default function AgentsPage() {
     link.click();
     document.body.removeChild(link);
 
-    toast.success("Sourcing partners registry exported successfully!");
+    toast.success(locale === "bn" ? "সোর্সিং পার্টনারদের তালিকা সফলভাবে এক্সপোর্ট করা হয়েছে!" : "Sourcing partners registry exported successfully!");
   };
 
   // Client-side filtering logic
@@ -356,7 +383,7 @@ export default function AgentsPage() {
 
   const tableColumns = [
     {
-      header: "Agent Code",
+      header: t("agents.tableHeaderCode"),
       accessor: (a: any) => (
         <span className="font-mono font-bold text-primary-theme">
           {a.agentCode}
@@ -364,29 +391,31 @@ export default function AgentsPage() {
       ),
     },
     {
-      header: "Agency / Sourcing Partner",
+      header: t("agents.tableHeaderCompany"),
       accessor: (a: any) => (
         <div className="flex flex-col gap-0.5">
           <span className="font-semibold text-text-theme">{a.companyName}</span>
-          <span className="text-[10px] text-text-soft">License No: {a.licenseNo || "N/A"}</span>
+          <span className="text-[10px] text-text-soft font-medium">
+            {locale === "bn" ? "লাইসেন্স নং:" : "License No:"} <span className="font-mono">{a.licenseNo || "N/A"}</span>
+          </span>
         </div>
       ),
     },
     {
-      header: "Lead Representative",
+      header: locale === "bn" ? "প্রধান প্রতিনিধি" : "Lead Representative",
       accessor: (a: any) => (
         <div className="flex flex-col gap-0.5">
           <span className="font-semibold text-text-theme">{a.fullName}</span>
-          <span className="text-[10px] text-text-soft">{a.email}</span>
+          <span className="text-[10px] text-text-soft font-mono font-medium">{a.email}</span>
         </div>
       ),
     },
     { 
-      header: "Contact Number", 
-      accessor: (a: any) => <span className="text-text-theme">{a.phone || "N/A"}</span> 
+      header: t("agents.tableHeaderPhone"), 
+      accessor: (a: any) => <span className="text-text-theme font-mono font-semibold">{a.phone || "N/A"}</span> 
     },
     {
-      header: "Agency Tier",
+      header: t("agents.tableHeaderTier"),
       accessor: (a: any) => (
         <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold ${
           a.tier === "A" 
@@ -395,24 +424,27 @@ export default function AgentsPage() {
               ? "bg-indigo-50 text-indigo-700 border border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/30" 
               : "bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-900/30 dark:border-slate-800/40 dark:text-slate-400"
         }`}>
-          <Award className="h-3 w-3 shrink-0" /> Tier {a.tier} Partner
+          <Award className="h-3 w-3 shrink-0" /> {locale === "bn" ? `ক্যাটাগরি ${a.tier} অংশীদার` : `Tier ${a.tier} Partner`}
         </span>
       ),
     },
     {
-      header: "Status",
+      header: t("common.status"),
       accessor: (a: any) => (
         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
           a.isActive 
             ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30" 
             : "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
         }`}>
-          {a.isActive ? "Active Supply" : "License Suspended"}
+          {locale === "bn"
+            ? (a.isActive ? "সক্রিয় সরবরাহ" : "লাইসেন্স স্থগিত")
+            : (a.isActive ? "Active Supply" : "License Suspended")
+          }
         </span>
       ),
     },
     {
-      header: "Actions",
+      header: t("common.actions"),
       accessor: (a: any) => (
         <div className="flex items-center gap-1.5">
           {hasAccess("MANAGE_AGENTS") && (
@@ -420,7 +452,7 @@ export default function AgentsPage() {
               <button
                 onClick={() => handleEditClick(a)}
                 className="p-1.5 text-text-soft hover:text-primary-theme hover:bg-bg-muted rounded-lg transition-colors cursor-pointer"
-                title="Edit Sourcing Partner Profile"
+                title={locale === "bn" ? "সোর্সিং পার্টনার প্রোফাইল সম্পাদন" : "Edit Sourcing Partner Profile"}
               >
                 <Edit className="h-4 w-4" />
               </button>
@@ -431,7 +463,7 @@ export default function AgentsPage() {
                     ? "text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/15"
                     : "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/15"
                 }`}
-                title={a.isActive ? "Suspend Sourcing Partner" : "Activate Sourcing Partner"}
+                title={locale === "bn" ? (a.isActive ? "সোর্সিং পার্টনার স্থগিত করুন" : "সোর্সিং পার্টনার সক্রিয় করুন") : (a.isActive ? "Suspend Sourcing Partner" : "Activate Sourcing Partner")}
               >
                 {a.isActive ? <Ban className="h-4 w-4" /> : <Power className="h-4 w-4" />}
               </button>
@@ -447,12 +479,19 @@ export default function AgentsPage() {
       <PermissionGate 
         permission="VIEW_COMMISSIONS" 
         showFallback={true} 
-        fallbackMessage="Access to Agent Sourcing partnerships, tier commissions, and licenses is restricted to administrative and accounts departments."
+        fallbackMessage={
+          locale === "bn"
+            ? "এজেন্ট সোর্সিং অংশীদারিত্ব, টায়ার কমিশন এবং লাইসেন্সিং অ্যাক্সেস শুধুমাত্র প্রশাসনিক এবং হিসাব বিভাগের জন্য সীমাবদ্ধ।"
+            : "Access to Agent Sourcing partnerships, tier commissions, and licenses is restricted to administrative and accounts departments."
+        }
       >
         <PageHeader
-          title="Sourcing Agents Registry"
-          description="Track external supply licenses, company representative records, and tier commissions payouts."
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: "Agents" }]}
+          title={t("agents.pageTitle")}
+          description={t("agents.pageDesc")}
+          breadcrumbs={[
+            { label: locale === "bn" ? "ইআরপি হাব" : "ERP Hub", href: "/dashboard" }, 
+            { label: t("nav.agents") }
+          ]}
           actions={
             <div className="flex items-center gap-2">
               {hasAccess("MANAGE_AGENTS") && (
@@ -460,14 +499,14 @@ export default function AgentsPage() {
                   onClick={() => setIsCreateModalOpen(true)}
                   className="flex items-center gap-1.5 rounded-lg bg-primary-theme px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-hover shadow-primary-theme/20 cursor-pointer"
                 >
-                  <Plus className="h-4 w-4" /> Add Sourcing Agent
+                  <Plus className="h-4 w-4" /> {t("agents.addAgentBtn")}
                 </button>
               )}
               <button 
                 onClick={handleExport}
                 className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3.5 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted transition-colors cursor-pointer"
               >
-                <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export CSV
+                <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> {t("common.exportCsv")}
               </button>
             </div>
           }
@@ -483,21 +522,21 @@ export default function AgentsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <StatCard
-              title="Total Registered Agents"
+              title={locale === "bn" ? "মোট নিবন্ধিত এজেন্ট" : "Total Registered Agents"}
               value={totalAgents}
-              description="External sourcing agencies registered"
+              description={locale === "bn" ? "নিবন্ধিত বহিরাগত সোর্সিং সংস্থা" : "External sourcing agencies registered"}
               iconName="Users"
             />
             <StatCard
-              title="Active Partnerships"
-              value={`${activeAgents} Active`}
-              description="Licensed for labor supply pipelines"
+              title={locale === "bn" ? "সক্রিয় অংশীদারিত্ব" : "Active Partnerships"}
+              value={locale === "bn" ? `${activeAgents} জন সক্রিয়` : `${activeAgents} Active`}
+              description={locale === "bn" ? "শ্রম সরবরাহ পাইপলাইনের জন্য অনুমোদিত" : "Licensed for labor supply pipelines"}
               iconName="UserCheck"
             />
             <StatCard
-              title="Gold-Tier (Class A)"
-              value={`${tierACount} Partners`}
-              description="Primary sourcing agencies"
+              title={locale === "bn" ? "গোল্ড-টায়ার (ক্লাস এ)" : "Gold-Tier (Class A)"}
+              value={locale === "bn" ? `${tierACount} টি সংস্থা` : `${tierACount} Partners`}
+              description={locale === "bn" ? "প্রধান সোর্সিং এজেন্সিসমূহ" : "Primary sourcing agencies"}
               iconName="Star"
             />
           </div>
@@ -506,7 +545,7 @@ export default function AgentsPage() {
         {/* Dynamic Filter bar */}
         <div className="flex flex-col gap-4 rounded-xl border border-border-theme bg-surface p-5 shadow-sm sm:flex-row sm:items-center">
           <div className="flex items-center gap-2 text-text-soft text-xs font-bold mr-2">
-            <span>Filter Partners:</span>
+            <span>{locale === "bn" ? "অংশীদার ফিল্টার করুন:" : "Filter Partners:"}</span>
           </div>
           <div className="flex gap-2">
             {["ALL", "A", "B", "C"].map((tier) => (
@@ -519,7 +558,10 @@ export default function AgentsPage() {
                     : "bg-surface text-text-soft border-border-theme hover:bg-bg-muted"
                 }`}
               >
-                {tier === "ALL" ? "All Partners" : `Tier ${tier}`}
+                {tier === "ALL" 
+                  ? (locale === "bn" ? "সব অংশীদার" : "All Partners") 
+                  : (locale === "bn" ? `ক্যাটাগরি ${tier}` : `Tier ${tier}`)
+                }
               </button>
             ))}
           </div>
@@ -531,30 +573,34 @@ export default function AgentsPage() {
             <div className="relative h-12 w-12 rounded-2xl bg-surface border border-border-theme flex items-center justify-center shadow-lg">
               <Loader2 className="h-6 w-6 text-primary-theme animate-spin" />
             </div>
-            <p className="text-xs text-text-soft font-bold animate-pulse">Querying live sourcing agent registry...</p>
+            <p className="text-xs text-text-soft font-bold animate-pulse">
+              {locale === "bn" ? "সরাসরি সোর্সিং এজেন্ট ডেটা অনুসন্ধান করা হচ্ছে..." : "Querying live sourcing agent registry..."}
+            </p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-rose-100 bg-rose-50/50 p-6 text-center shadow-sm dark:border-rose-950/10 dark:bg-rose-950/5 space-y-4">
             <AlertCircle className="h-10 w-10 text-rose-500" />
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-rose-900 dark:text-rose-400">Failed to Load Agents</h3>
+              <h3 className="text-sm font-bold text-rose-900 dark:text-rose-400">
+                {locale === "bn" ? "এজেন্ট লোড করতে ব্যর্থ" : "Failed to Load Agents"}
+              </h3>
               <p className="text-xs text-rose-700/80 dark:text-rose-400/70 max-w-md">{error}</p>
             </div>
             <button
               onClick={fetchAgents}
               className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 shadow-sm cursor-pointer"
             >
-              Retry Connection
+              {t("dashboard.retryBtn")}
             </button>
           </div>
         ) : (
           <DataTable
             data={filteredAgents}
             columns={tableColumns}
-            searchPlaceholder="Search by Sourcing Partner Name..."
+            searchPlaceholder={t("agents.searchPlaceholder")}
             searchField="companyName"
-            emptyStateTitle="No matching agent partners found"
-            emptyStateDescription="Verify if the agents have been seeded in the database or register a new one to begin."
+            emptyStateTitle={locale === "bn" ? "কোনো ম্যাচিং এজেন্ট পার্টনার পাওয়া যায়নি" : "No matching agent partners found"}
+            emptyStateDescription={locale === "bn" ? "যাচাই করুন এজেন্ট ডাটাবেসে নিবন্ধিত আছে কিনা অথবা শুরু করতে একটি নতুন এজেন্ট যোগ করুন।" : "Verify if the agents have been seeded in the database or register a new one to begin."}
           />
         )}
 
@@ -564,7 +610,11 @@ export default function AgentsPage() {
         <AppModal
           isOpen={isCreateModalOpen}
           onClose={handleCancelCreate}
-          title={successData ? "Sourcing Credentials Provisioned" : "Add Sourcing Agent"}
+          title={
+            successData 
+              ? (locale === "bn" ? "সোর্সিং ক্রেডেন্সিয়াল প্রস্তুত করা হয়েছে" : "Sourcing Credentials Provisioned") 
+              : t("agents.addModalTitle")
+          }
           size="lg"
         >
           {successData ? (
@@ -572,15 +622,21 @@ export default function AgentsPage() {
               <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 dark:bg-emerald-950/20 dark:border-emerald-950/30 text-emerald-800 dark:text-emerald-400 flex items-start gap-2.5">
                 <Check className="h-4.5 w-4.5 text-emerald-500 shrink-0 mt-0.5 animate-bounce" />
                 <div className="space-y-0.5">
-                  <h5 className="font-bold text-xs">Sourcing Partner Registration Confirmed!</h5>
-                  <p className="text-[10px] opacity-90">Cryptographic system User role mappings and permissions written successfully.</p>
+                  <h5 className="font-bold text-xs">
+                    {locale === "bn" ? "সোর্সিং পার্টনার নিবন্ধন নিশ্চিত করা হয়েছে!" : "Sourcing Partner Registration Confirmed!"}
+                  </h5>
+                  <p className="text-[10px] opacity-90">
+                    {locale === "bn" ? "সিস্টেম ইউজার রোল ম্যাপিং এবং পারমিশন সফলভাবে সম্পন্ন হয়েছে।" : "Cryptographic system User role mappings and permissions written successfully."}
+                  </p>
                 </div>
               </div>
 
               <div className="rounded-xl border border-border-theme bg-bg-muted p-5 space-y-4 shadow-inner">
                 {/* Username */}
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-text-soft uppercase tracking-wide">Portal Access Username</span>
+                  <span className="text-[10px] font-bold text-text-soft uppercase tracking-wide">
+                    {locale === "bn" ? "পোর্টাল ইউজারনেম" : "Portal Access Username"}
+                  </span>
                   <div className="flex items-center justify-between bg-surface rounded-lg border border-border-theme px-3.5 py-2">
                     <span className="font-mono text-xs text-text-theme font-bold">{successData.username}</span>
                     <button
@@ -596,7 +652,9 @@ export default function AgentsPage() {
                 {/* Password (if TEMP_PASSWORD) */}
                 {successData.tempPassword && (
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-text-soft uppercase tracking-wide">Temporary Password</span>
+                    <span className="text-[10px] font-bold text-text-soft uppercase tracking-wide">
+                      {locale === "bn" ? "সাময়িক পাসওয়ার্ড" : "Temporary Password"}
+                    </span>
                     <div className="flex items-center justify-between bg-surface rounded-lg border border-border-theme px-3.5 py-2">
                       <span className="font-mono text-xs text-text-theme font-bold tracking-wider">{successData.tempPassword}</span>
                       <button
@@ -613,7 +671,9 @@ export default function AgentsPage() {
                 {/* Dev Activation Link */}
                 {successData.devActivationLink && (
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-text-soft uppercase tracking-wide">Dev Activation Link</span>
+                    <span className="text-[10px] font-bold text-text-soft uppercase tracking-wide">
+                      {locale === "bn" ? "ডেভেলপার অ্যাক্টিভেশন লিঙ্ক" : "Dev Activation Link"}
+                    </span>
                     <div className="flex items-center justify-between bg-surface rounded-lg border border-border-theme px-3.5 py-2">
                       <span className="font-mono text-[10px] text-indigo-600 dark:text-indigo-400 font-bold truncate max-w-[280px]">{successData.devActivationLink}</span>
                       <button
@@ -632,13 +692,17 @@ export default function AgentsPage() {
                 <div className="flex gap-2.5 rounded-xl bg-rose-50 border border-rose-100/40 p-4 dark:bg-rose-950/15 dark:border-rose-950/30 text-rose-800 dark:text-rose-400 text-xs shadow-sm">
                   <AlertCircle className="h-4.5 w-4.5 shrink-0 text-rose-500" />
                   <p className="font-semibold leading-relaxed">
-                    Save or print these credentials now. The temporary password will not be shown again.
+                    {locale === "bn" 
+                      ? "এই ক্রেডেন্সিয়ালগুলো এখন সংরক্ষণ বা প্রিন্ট করুন। সাময়িক পাসওয়ার্ডটি রিফ্রেশ করার পর আর দেখা যাবে না।" 
+                      : "Save or print these credentials now. The temporary password will not be shown again."}
                   </p>
                 </div>
                 <div className="flex gap-2.5 rounded-xl bg-amber-50 border border-amber-100/40 p-4 dark:bg-amber-950/15 dark:border-amber-950/30 text-amber-800 dark:text-amber-400 text-xs shadow-sm">
                   <AlertCircle className="h-4.5 w-4.5 shrink-0 text-amber-500" />
                   <p className="font-semibold leading-relaxed">
-                    The agent should change this password after their first login.
+                    {locale === "bn"
+                      ? "প্রথমবার সাইন-ইনের পর এজেন্টের এই পাসওয়ার্ডটি পরিবর্তন করা উচিত।"
+                      : "The agent should change this password after their first login."}
                   </p>
                 </div>
               </div>
@@ -652,7 +716,7 @@ export default function AgentsPage() {
                   }}
                   className="rounded-xl bg-primary-theme px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-primary-hover shadow-primary-theme/20 cursor-pointer"
                 >
-                  Done & Close
+                  {locale === "bn" ? "সম্পন্ন ও বন্ধ করুন" : "Done & Close"}
                 </button>
               </div>
             </div>
@@ -669,11 +733,11 @@ export default function AgentsPage() {
                 {/* Agency Core info */}
                 <div className="space-y-3">
                   <h4 className="text-[11px] font-bold text-primary-theme uppercase tracking-wider border-b border-border-theme pb-1">
-                    A. Sourcing Agency Identity
+                    {locale === "bn" ? "ক. সোর্সিং এজেন্সি বিবরণ" : "A. Sourcing Agency Identity"}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AppInput
-                      label="Company / Agency Name *"
+                      label={locale === "bn" ? "এজেন্সি / কোম্পানির নাম *" : "Company / Agency Name *"}
                       value={formData.companyName}
                       onChange={(e) => setFormData((prev) => ({ ...prev, companyName: e.target.value }))}
                       error={errors.companyName}
@@ -681,25 +745,25 @@ export default function AgentsPage() {
                       required
                     />
                     <AppInput
-                      label="License Number (Optional)"
+                      label={locale === "bn" ? "লাইসেন্স নম্বর (ঐচ্ছিক)" : "License Number (Optional)"}
                       value={formData.licenseNo}
                       onChange={(e) => setFormData((prev) => ({ ...prev, licenseNo: e.target.value }))}
                       error={errors.licenseNo}
                       placeholder="e.g. RL-9082"
                     />
                     <AppSelect
-                      label="Agency Partnership Tier *"
+                      label={locale === "bn" ? "এজেন্সি পার্টনারশিপ টায়ার *" : "Agency Partnership Tier *"}
                       value={formData.tier}
                       onChange={(e) => setFormData((prev) => ({ ...prev, tier: e.target.value as "A" | "B" | "C" }))}
                       error={errors.tier}
                       required
                     >
-                      <option value="C">Tier C Partner (Basic scale)</option>
-                      <option value="B">Tier B Partner (Mid scale)</option>
-                      <option value="A">Tier A Partner (Premium gold scale)</option>
+                      <option value="C">{locale === "bn" ? "টায়ার সি পার্টনার (বেসিক স্কেল)" : "Tier C Partner (Basic scale)"}</option>
+                      <option value="B">{locale === "bn" ? "টায়ার বি পার্টনার (মিড স্কেল)" : "Tier B Partner (Mid scale)"}</option>
+                      <option value="A">{locale === "bn" ? "টায়ার এ পার্টনার (প্রিমিয়াম গোল্ড স্কেল)" : "Tier A Partner (Premium gold scale)"}</option>
                     </AppSelect>
                     <AppInput
-                      label="Agent Code (Optional - Auto Generated)"
+                      label={locale === "bn" ? "এজেন্ট কোড (ঐচ্ছিক - স্বয়ংক্রিয় প্রস্তুত)" : "Agent Code (Optional - Auto Generated)"}
                       value={formData.agentCode}
                       onChange={(e) => setFormData((prev) => ({ ...prev, agentCode: e.target.value }))}
                       error={errors.agentCode}
@@ -711,11 +775,11 @@ export default function AgentsPage() {
                 {/* Lead representative info */}
                 <div className="space-y-3 pt-2">
                   <h4 className="text-[11px] font-bold text-primary-theme uppercase tracking-wider border-b border-border-theme pb-1">
-                    B. Representative & Access Controls
+                    {locale === "bn" ? "খ. প্রতিনিধি ও প্রবেশাধিকার নিয়ন্ত্রণ" : "B. Representative & Access Controls"}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AppInput
-                      label="Lead Representative Full Name *"
+                      label={locale === "bn" ? "প্রধান এজেন্টের সম্পূর্ণ নাম *" : "Lead Representative Full Name *"}
                       value={formData.fullName}
                       onChange={(e) => setFormData((prev) => ({ ...prev, fullName: e.target.value }))}
                       error={errors.fullName}
@@ -723,7 +787,7 @@ export default function AgentsPage() {
                       required
                     />
                     <AppInput
-                      label="Contact Email Address *"
+                      label={locale === "bn" ? "ইমেল ঠিকানা *" : "Contact Email Address *"}
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
@@ -732,7 +796,7 @@ export default function AgentsPage() {
                       required
                     />
                     <AppInput
-                      label="Contact Number *"
+                      label={locale === "bn" ? "মোবাইল ফোন নম্বর *" : "Contact Number *"}
                       value={formData.phone}
                       onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
                       error={errors.phone}
@@ -740,14 +804,14 @@ export default function AgentsPage() {
                       required
                     />
                     <AppSelect
-                      label="Access Mode / Credential Handshake *"
+                      label={locale === "bn" ? "অ্যাক্সেস মোড / ক্রেডেন্সিয়াল হ্যান্ডশেক *" : "Access Mode / Credential Handshake *"}
                       value={formData.accessMode}
                       onChange={(e) => setFormData((prev) => ({ ...prev, accessMode: e.target.value as "TEMP_PASSWORD" | "INVITE_LINK" }))}
                       error={errors.accessMode}
                       required
                     >
-                      <option value="TEMP_PASSWORD">Temporary Password (Instant Display)</option>
-                      <option value="INVITE_LINK">Generate Invite Link (Activation flow)</option>
+                      <option value="TEMP_PASSWORD">{locale === "bn" ? "সাময়িক পাসওয়ার্ড (সরাসরি প্রদর্শন)" : "Temporary Password (Instant Display)"}</option>
+                      <option value="INVITE_LINK">{locale === "bn" ? "আমন্ত্রণ লিঙ্ক তৈরি করুন (অ্যাক্টিভেশন ফ্লো)" : "Generate Invite Link (Activation flow)"}</option>
                     </AppSelect>
                   </div>
                 </div>
@@ -761,7 +825,7 @@ export default function AgentsPage() {
                   disabled={isSubmitting}
                   className="rounded-xl border border-border-theme bg-surface px-4 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -771,10 +835,10 @@ export default function AgentsPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Provisioning...
+                      {locale === "bn" ? "প্রস্তুত হচ্ছে..." : "Provisioning..."}
                     </>
                   ) : (
-                    "Create Agent Profile"
+                    locale === "bn" ? "এজেন্ট প্রোফাইল তৈরি করুন" : "Create Agent Profile"
                   )}
                 </button>
               </div>
@@ -788,7 +852,7 @@ export default function AgentsPage() {
         <AppModal
           isOpen={isEditModalOpen}
           onClose={handleCancelEdit}
-          title="Edit Sourcing Agent"
+          title={locale === "bn" ? "সোর্সিং এজেন্ট সম্পাদন" : "Edit Sourcing Agent"}
           size="lg"
         >
           {selectedAgent && (
@@ -804,11 +868,14 @@ export default function AgentsPage() {
                 {/* Agency Core details */}
                 <div className="space-y-3">
                   <h4 className="text-[11px] font-bold text-primary-theme uppercase tracking-wider border-b border-border-theme pb-1">
-                    Agency & Partnership Controls (Agent: {selectedAgent.agentCode})
+                    {locale === "bn"
+                      ? `এজেন্সি ও অংশীদারিত্ব নিয়ন্ত্রণ (এজেন্ট কোড: ${selectedAgent.agentCode})`
+                      : `Agency & Partnership Controls (Agent: ${selectedAgent.agentCode})`
+                    }
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AppInput
-                      label="Company / Agency Name *"
+                      label={locale === "bn" ? "এজেন্সি / কোম্পানির নাম *" : "Company / Agency Name *"}
                       value={editForm.companyName}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, companyName: e.target.value }))}
                       error={errors.companyName}
@@ -816,32 +883,34 @@ export default function AgentsPage() {
                       required
                     />
                     <AppInput
-                      label="License Number"
+                      label={locale === "bn" ? "লাইসেন্স নম্বর" : "License Number"}
                       value={editForm.licenseNo}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, licenseNo: e.target.value }))}
                       error={errors.licenseNo}
                       placeholder="e.g. RL-9082"
                     />
                     <AppSelect
-                      label="Agency Partnership Tier *"
+                      label={locale === "bn" ? "এজেন্সি পার্টনারশিপ টায়ার *" : "Agency Partnership Tier *"}
                       value={editForm.tier}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, tier: e.target.value as "A" | "B" | "C" }))}
                       error={errors.tier}
                       required
                     >
-                      <option value="C">Tier C Partner (Basic scale)</option>
-                      <option value="B">Tier B Partner (Mid scale)</option>
-                      <option value="A">Tier A Partner (Premium gold scale)</option>
+                      <option value="C">{locale === "bn" ? "টায়ার সি পার্টনার (বেসিক স্কেল)" : "Tier C Partner (Basic scale)"}</option>
+                      <option value="B">{locale === "bn" ? "টায়ার বি পার্টনার (মিড স্কেল)" : "Tier B Partner (Mid scale)"}</option>
+                      <option value="A">{locale === "bn" ? "টায়ার এ পার্টনার (প্রিমিয়াম গোল্ড স্কেল)" : "Tier A Partner (Premium gold scale)"}</option>
                     </AppSelect>
                     <AppInput
-                      label="Representative Contact Phone *"
+                      label={locale === "bn" ? "মোবাইল ফোন নম্বর *" : "Representative Contact Phone *"}
                       value={editForm.phone}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
                       error={errors.phone}
                       required
                     />
                     <div className="md:col-span-2 space-y-1">
-                      <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">License Integrity & Status</label>
+                      <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">
+                        {locale === "bn" ? "লাইসেন্স ও অবস্থা" : "License Integrity & Status"}
+                      </label>
                       <div className="flex h-10 items-center gap-2">
                         <input
                           type="checkbox"
@@ -854,7 +923,10 @@ export default function AgentsPage() {
                           htmlFor="edit-active-toggle"
                           className="text-xs font-semibold text-text-theme cursor-pointer select-none"
                         >
-                          Licensing Status: Active (Set false to suspend system access & applicant creation)
+                          {locale === "bn"
+                            ? "লাইসেন্স স্ট্যাটাস: সক্রিয় (সিস্টেম প্রবেশ ও প্রার্থী তৈরি স্থগিত করতে আনচেক করুন)"
+                            : "Licensing Status: Active (Set false to suspend system access & applicant creation)"
+                          }
                         </label>
                       </div>
                     </div>
@@ -870,7 +942,7 @@ export default function AgentsPage() {
                   disabled={isSubmitting}
                   className="rounded-xl border border-border-theme bg-surface px-4 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -880,10 +952,10 @@ export default function AgentsPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Saving...
+                      {locale === "bn" ? "সংরক্ষণ হচ্ছে..." : "Saving..."}
                     </>
                   ) : (
-                    "Save Changes"
+                    t("common.save")
                   )}
                 </button>
               </div>

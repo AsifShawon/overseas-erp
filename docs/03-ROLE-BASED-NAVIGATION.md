@@ -8,6 +8,8 @@ Every user is assigned exactly one Role. Their role determines:
 - Which API operations they can perform
 - Which records they can see (data boundaries)
 
+The UI renders dynamically in either **Bangla (default)** or **English** based on the user's active runtime language toggle, which is persisted across sessions in `localStorage`. Regardless of the active display language, security permission checks and data boundaries remain strictly enforced in the backend database.
+
 ---
 
 ## Sidebar Navigation by Role
