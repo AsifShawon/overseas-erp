@@ -1,6 +1,6 @@
-# 13 — Local Development Setup
+# 13 - Local Development Setup
 
-This document covers everything needed to run OverseasERP locally from scratch.
+This document covers the supported local workflows for Overseas ERP.
 
 ---
 
@@ -8,149 +8,101 @@ This document covers everything needed to run OverseasERP locally from scratch.
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| Node.js | 20 LTS or higher | Check: `node --version` |
+| Node.js | 20 LTS or higher | Check with `node --version` |
 | npm | 10+ | Bundled with Node.js |
-| Docker Desktop | Latest | For PostgreSQL container |
+| Docker Desktop | Latest | Required for PostgreSQL and the full container stack |
 | Git | Any | For cloning the repo |
 
-**Windows users:** Docker Desktop requires WSL2 or Hyper-V. Ensure Docker Desktop is running before starting.
+Windows users should ensure Docker Desktop is running with WSL2 or Hyper-V enabled before starting.
 
 ---
 
-## Step 1: Clone the Repository
+## Workflow Options
+
+Two local workflows are supported:
+
+1. Hybrid development
+   Run PostgreSQL in Docker and run the Next.js app with `npm run dev`.
+2. Full Docker stack
+   Run PostgreSQL, migrations, and the production app in containers with `docker compose up --build`.
+
+Use hybrid development for feature work. Use the full Docker stack when you want a production-like local environment.
+
+---
+
+## Hybrid Development
+
+### 1. Clone the repository
 
 ```bash
 git clone <repository-url>
 cd overseas-erp
 ```
 
----
-
-## Step 2: Install Dependencies
-
-```bash
-npm install
-```
-
-This installs all dependencies including Prisma, Next.js, React, jose, argon2, lucide-react, etc.
-
----
-
-## Step 3: Start PostgreSQL with Docker
-
-The project includes a `docker-compose.yml` file that sets up a PostgreSQL 16 container.
-
-```bash
-docker compose up -d
-```
-
-This starts:
-- **Container name:** `overseas_erp_postgres`
-- **Host port:** `5433` (maps to container port `5432`)
-- **Database:** `overseas_erp_dev`
-- **Username:** `overseas`
-- **Password:** `overseas_dev_password`
-
-**Verify it's running:**
-```bash
-docker ps
-```
-
-You should see `overseas_erp_postgres` with status `Up`.
-
-**Stop the database:**
-```bash
-docker compose down
-```
-
-**Wipe all data and restart fresh:**
-```bash
-docker compose down -v   # WARNING: deletes all data
-docker compose up -d
-```
-
----
-
-## Step 4: Configure Environment Variables
-
-Copy the template and fill in values:
+### 2. Copy environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-**Minimum required values for local development (pre-filled for Docker setup):**
+Minimum required values:
 
 ```env
-# PostgreSQL — matches docker-compose.yml settings
+POSTGRES_DB="overseas_erp_dev"
+POSTGRES_USER="overseas"
+POSTGRES_PASSWORD="overseas_dev_password"
+POSTGRES_PORT="5433"
 DATABASE_URL="postgresql://overseas:overseas_dev_password@localhost:5433/overseas_erp_dev?schema=public"
-
-# JWT secrets — must be at least 64 characters each
+DOCKER_DATABASE_URL="postgresql://overseas:overseas_dev_password@postgres:5432/overseas_erp_dev?schema=public"
 JWT_ACCESS_SECRET="replace_with_64_char_random_hex_string"
 JWT_REFRESH_SECRET="replace_with_64_char_random_hex_string"
-
-# Token expiry
-JWT_ACCESS_EXPIRES_IN="900"    # 15 minutes
-JWT_REFRESH_EXPIRES_IN="604800" # 7 days
-
-# Environment
+JWT_ACCESS_EXPIRES_IN="900"
+JWT_REFRESH_EXPIRES_IN="604800"
 NODE_ENV="development"
 NEXT_PUBLIC_APP_NAME="Overseas Manpower ERP"
 ```
 
-**Generate secure JWT secrets:**
+Generate secrets with:
+
 ```bash
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
-Run this twice — once for ACCESS secret, once for REFRESH secret.
+Run it twice, once for each JWT secret.
 
-> **Warning:** Never commit `.env` to version control. The `.gitignore` already excludes it.
+### 3. Start PostgreSQL only
 
----
+```bash
+docker compose up -d postgres
+```
 
-## Step 5: Generate Prisma Client
+This exposes PostgreSQL on `localhost:5433`.
+
+### 4. Install dependencies
+
+```bash
+npm install
+```
+
+### 5. Generate Prisma client
 
 ```bash
 npm run db:generate
 ```
 
-This runs `prisma generate` and produces the TypeScript client in `generated/prisma/`. You must run this after any changes to `prisma/schema.prisma`.
-
----
-
-## Step 6: Run Database Migrations
+### 6. Apply development migrations
 
 ```bash
 npm run db:migrate
 ```
 
-This runs `prisma migrate dev` which:
-1. Reads the migration history from `prisma/migrations/`
-2. Applies any pending migrations to your PostgreSQL database
-3. Generates a new migration if you have schema changes (in dev mode)
-
-> **Note:** On a fresh database, this applies all migrations from scratch.
-
----
-
-## Step 7: Seed the Database
+### 7. Seed the database
 
 ```bash
 npm run db:seed
 ```
 
-This runs `prisma/seed.ts` which populates the database with:
-- System roles (Super Admin, Operations Admin, HR Officer, etc.)
-- All permissions
-- Role-permission assignments
-- Demo user accounts (one per role)
-- Demo agents
-- Sample job orders
-- Sample applicants with workflow history
-- Sample documents, invoices, receipts, ledger entries, commissions
-
-**Seeded user credentials:**
+Seeded login examples:
 
 | Role | Email | Password |
 |------|-------|----------|
@@ -163,151 +115,138 @@ This runs `prisma/seed.ts` which populates the database with:
 | Agent | agent@agent.com | AgentKabir@2026! |
 | Applicant | applicant@applicant.com | Applicant@2026! |
 
----
-
-## Step 8: Start the Development Server
+### 8. Start the development server
 
 ```bash
 npm run dev
 ```
 
-The app will be available at: **http://localhost:3000**
+The app is available at `http://localhost:3000`.
 
-Next.js will show which port it's running on (defaults to 3000, increments if 3000 is in use).
-
----
-
-## Step 9: Open Prisma Studio (Optional)
-
-Prisma Studio provides a visual database browser:
+### 9. Optional Prisma Studio
 
 ```bash
 npm run db:studio
 ```
 
-Opens at: **http://localhost:5555**
-
-Useful for:
-- Browsing tables visually
-- Manually editing data for testing
-- Verifying seed data
+Prisma Studio opens at `http://localhost:5555`.
 
 ---
 
-## Build for Production
+## Full Docker Stack
+
+Run the entire stack in containers:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- `postgres`: PostgreSQL 16 with persistent data in `overseas_erp_pgdata`
+- `migrate`: one-off Prisma migration job using `prisma migrate deploy`
+- `app`: production Next.js container on `http://localhost:3000`
+
+Uploaded files are stored in the `overseas_erp_storage` named volume.
+
+### Optional seed container
+
+The seed job is not part of normal startup because the current script is not fully idempotent. Run it manually only when you want demo data loaded:
+
+```bash
+docker compose run --rm seed
+```
+
+### Stop the stack
+
+```bash
+docker compose down
+```
+
+To remove database and uploaded-file volumes too:
+
+```bash
+docker compose down -v
+```
+
+---
+
+## Production Build Without Docker
 
 ```bash
 npm run build
-```
-
-Then start the production server:
-```bash
 npm run start
 ```
 
-Only run build if explicitly needed. Use `npm run dev` for development work.
+The Docker image uses the same production build path, with Next.js standalone output enabled.
 
 ---
 
-## Common Troubleshooting
+## Troubleshooting
 
-### Database Connection Failed
+### Database connection failed
 
-**Symptom:** `Error: Can't reach database server at localhost:5433`
+Symptom:
+`Error: Can't reach database server at localhost:5433`
 
-**Fixes:**
-1. Ensure Docker Desktop is running: open Docker Desktop app
-2. Ensure the container is running: `docker ps`
-3. If container is stopped: `docker compose up -d`
-4. Check `DATABASE_URL` in `.env` — port should be `5433` (not 5432)
-5. Check `prisma.config.ts` — it reads from `process.env.DATABASE_URL`
+Fixes:
 
----
+1. Ensure Docker Desktop is running.
+2. Ensure PostgreSQL is running with `docker compose ps`.
+3. If needed, restart it with `docker compose up -d postgres`.
+4. Confirm `DATABASE_URL` points to `localhost:5433`.
+5. Confirm `prisma.config.ts` is reading the same `DATABASE_URL`.
 
-### Migration Issues
+### Migration issues
 
-**Symptom:** `Migration failed to apply cleanly`
-
-**Fixes:**
-1. Reset the database: `docker compose down -v && docker compose up -d`
-2. Re-run migrations: `npm run db:migrate`
-3. Re-run seed: `npm run db:seed`
-
-**Symptom:** `The migration ... was modified after it was applied`
-
-This means you edited a migration file after it was already applied. Do NOT edit migration files that have been applied. Create a new migration instead.
-
----
-
-### Token / Cookie Issues
-
-**Symptom:** Redirected to `/login` immediately after logging in
-
-**Fixes:**
-1. Check browser DevTools → Application → Cookies — there should be a `refreshToken` cookie
-2. Ensure `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` are set in `.env`
-3. Secrets must be the same between restarts (don't regenerate them after seeding)
-4. Clear browser cookies and try logging in again
-5. In production/staging: ensure `NODE_ENV=production` so cookies use `Secure: true`
-
-**Symptom:** 401 Unauthorized on all API calls after login
-
-**Fix:** The access token in memory was lost (page refresh). The silent refresh should restore it. If it doesn't: check that the refresh cookie exists and `POST /api/auth/refresh` is returning a valid response.
-
----
-
-### Theme Not Switching
-
-**Symptom:** Dark mode toggle does nothing
-
-**Fixes:**
-1. Check browser DevTools → Elements — does the `<html>` element get `data-theme="dark"` when toggled?
-2. Check `localStorage` in DevTools → Application → Local Storage → `erp-theme` value
-3. If the value exists but doesn't apply: the `ThemeProvider` may not be wrapping the component. Check `src/app/layout.tsx` includes `ThemeProvider`.
-4. Check `globals.css` for `[data-theme="dark"]` block — it must be there.
-
----
-
-### File Upload Storage Path
-
-**Symptom:** `ENOENT: no such file or directory, open 'storage/applicants/...'`
-
-**Fix:**
-1. The `storage/` directory is created automatically by `src/lib/storage.ts` using `fs.mkdirSync(dir, { recursive: true })`
-2. Ensure the app has write permissions to the project root directory
-3. On Windows: check that antivirus is not blocking file creation in the project folder
-
-**Symptom:** File uploaded but download returns 404
-
-**Fix:**
-1. The file URL in the database should be a relative path like `storage/applicants/{id}/documents/{name}.pdf`
-2. The download API reads this path relative to `process.cwd()` (the project root)
-3. Ensure the file actually exists at `{project-root}/storage/applicants/{id}/documents/{name}.pdf`
-
----
-
-## Quick Setup Reference
+If migrations fail locally:
 
 ```bash
-# 1. Start Docker PostgreSQL
-docker compose up -d
-
-# 2. Install dependencies
-npm install
-
-# 3. Generate Prisma client
-npm run db:generate
-
-# 4. Apply migrations
+docker compose down -v
+docker compose up -d postgres
 npm run db:migrate
-
-# 5. Seed database
 npm run db:seed
+```
 
-# 6. Start dev server
+Do not edit previously applied migration files. Create a new migration instead.
+
+### Token or cookie issues
+
+If login immediately redirects back to `/login`:
+
+1. Verify `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` are set.
+2. Clear browser cookies and try again.
+3. Ensure the same secrets persist across restarts.
+4. In production, ensure `NODE_ENV=production` so secure cookies behave correctly.
+
+### File upload path issues
+
+If uploads fail with a missing `storage/...` path:
+
+1. The app creates directories automatically under `storage/`.
+2. In Docker, the path is backed by the `overseas_erp_storage` volume.
+3. In hybrid development, ensure the project directory is writable.
+
+If a file uploads but download returns `404`, verify the database path matches the file on disk under `storage/applicants/...`.
+
+---
+
+## Quick Reference
+
+Hybrid development:
+
+```bash
+docker compose up -d postgres
+npm install
+npm run db:generate
+npm run db:migrate
+npm run db:seed
 npm run dev
 ```
 
-Then open: http://localhost:3000
+Full Docker stack:
 
-Login with: `admin@agency.com` / `SuperAdmin@2026!`
+```bash
+docker compose up --build
+docker compose run --rm seed
+```

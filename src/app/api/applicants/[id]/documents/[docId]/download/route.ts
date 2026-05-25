@@ -82,8 +82,9 @@ export async function GET(
     }
 
     // 4. Secure File Path Assertion
-    const absolutePath = path.join(process.cwd(), document.fileUrl);
     const storageRoot = path.join(process.cwd(), "storage");
+    const storageRelativePath = path.relative("storage", document.fileUrl);
+    const absolutePath = path.join(storageRoot, storageRelativePath);
 
     // Guard against path traversal vulnerabilities (e.g. using `..` in documentUrl)
     if (!absolutePath.startsWith(storageRoot)) {
