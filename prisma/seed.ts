@@ -116,6 +116,24 @@ async function main() {
   console.log("🌱 Starting database seed for Overseas Manpower ERP...\n");
 
   // ------------------------------------------
+  // STEP 0: Seed SaaS Plans
+  // ------------------------------------------
+  console.log("📦 Seeding SaaS Plans...");
+  await prisma.saaSPlan.upsert({
+    where: { code: "STANDARD" },
+    update: {},
+    create: {
+      name: "Standard",
+      code: "STANDARD",
+      description: "Standard SaaS package for all companies",
+      monthlyPrice: 0,
+      yearlyPrice: 0,
+      isActive: true,
+    },
+  });
+  console.log("   ✓ SaaS Plan 'Standard' seeded.\n");
+
+  // ------------------------------------------
   // STEP 1: Seed Permissions
   // ------------------------------------------
   console.log("📋 Seeding Permissions...");

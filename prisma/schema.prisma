@@ -76,11 +76,11 @@ enum CommissionStatus {
 // ==========================================
 
 model Role {
-  id          String           @id @default(uuid())
-  name        String           @unique // e.g. "Super Admin", "Accounts Officer"
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g. "Super Admin", "Accounts Officer"
   description String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relationships
   users       User[]
@@ -88,49 +88,50 @@ model Role {
 }
 
 model Permission {
-  id          String           @id @default(uuid())
-  name        String           @unique // e.g. "CREATE_APPLICANT", "RECORD_RECEIPT"
-  module      String           // e.g. "Applicant Management", "Accounts"
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id        String   @id @default(uuid())
+  name      String   @unique // e.g. "CREATE_APPLICANT", "RECORD_RECEIPT"
+  module    String // e.g. "Applicant Management", "Accounts"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relationships
-  roles       RolePermission[]
+  roles RolePermission[]
 }
 
 model RolePermission {
   roleId       String
   permissionId String
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime @default(now())
 
   // Relationships
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
   @@index([roleId])
 }
 
 model User {
-  id              String   @id @default(uuid())
-  email           String   @unique
-  passwordHash    String
-  fullName        String
-  phone           String?
-  roleId          String
-  isActive        Boolean  @default(true)
-  twoFactorSecret String?
-  mustChangePassword Boolean  @default(false)
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  passwordHash       String
+  fullName           String
+  phone              String?
+  roleId             String
+  isActive           Boolean   @default(true)
+  twoFactorSecret    String?
+  mustChangePassword Boolean   @default(false)
   passwordChangedAt  DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   // Relationships
-  role             Role          @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  agentProfile     Agent?        @relation("UserToAgent")
-  applicantProfile Applicant?    @relation("UserToApplicant")
-  notifications    Notification[]
-  auditLogs        AuditLog[]
+  role                        Role                 @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  agentProfile                Agent?               @relation("UserToAgent")
+  applicantProfile            Applicant?           @relation("UserToApplicant")
+  notifications               Notification[]
+  auditLogs                   AuditLog[]
+  reviewedCompanyApplications CompanyApplication[] @relation("ReviewedApplications")
 
   @@index([email])
   @@index([roleId])
@@ -157,13 +158,13 @@ model Agent {
 }
 
 model Applicant {
-  id             String        @id @default(uuid())
-  userId         String?       @unique // Optional until candidate claims access
-  agentId        String?       // Nullable if candidate is walk-in
-  jobOrderId     String?       // Linked once selected
-  passportNumber String        @unique
+  id             String   @id @default(uuid())
+  userId         String?  @unique // Optional until candidate claims access
+  agentId        String? // Nullable if candidate is walk-in
+  jobOrderId     String? // Linked once selected
+  passportNumber String   @unique
   passportExpiry DateTime
-  nationality    String        @default("Bangladesh")
+  nationality    String   @default("Bangladesh")
 
   // Bio-Data fields directly on Applicant model (independent of User account)
   fullName         String
@@ -178,21 +179,21 @@ model Applicant {
   isArchived Boolean   @default(false)
   archivedAt DateTime?
 
-  trade        String        // Job category e.g. Electrician, Welder
+  trade        String // Job category e.g. Electrician, Welder
   currentStage WorkflowStage @default(APPLIED)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   // Relationships
-  user            User?             @relation("UserToApplicant", fields: [userId], references: [id], onDelete: SetNull)
-  agent           Agent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  jobOrder        JobOrder?         @relation(fields: [jobOrderId], references: [id], onDelete: SetNull)
-  workflows       WorkflowHistory[]
-  documents       Document[]
-  invoices        Invoice[]
-  receipts        Receipt[]
-  ledgerEntries   LedgerEntry[]
-  commissions     Commission[]
+  user          User?             @relation("UserToApplicant", fields: [userId], references: [id], onDelete: SetNull)
+  agent         Agent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  jobOrder      JobOrder?         @relation(fields: [jobOrderId], references: [id], onDelete: SetNull)
+  workflows     WorkflowHistory[]
+  documents     Document[]
+  invoices      Invoice[]
+  receipts      Receipt[]
+  ledgerEntries LedgerEntry[]
+  commissions   Commission[]
 
   @@index([passportNumber])
   @@index([currentStage])
@@ -210,7 +211,7 @@ model JobOrder {
   totalQuota       Int
   allocatedQuota   Int      @default(0)
   commissionAmount Decimal  @db.Decimal(10, 2) // Default agent commission payout rate
-  status           String   @default("OPEN")   // OPEN, CLOSED, COMPLETED
+  status           String   @default("OPEN") // OPEN, CLOSED, COMPLETED
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -227,12 +228,12 @@ model WorkflowHistory {
   applicantId String
   oldStage    WorkflowStage
   newStage    WorkflowStage
-  changedById String        // ID of staff user executing transition
+  changedById String // ID of staff user executing transition
   changeNotes String?
   timestamp   DateTime      @default(now())
 
   // Relationships
-  applicant   Applicant     @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
 
   @@index([applicantId])
 }
@@ -241,7 +242,7 @@ model Document {
   id              String         @id @default(uuid())
   applicantId     String
   documentType    DocumentType
-  fileUrl         String         // Backward-compatible storage path field
+  fileUrl         String // Backward-compatible storage path field
   fileName        String
   status          DocumentStatus @default(PENDING_VERIFICATION)
   expiryDate      DateTime?
@@ -250,12 +251,12 @@ model Document {
   storagePath     String?        @unique
   mimeType        String?
   fileSize        Int?
-  verifiedById    String?        // Staff member who audited this file
+  verifiedById    String? // Staff member who audited this file
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
   // Relationships
-  applicant       Applicant      @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
 
   @@index([applicantId])
   @@index([documentType])
@@ -274,8 +275,8 @@ model Invoice {
   createdAt   DateTime @default(now())
 
   // Relationships
-  applicant   Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
-  receipts    Receipt[]
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  receipts  Receipt[]
 
   @@index([invoiceNo])
   @@index([applicantId])
@@ -284,17 +285,17 @@ model Invoice {
 model Receipt {
   id            String        @id @default(uuid())
   applicantId   String
-  invoiceId     String?       // Receipt can link directly to a specific Invoice
+  invoiceId     String? // Receipt can link directly to a specific Invoice
   receiptNo     String        @unique // e.g. REC-2026-0412
   amountPaid    Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod
-  referenceNo   String?       // Bank transfer hash or cheque number
-  receivedById  String        // ID of Accounts Officer recording this payment
+  referenceNo   String? // Bank transfer hash or cheque number
+  receivedById  String // ID of Accounts Officer recording this payment
   createdAt     DateTime      @default(now())
 
   // Relationships
-  applicant     Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
-  invoice       Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  invoice   Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@index([receiptNo])
   @@index([applicantId])
@@ -304,14 +305,14 @@ model LedgerEntry {
   id              String                @id @default(uuid())
   applicantId     String
   transactionType LedgerTransactionType
-  referenceId     String                // Holds either invoiceId or receiptId
-  debit           Decimal               @db.Decimal(10, 2) @default(0.00) // Money due (increases balance)
-  credit          Decimal               @db.Decimal(10, 2) @default(0.00) // Money paid (decreases balance)
+  referenceId     String // Holds either invoiceId or receiptId
+  debit           Decimal               @default(0.00) @db.Decimal(10, 2) // Money due (increases balance)
+  credit          Decimal               @default(0.00) @db.Decimal(10, 2) // Money paid (decreases balance)
   runningBalance  Decimal               @db.Decimal(10, 2)
   timestamp       DateTime              @default(now())
 
   // Relationships
-  applicant       Applicant             @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
 
   @@index([applicantId])
 }
@@ -323,14 +324,14 @@ model Commission {
   jobOrderId  String
   amount      Decimal          @db.Decimal(10, 2)
   status      CommissionStatus @default(ACCRUED)
-  payoutRef   String?          // Bank transfer reference when paid
+  payoutRef   String? // Bank transfer reference when paid
   payoutDate  DateTime?
   createdAt   DateTime         @default(now())
 
   // Relationships
-  agent       Agent     @relation(fields: [agentId], references: [id], onDelete: Restrict)
-  applicant   Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
-  jobOrder    JobOrder  @relation(fields: [jobOrderId], references: [id], onDelete: Restrict)
+  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  jobOrder  JobOrder  @relation(fields: [jobOrderId], references: [id], onDelete: Restrict)
 
   @@unique([agentId, applicantId]) // Commission occurs only once per placed candidate
   @@index([agentId])
@@ -346,7 +347,7 @@ model Notification {
   createdAt DateTime @default(now())
 
   // Relationships
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isRead])
@@ -354,19 +355,147 @@ model Notification {
 
 model AuditLog {
   id         String   @id @default(uuid())
-  userId     String?  // Nullable for non-authenticated actions (e.g. failed login attempts)
-  roleName   String?  // Captures active role name during event
-  actionType String   // e.g. "TRANSITION_STAGE", "RECORD_RECEIPT", "LOGIN_FAILED"
-  tableName  String   // Database table impacted
-  recordId   String?  // Primary key of row impacted
-  delta      Json?    // Detailed payload differences (JSON snapshot)
+  userId     String? // Nullable for non-authenticated actions (e.g. failed login attempts)
+  roleName   String? // Captures active role name during event
+  actionType String // e.g. "TRANSITION_STAGE", "RECORD_RECEIPT", "LOGIN_FAILED"
+  tableName  String // Database table impacted
+  recordId   String? // Primary key of row impacted
+  delta      Json? // Detailed payload differences (JSON snapshot)
   ipAddress  String?
   timestamp  DateTime @default(now())
 
   // Relationships
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([timestamp])
   @@index([userId])
   @@index([actionType])
+}
+
+// ==========================================
+// SAAS FOUNDATION ENUMS & MODELS
+// ==========================================
+
+enum CompanyApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CompanyStatus {
+  PENDING_SETUP
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+model SaaSPlan {
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  description   String?
+  monthlyPrice  Decimal  @default(0) @db.Decimal(10, 2)
+  yearlyPrice   Decimal  @default(0) @db.Decimal(10, 2)
+  maxUsers      Int?
+  maxApplicants Int?
+  maxAgents     Int?
+  maxStorageGB  Int?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  subscriptions CompanySubscription[]
+}
+
+model CompanyApplication {
+  id                String                   @id @default(cuid())
+  companyName       String
+  ownerFullName     String
+  ownerEmail        String
+  ownerPhone        String
+  businessType      String?
+  country           String                   @default("Bangladesh")
+  city              String?
+  address           String?
+  website           String?
+  notes             String?
+  status            CompanyApplicationStatus @default(PENDING)
+  reviewedById      String?
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  approvedCompanyId String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  // Relationships
+  reviewedBy      User?    @relation("ReviewedApplications", fields: [reviewedById], references: [id])
+  approvedCompany Company? @relation(fields: [approvedCompanyId], references: [id])
+
+  @@index([status])
+  @@index([ownerEmail])
+  @@index([companyName])
+}
+
+model Company {
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  businessType String?
+  country      String        @default("Bangladesh")
+  city         String?
+  address      String?
+  website      String?
+  ownerName    String?
+  ownerEmail   String
+  ownerPhone   String?
+  status       CompanyStatus @default(PENDING_SETUP)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relationships
+  applications CompanyApplication[]
+  subscription CompanySubscription?
+  settings     CompanySettings?
+
+  @@index([status])
+  @@index([ownerEmail])
+}
+
+model CompanySubscription {
+  id        String             @id @default(cuid())
+  companyId String             @unique
+  planId    String
+  status    SubscriptionStatus @default(ACTIVE)
+  startedAt DateTime           @default(now())
+  endsAt    DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  // Relationships
+  company Company  @relation(fields: [companyId], references: [id])
+  plan    SaaSPlan @relation(fields: [planId], references: [id])
+
+  @@index([planId])
+  @@index([status])
+}
+
+model CompanySettings {
+  id                   String   @id @default(cuid())
+  companyId            String   @unique
+  defaultLocale        String   @default("bn")
+  allowAgentPortal     Boolean  @default(true)
+  allowApplicantPortal Boolean  @default(true)
+  allowPublicJobs      Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relationships
+  company Company @relation(fields: [companyId], references: [id])
 }
