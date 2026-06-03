@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import {
   createLocalStorageDownloadResponse,
   DocumentServiceError,
@@ -10,10 +9,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
+    const decoded = await getCompanyContextOrThrow(request);
 
     const { searchParams } = new URL(request.url);
     const storagePath = searchParams.get("storagePath");
@@ -26,7 +22,10 @@ export async function GET(request: Request) {
     }
 
     return createLocalStorageDownloadResponse(decoded, storagePath);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof DocumentServiceError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }

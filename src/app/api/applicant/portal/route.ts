@@ -3,17 +3,12 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 
 export async function GET(request: Request) {
   try {
-    // 1. Authenticate the request using standard session handler
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    // 1. Authenticate the request and retrieve company context
+    const { activeCompanyId, userId, roleName } = await getCompanyContextOrThrow(request);
 
     // 2. Strict Role Verification: Scoped strictly to the logged-in Applicant
     if (roleName !== "Applicant") {
@@ -23,9 +18,9 @@ export async function GET(request: Request) {
       );
     }
 
-    // 3. Locate applicant record in PostgreSQL linked directly to user session
-    const applicant = await prisma.applicant.findUnique({
-      where: { userId },
+    // 3. Locate applicant record in PostgreSQL linked directly to user session and active company
+    const applicant = await prisma.applicant.findFirst({
+      where: { userId, companyId: activeCompanyId },
       include: {
         agent: {
           select: {
@@ -170,7 +165,10 @@ export async function GET(request: Request) {
       receipts,
       ledgerEntries,
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/applicant/portal Error:", error);
     return NextResponse.json(
       { error: "An unexpected database error occurred on the server." },

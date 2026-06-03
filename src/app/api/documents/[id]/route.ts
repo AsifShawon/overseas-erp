@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import {
   deleteDocumentForUser,
   DocumentServiceError,
@@ -23,10 +22,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
+    const decoded = await getCompanyContextOrThrow(request);
 
     const body = await request.json();
     const payload = UpdateDocumentSchema.parse(body);
@@ -64,7 +60,10 @@ export async function PATCH(
         downloadUrl: `/api/documents/${document.id}/download`,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.issues[0]?.message || "Validation failed." },
@@ -89,10 +88,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
+    const decoded = await getCompanyContextOrThrow(request);
 
     const result = await deleteDocumentForUser({
       user: decoded,
@@ -105,7 +101,10 @@ export async function DELETE(
       id: result.id,
       applicantId: result.applicantId,
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof DocumentServiceError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }

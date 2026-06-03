@@ -17,7 +17,15 @@ const REFRESH_EXPIRES_IN_SEC = Number(process.env.JWT_REFRESH_EXPIRES_IN || "604
 export interface AccessTokenPayload {
   userId: string;
   email: string;
+  fullName: string;
+  isPlatformAdmin: boolean;
+  activeCompanyId: string | null;
+  activeCompanyName: string | null;
+  membershipId: string | null;
+  roleId: string;
   roleName: string;
+  permissions: string[];
+  companyStatus: string | null;
 }
 
 export interface RefreshTokenPayload {
@@ -103,6 +111,67 @@ export async function authenticateRequest(request: Request): Promise<AccessToken
 }
 
 /**
+ * Returns current authenticated user from token/session.
+ */
+export async function getCurrentUser(request: Request): Promise<AccessTokenPayload | null> {
+  return await authenticateRequest(request);
+}
+
+/**
+ * Returns decoded session properties.
+ */
+export async function getCurrentMembership(request: Request) {
+  const payload = await authenticateRequest(request);
+  if (!payload) return null;
+  return {
+    userId: payload.userId,
+    activeCompanyId: payload.activeCompanyId,
+    membershipId: payload.membershipId,
+    roleId: payload.roleId,
+    roleName: payload.roleName,
+    permissions: payload.permissions,
+    companyStatus: payload.companyStatus,
+    isPlatformAdmin: payload.isPlatformAdmin,
+  };
+}
+
+/**
+ * Requires valid user session.
+ */
+export async function requireAuth(request: Request): Promise<AccessTokenPayload | null> {
+  const payload = await authenticateRequest(request);
+  if (!payload) return null;
+  return payload;
+}
+
+/**
+ * Requires valid logged-in user with active company membership in active company.
+ */
+export async function requireCompanyContext(request: Request) {
+  const payload = await authenticateRequest(request);
+  if (!payload) return null;
+
+  if (!payload.activeCompanyId) {
+    return null;
+  }
+
+  // Fetch from DB to support manual status changes (suspended company, suspended membership)
+  const membership = await prisma.userMembership.findUnique({
+    where: { id: payload.membershipId || "" },
+    include: { company: true },
+  });
+
+  if (!membership || membership.status !== "ACTIVE" || membership.company.status !== "ACTIVE") {
+    return null;
+  }
+
+  return {
+    ...payload,
+    companyStatus: membership.company.status,
+  };
+}
+
+/**
  * Require the user to be a platform administrator.
  * Returns the database user and decoded token payload, or throws an error/returns null.
  */
@@ -121,6 +190,92 @@ export async function requirePlatformAdmin(request: Request) {
   }
 
   return { user, decoded };
+}
+
+/**
+ * Helper to resolve dynamic company membership payload for a user.
+ */
+export async function resolveUserSessionPayload(userId: string): Promise<AccessTokenPayload | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      role: true,
+      agentProfile: true,
+      applicantProfile: true,
+    },
+  });
+
+  if (!user || !user.isActive) {
+    return null;
+  }
+
+  // Load ACTIVE UserMemberships in ACTIVE Companies
+  const memberships = await prisma.userMembership.findMany({
+    where: {
+      userId: user.id,
+      status: "ACTIVE",
+      company: {
+        status: "ACTIVE",
+      },
+    },
+    include: {
+      company: true,
+      role: {
+        include: {
+          permissions: {
+            include: {
+              permission: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Decide active company context
+  let activeMembership = null;
+  if (memberships.length > 0) {
+    // Select the first active membership (TODO: Company switcher support)
+    activeMembership = memberships[0];
+  }
+
+  // If normal user (not platform admin) and no active membership, return null
+  if (!user.isPlatformAdmin && !activeMembership) {
+    return null;
+  }
+
+  let roleId = user.roleId;
+  let roleName = user.role.name;
+  let permissions: string[] = [];
+
+  if (activeMembership) {
+    roleId = activeMembership.roleId;
+    roleName = activeMembership.role.name;
+    permissions = activeMembership.role.permissions.map((rp) => rp.permission.name);
+  } else {
+    // Platform admin fallback when no memberships
+    const rolePermissions = await prisma.rolePermission.findMany({
+      where: { roleId: user.roleId },
+      include: {
+        permission: true,
+      },
+    });
+    permissions = rolePermissions.map((rp) => rp.permission.name);
+  }
+
+  return {
+    userId: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    isPlatformAdmin: user.isPlatformAdmin,
+    activeCompanyId: activeMembership ? activeMembership.companyId : null,
+    activeCompanyName: activeMembership ? activeMembership.company.name : null,
+    membershipId: activeMembership ? activeMembership.id : null,
+    roleId: roleId,
+    roleName: roleName,
+    permissions: permissions,
+    companyStatus: activeMembership ? activeMembership.company.status : null,
+  };
 }
 
 

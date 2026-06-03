@@ -85,6 +85,7 @@ model Role {
   // Relationships
   users       User[]
   permissions RolePermission[]
+  memberships UserMembership[]
 }
 
 model Permission {
@@ -133,6 +134,7 @@ model User {
   notifications               Notification[]
   auditLogs                   AuditLog[]
   reviewedCompanyApplications CompanyApplication[] @relation("ReviewedApplications")
+  memberships                 UserMembership[]
 
   @@index([email])
   @@index([roleId])
@@ -147,15 +149,18 @@ model Agent {
   tier        String   @default("C") // A, B, or C tier affecting commission scale
   phone       String?
   isActive    Boolean  @default(true)
+  companyId   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relationships
   user        User         @relation("UserToAgent", fields: [userId], references: [id], onDelete: Cascade)
+  company     Company?     @relation(fields: [companyId], references: [id])
   applicants  Applicant[]
   commissions Commission[]
 
   @@index([agentCode])
+  @@index([companyId])
 }
 
 model Applicant {
@@ -182,6 +187,7 @@ model Applicant {
 
   trade        String // Job category e.g. Electrician, Welder
   currentStage WorkflowStage @default(APPLIED)
+  companyId    String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -189,6 +195,7 @@ model Applicant {
   user          User?             @relation("UserToApplicant", fields: [userId], references: [id], onDelete: SetNull)
   agent         Agent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
   jobOrder      JobOrder?         @relation(fields: [jobOrderId], references: [id], onDelete: SetNull)
+  company       Company?          @relation(fields: [companyId], references: [id])
   workflows     WorkflowHistory[]
   documents     Document[]
   invoices      Invoice[]
@@ -200,6 +207,9 @@ model Applicant {
   @@index([currentStage])
   @@index([agentId])
   @@index([isArchived])
+  @@index([companyId])
+  @@index([companyId, currentStage])
+  @@index([companyId, agentId])
 }
 
 model JobOrder {
@@ -213,15 +223,19 @@ model JobOrder {
   allocatedQuota   Int      @default(0)
   commissionAmount Decimal  @db.Decimal(10, 2) // Default agent commission payout rate
   status           String   @default("OPEN") // OPEN, CLOSED, COMPLETED
+  companyId        String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   // Relationships
+  company     Company?     @relation(fields: [companyId], references: [id])
   applicants  Applicant[]
   commissions Commission[]
 
   @@index([orderNumber])
   @@index([status])
+  @@index([companyId])
+  @@index([companyId, status])
 }
 
 model WorkflowHistory {
@@ -231,12 +245,15 @@ model WorkflowHistory {
   newStage    WorkflowStage
   changedById String // ID of staff user executing transition
   changeNotes String?
+  companyId   String?
   timestamp   DateTime      @default(now())
 
   // Relationships
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  company   Company?  @relation(fields: [companyId], references: [id])
 
   @@index([applicantId])
+  @@index([companyId])
 }
 
 model Document {
@@ -253,16 +270,19 @@ model Document {
   mimeType        String?
   fileSize        Int?
   verifiedById    String? // Staff member who audited this file
+  companyId       String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
   // Relationships
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  company   Company?  @relation(fields: [companyId], references: [id])
 
   @@index([applicantId])
   @@index([documentType])
   @@index([status])
   @@index([storageProvider])
+  @@index([companyId])
 }
 
 model Invoice {
@@ -273,14 +293,18 @@ model Invoice {
   outstanding Decimal  @db.Decimal(10, 2)
   dueDate     DateTime
   description String
+  companyId   String?
   createdAt   DateTime @default(now())
 
   // Relationships
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  company   Company?  @relation(fields: [companyId], references: [id])
   receipts  Receipt[]
 
   @@index([invoiceNo])
   @@index([applicantId])
+  @@index([companyId])
+  @@index([companyId, applicantId])
 }
 
 model Receipt {
@@ -292,14 +316,19 @@ model Receipt {
   paymentMethod PaymentMethod
   referenceNo   String? // Bank transfer hash or cheque number
   receivedById  String // ID of Accounts Officer recording this payment
+  companyId     String?
   createdAt     DateTime      @default(now())
 
   // Relationships
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
   invoice   Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  company   Company?  @relation(fields: [companyId], references: [id])
 
   @@index([receiptNo])
   @@index([applicantId])
+  @@index([companyId])
+  @@index([companyId, applicantId])
+  @@index([companyId, invoiceId])
 }
 
 model LedgerEntry {
@@ -310,12 +339,15 @@ model LedgerEntry {
   debit           Decimal               @default(0.00) @db.Decimal(10, 2) // Money due (increases balance)
   credit          Decimal               @default(0.00) @db.Decimal(10, 2) // Money paid (decreases balance)
   runningBalance  Decimal               @db.Decimal(10, 2)
+  companyId       String?
   timestamp       DateTime              @default(now())
 
   // Relationships
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  company   Company?  @relation(fields: [companyId], references: [id])
 
   @@index([applicantId])
+  @@index([companyId])
 }
 
 model Commission {
@@ -327,16 +359,22 @@ model Commission {
   status      CommissionStatus @default(ACCRUED)
   payoutRef   String? // Bank transfer reference when paid
   payoutDate  DateTime?
+  companyId   String?
   createdAt   DateTime         @default(now())
 
   // Relationships
   agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Restrict)
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
   jobOrder  JobOrder  @relation(fields: [jobOrderId], references: [id], onDelete: Restrict)
+  company   Company?  @relation(fields: [companyId], references: [id])
 
   @@unique([agentId, applicantId]) // Commission occurs only once per placed candidate
   @@index([agentId])
   @@index([status])
+  @@index([companyId])
+  @@index([companyId, agentId])
+  @@index([companyId, applicantId])
+  @@index([companyId, status])
 }
 
 model Notification {
@@ -345,13 +383,17 @@ model Notification {
   title     String
   message   String
   isRead    Boolean  @default(false)
+  companyId String?
   createdAt DateTime @default(now())
 
   // Relationships
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id])
 
   @@index([userId])
   @@index([isRead])
+  @@index([companyId])
+  @@index([companyId, userId])
 }
 
 model AuditLog {
@@ -363,14 +405,18 @@ model AuditLog {
   recordId   String? // Primary key of row impacted
   delta      Json? // Detailed payload differences (JSON snapshot)
   ipAddress  String?
+  companyId  String?
   timestamp  DateTime @default(now())
 
   // Relationships
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  company Company? @relation(fields: [companyId], references: [id])
 
   @@index([timestamp])
   @@index([userId])
   @@index([actionType])
+  @@index([companyId])
+  @@index([companyId, timestamp])
 }
 
 // ==========================================
@@ -461,9 +507,21 @@ model Company {
   updatedAt    DateTime      @updatedAt
 
   // Relationships
-  applications CompanyApplication[]
-  subscription CompanySubscription?
-  settings     CompanySettings?
+  applications      CompanyApplication[]
+  subscription      CompanySubscription?
+  settings          CompanySettings?
+  agents            Agent[]
+  applicants        Applicant[]
+  jobOrders         JobOrder[]
+  workflowHistories WorkflowHistory[]
+  documents         Document[]
+  invoices          Invoice[]
+  receipts          Receipt[]
+  ledgerEntries     LedgerEntry[]
+  commissions       Commission[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  memberships       UserMembership[]
 
   @@index([status])
   @@index([ownerEmail])
@@ -499,4 +557,36 @@ model CompanySettings {
 
   // Relationships
   company Company @relation(fields: [companyId], references: [id])
+}
+
+// ==========================================
+// SAAS MEMBERSHIP MODELS
+// ==========================================
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+  INVITED
+}
+
+model UserMembership {
+  id        String           @id @default(cuid())
+  userId    String
+  companyId String
+  roleId    String
+  status    MembershipStatus @default(ACTIVE)
+  isOwner   Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // Relationships
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role    Role    @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([companyId, status])
 }

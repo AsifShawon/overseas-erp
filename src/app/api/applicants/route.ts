@@ -1,11 +1,6 @@
-// src/app/api/applicants/route.ts
-// GET /api/applicants - List applicants with pagination & security boundaries
-// POST /api/applicants - Register a new candidate with Zod validation & audit logs
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { z } from "zod";
 
 // Zod validation schema for creating a new candidate
@@ -38,12 +33,7 @@ const CreateApplicantSchema = z.object({
  */
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Applicants are forbidden from accessing the entire directory list
     if (roleName === "Applicant") {
@@ -53,11 +43,11 @@ export async function GET(request: Request) {
       );
     }
 
-    // Boundary Check: Agents are strictly scoped to their own applicants
+    // Boundary Check: Agents are strictly scoped to their own applicants within active company
     let enforcedAgentId: string | undefined = undefined;
     if (roleName === "Agent") {
-      const agent = await prisma.agent.findUnique({
-        where: { userId },
+      const agent = await prisma.agent.findFirst({
+        where: { userId, companyId: activeCompanyId },
       });
       if (!agent) {
         // Return empty dataset gracefully if Agent profile doesn't exist
@@ -69,7 +59,6 @@ export async function GET(request: Request) {
       enforcedAgentId = agent.id;
     } else {
       // Staff roles check: Must hold VIEW_APPLICANTS permission if not Super/Ops Admin
-      const permissions = await getUserPermissions(userId);
       const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
       if (!isSuperOrOps && !permissions.includes("VIEW_APPLICANTS")) {
         return NextResponse.json(
@@ -96,6 +85,7 @@ export async function GET(request: Request) {
     // Build the query where clause
     const where: any = {
       isArchived: archived,
+      companyId: activeCompanyId, // FORCE TENANT ISOLATION
     };
 
     // Cohort boundary enforcement
@@ -172,7 +162,10 @@ export async function GET(request: Request) {
         totalPages,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/applicants Error:", error);
     return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });
   }
@@ -185,15 +178,9 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Check RBAC permission for creation
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     if (!isSuperOrOps && !permissions.includes("CREATE_APPLICANT")) {
       return NextResponse.json(
@@ -205,11 +192,11 @@ export async function POST(request: Request) {
     // Resolve Agent if user is an Agent
     let enforcedAgentId: string | null = null;
     if (roleName === "Agent") {
-      const agent = await prisma.agent.findUnique({
-        where: { userId },
+      const agent = await prisma.agent.findFirst({
+        where: { userId, companyId: activeCompanyId },
       });
       if (!agent) {
-        return NextResponse.json({ error: "Agent profile not found for user." }, { status: 400 });
+        return NextResponse.json({ error: "Agent profile not found for user in this company." }, { status: 400 });
       }
       enforcedAgentId = agent.id;
     }
@@ -222,7 +209,7 @@ export async function POST(request: Request) {
       validatedData.agentId = enforcedAgentId;
     }
 
-    // Check passport uniqueness
+    // Check passport uniqueness (schema constraint is globally unique, so query globally)
     const existingApplicant = await prisma.applicant.findUnique({
       where: { passportNumber: validatedData.passportNumber.trim() },
     });
@@ -234,11 +221,31 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify jobOrderId belongs to activeCompanyId
+    if (validatedData.jobOrderId) {
+      const jobOrder = await prisma.jobOrder.findFirst({
+        where: { id: validatedData.jobOrderId, companyId: activeCompanyId },
+      });
+      if (!jobOrder) {
+        return NextResponse.json({ error: "The specified Job Order does not exist in this company." }, { status: 400 });
+      }
+    }
+
+    // Verify agentId belongs to activeCompanyId
+    if (validatedData.agentId) {
+      const agent = await prisma.agent.findFirst({
+        where: { id: validatedData.agentId, companyId: activeCompanyId },
+      });
+      if (!agent) {
+        return NextResponse.json({ error: "The specified Agent does not exist in this company." }, { status: 400 });
+      }
+    }
+
     // Create candidate inside transaction to handle atomic quota validation & increment
     const applicant = await prisma.$transaction(async (tx) => {
       if (validatedData.jobOrderId) {
-        const jobOrder = await tx.jobOrder.findUnique({
-          where: { id: validatedData.jobOrderId },
+        const jobOrder = await tx.jobOrder.findFirst({
+          where: { id: validatedData.jobOrderId, companyId: activeCompanyId },
         });
 
         if (!jobOrder) {
@@ -268,6 +275,7 @@ export async function POST(request: Request) {
         data: {
           ...validatedData,
           passportNumber: validatedData.passportNumber.trim(),
+          companyId: activeCompanyId, // ASSIGN TENANT
         },
       });
     });
@@ -276,9 +284,14 @@ export async function POST(request: Request) {
     try {
       const staffUsers = await prisma.user.findMany({
         where: {
-          role: {
-            name: {
-              in: ["Super Admin", "Operations Admin", "HR Officer"],
+          memberships: {
+            some: {
+              companyId: activeCompanyId,
+              role: {
+                name: {
+                  in: ["Super Admin", "Operations Admin", "HR Officer"],
+                },
+              },
             },
           },
         },
@@ -294,6 +307,7 @@ export async function POST(request: Request) {
             title: "New Candidate Registered",
             message: `${applicant.fullName} (${applicant.trade}) has been registered by ${roleName}.`,
             isRead: false,
+            companyId: activeCompanyId,
           })),
         });
       }
@@ -310,12 +324,16 @@ export async function POST(request: Request) {
         tableName: "Applicant",
         recordId: applicant.id,
         delta: applicant as any,
+        companyId: activeCompanyId,
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       },
     });
 
     return NextResponse.json(applicant, { status: 201 });
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
     }

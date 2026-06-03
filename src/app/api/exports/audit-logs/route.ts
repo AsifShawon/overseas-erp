@@ -1,24 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Enforce RBAC
     const isSuperAdmin = roleName === "Super Admin";
     let isAuthorized = isSuperAdmin;
 
     if (!isAuthorized) {
-      const permissions = await getUserPermissions(userId);
       isAuthorized = permissions.includes("VIEW_AUDIT_LOGS");
     }
 
@@ -37,7 +30,9 @@ export async function GET(request: Request) {
     const operatorRole = searchParams.get("roleName") || undefined;
 
     // Construct DB filtering
-    const where: any = {};
+    const where: any = {
+      companyId: activeCompanyId,
+    };
 
     if (actionType) {
       where.actionType = actionType;
@@ -112,7 +107,13 @@ export async function GET(request: Request) {
 
     const csvText = buildCsv(headers, rows);
     return csvResponse(`audit_logs_export_${Date.now()}.csv`, csvText);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { error: "Unauthorized access or inactive company workspace." },
+        { status: 401 }
+      );
+    }
     console.error("GET /api/exports/audit-logs Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred during audit log CSV generation." },

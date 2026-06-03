@@ -1,11 +1,6 @@
-// src/app/api/applicants/[id]/route.ts
-// GET /api/applicants/[id] - Fetch individual candidate
-// PATCH /api/applicants/[id] - Update candidate records with change-log tracking
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import {
   applicantDetailInclude,
   serializeApplicantDetail,
@@ -49,16 +44,11 @@ const UpdateApplicantSchema = z.object({
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
-    const { userId, roleName } = decoded;
-
-    // Fetch the applicant from database
-    const applicant = await prisma.applicant.findUnique({
-      where: { id },
+    // Fetch the applicant from database within active company
+    const applicant = await prisma.applicant.findFirst({
+      where: { id, companyId: activeCompanyId },
       include: applicantDetailInclude,
     });
 
@@ -84,8 +74,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     // Boundary check for Agent users
     if (roleName === "Agent") {
-      const agent = await prisma.agent.findUnique({
-        where: { userId },
+      const agent = await prisma.agent.findFirst({
+        where: { userId, companyId: activeCompanyId },
       });
       if (!agent || applicant.agentId !== agent.id) {
         return NextResponse.json(
@@ -97,7 +87,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     // Staff check: Must hold VIEW_APPLICANTS permission if not Super/Ops Admin
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     if (!isSuperOrOps && !permissions.includes("VIEW_APPLICANTS")) {
       return NextResponse.json(
@@ -107,7 +96,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     return NextResponse.json(serializeApplicantDetail(applicant));
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/applicants/[id] Error:", error);
     return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });
   }
@@ -120,12 +112,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Applicants are forbidden from mutating records
     if (roleName === "Applicant") {
@@ -136,7 +123,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     // Check RBAC permission for updates
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     if (!isSuperOrOps && !permissions.includes("UPDATE_APPLICANT")) {
       return NextResponse.json(
@@ -145,9 +131,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
-    // Fetch previous applicant state
-    const previousApplicant = await prisma.applicant.findUnique({
-      where: { id },
+    // Fetch previous applicant state inside active company
+    const previousApplicant = await prisma.applicant.findFirst({
+      where: { id, companyId: activeCompanyId },
     });
 
     if (!previousApplicant) {
@@ -157,8 +143,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // Boundary Check: Agents are strictly scoped to their own applicants
     let enforcedAgentId: string | undefined = undefined;
     if (roleName === "Agent") {
-      const agent = await prisma.agent.findUnique({
-        where: { userId },
+      const agent = await prisma.agent.findFirst({
+        where: { userId, companyId: activeCompanyId },
       });
       if (!agent || previousApplicant.agentId !== agent.id) {
         return NextResponse.json(
@@ -193,6 +179,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
+    // Verify jobOrderId belongs to activeCompanyId
+    if (validatedData.jobOrderId) {
+      const jobOrder = await prisma.jobOrder.findFirst({
+        where: { id: validatedData.jobOrderId, companyId: activeCompanyId },
+      });
+      if (!jobOrder) {
+        return NextResponse.json({ error: "The specified Job Order does not exist in this company." }, { status: 400 });
+      }
+    }
+
+    // Verify agentId belongs to activeCompanyId
+    if (validatedData.agentId) {
+      const agent = await prisma.agent.findFirst({
+        where: { id: validatedData.agentId, companyId: activeCompanyId },
+      });
+      if (!agent) {
+        return NextResponse.json({ error: "The specified Agent does not exist in this company." }, { status: 400 });
+      }
+    }
+
     // Handle soft-archived logs logic
     if (validatedData.isArchived !== undefined && validatedData.isArchived !== previousApplicant.isArchived) {
       if (validatedData.isArchived) {
@@ -209,8 +215,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (isJobOrderChanging) {
         // 1. If previous jobOrderId was defined, decrement its quota
         if (previousApplicant.jobOrderId) {
-          const oldJob = await tx.jobOrder.findUnique({
-            where: { id: previousApplicant.jobOrderId },
+          const oldJob = await tx.jobOrder.findFirst({
+            where: { id: previousApplicant.jobOrderId, companyId: activeCompanyId },
           });
           if (oldJob) {
             const nextQuota = Math.max(0, oldJob.allocatedQuota - 1);
@@ -225,8 +231,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
         // 2. If new jobOrderId is defined, validate and increment its quota
         if (validatedData.jobOrderId) {
-          const newJob = await tx.jobOrder.findUnique({
-            where: { id: validatedData.jobOrderId },
+          const newJob = await tx.jobOrder.findFirst({
+            where: { id: validatedData.jobOrderId, companyId: activeCompanyId },
           });
 
           if (!newJob) {
@@ -275,17 +281,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           before: previousApplicant,
           after: updatedApplicant,
         } as any,
+        companyId: activeCompanyId,
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       },
     });
 
-    const fullUpdatedApplicant = await prisma.applicant.findUnique({
-      where: { id },
+    const fullUpdatedApplicant = await prisma.applicant.findFirst({
+      where: { id, companyId: activeCompanyId },
       include: applicantDetailInclude,
     });
 
     return NextResponse.json(serializeApplicantDetail(fullUpdatedApplicant));
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
     }

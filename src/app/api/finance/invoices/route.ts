@@ -3,17 +3,11 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Explicitly block Agent and Applicant user roles
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -24,13 +18,12 @@ export async function GET(request: Request) {
     }
 
     // RBAC: Check permissions
-    const permissions = await getUserPermissions(userId);
     const isAuthorized =
       roleName === "Super Admin" ||
       roleName === "Operations Admin" ||
       roleName === "Accounts Officer" ||
-      permissions.includes("VIEW_ACCOUNTS" as any) ||
-      permissions.includes("MANAGE_ACCOUNTS" as any);
+      permissions.includes("VIEW_ACCOUNTS") ||
+      permissions.includes("MANAGE_ACCOUNTS");
 
     if (!isAuthorized) {
       return NextResponse.json(
@@ -49,11 +42,14 @@ export async function GET(request: Request) {
     const take = pageSize;
 
     // Build filters dynamically
-    const whereClause: any = {};
+    const whereClause: any = {
+      companyId: activeCompanyId, // FORCE TENANT ISOLATION
+    };
 
     if (search) {
       const matchingApplicants = await prisma.applicant.findMany({
         where: {
+          companyId: activeCompanyId,
           OR: [
             { fullName: { contains: search, mode: "insensitive" } },
             { passportNumber: { contains: search, mode: "insensitive" } },
@@ -126,6 +122,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/finance/invoices Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred while retrieving billing records." },

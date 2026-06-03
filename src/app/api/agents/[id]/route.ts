@@ -3,8 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { z } from "zod";
 
 // Zod validation schema for updating an agent
@@ -23,15 +22,9 @@ const UpdateAgentSchema = z.object({
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // RBAC validation
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     const hasManageAgents = permissions.includes("MANAGE_AGENTS");
 
@@ -42,9 +35,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
-    // Retrieve existing Agent with User mapping
-    const agent = await prisma.agent.findUnique({
-      where: { id },
+    // Retrieve existing Agent within active company with User mapping
+    const agent = await prisma.agent.findFirst({
+      where: { id, companyId: activeCompanyId },
       include: {
         user: true,
       },
@@ -106,6 +99,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           },
           updated: validatedData,
         } as any,
+        companyId: activeCompanyId,
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       },
     });
@@ -127,7 +121,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       },
     });
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
     }

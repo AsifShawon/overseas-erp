@@ -3,25 +3,18 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 
 export async function GET(request: Request) {
   try {
-    // 1. Authenticate Request
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    // 1. Authenticate Request and resolve company context
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // 2. Enforce RBAC
     const isSuperAdmin = roleName === "Super Admin";
     let isAuthorized = isSuperAdmin;
 
     if (!isAuthorized) {
-      const permissions = await getUserPermissions(userId);
       isAuthorized = permissions.includes("VIEW_AUDIT_LOGS");
     }
 
@@ -42,7 +35,9 @@ export async function GET(request: Request) {
     const pageSize = Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10));
 
     // 4. Construct DB filtering
-    const where: any = {};
+    const where: any = {
+      companyId: activeCompanyId, // FORCE TENANT ISOLATION
+    };
 
     if (actionType) {
       where.actionType = actionType;
@@ -92,7 +87,7 @@ export async function GET(request: Request) {
           },
         },
       }),
-      prisma.auditLog.count(),
+      prisma.auditLog.count({ where: { companyId: activeCompanyId } }),
     ]);
 
     // 6. Return response matching requested shape
@@ -110,7 +105,10 @@ export async function GET(request: Request) {
         auditChainStatus: "SHA-256 Locked",
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/audit-logs Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },

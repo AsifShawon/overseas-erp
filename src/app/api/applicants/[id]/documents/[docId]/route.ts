@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import {
   deleteDocumentForUser,
   DocumentServiceError,
@@ -23,10 +22,7 @@ export async function PATCH(
 ) {
   try {
     const { id, docId } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
+    const decoded = await getCompanyContextOrThrow(request);
 
     const body = await request.json();
     const payload = VerifySchema.parse(body);
@@ -40,9 +36,12 @@ export async function PATCH(
       expiryDate: payload.expiryDate,
     });
 
-    const applicant = await fetchApplicantDetail(id);
+    const applicant = await fetchApplicantDetail(id, decoded);
     return NextResponse.json(applicant);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.issues[0]?.message || "Validation failed." },
@@ -67,10 +66,7 @@ export async function DELETE(
 ) {
   try {
     const { id, docId } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
+    const decoded = await getCompanyContextOrThrow(request);
 
     await deleteDocumentForUser({
       user: decoded,
@@ -78,9 +74,12 @@ export async function DELETE(
       documentId: docId,
     });
 
-    const applicant = await fetchApplicantDetail(id);
+    const applicant = await fetchApplicantDetail(id, decoded);
     return NextResponse.json(applicant);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof DocumentServiceError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }

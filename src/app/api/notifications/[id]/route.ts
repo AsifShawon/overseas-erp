@@ -3,7 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 
 export async function PATCH(
   request: Request,
@@ -11,30 +11,15 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    const { activeCompanyId, userId } = await getCompanyContextOrThrow(request);
 
-    // 1. Authenticate Request
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId } = decoded;
-
-    // 2. Fetch the notification to check existence
-    const notification = await prisma.notification.findUnique({
-      where: { id },
+    // 2. Fetch the notification to check existence and active company ownership
+    const notification = await prisma.notification.findFirst({
+      where: { id, userId, companyId: activeCompanyId },
     });
 
     if (!notification) {
       return NextResponse.json({ error: "Notification not found." }, { status: 404 });
-    }
-
-    // 3. Enforce boundary scoping (ownership check)
-    if (notification.userId !== userId) {
-      return NextResponse.json(
-        { error: "Forbidden. You can only modify your own notifications." },
-        { status: 403 }
-      );
     }
 
     // 4. Update and mark as read
@@ -44,7 +29,10 @@ export async function PATCH(
     });
 
     return NextResponse.json(updatedNotification);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("PATCH /api/notifications/[id] Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },

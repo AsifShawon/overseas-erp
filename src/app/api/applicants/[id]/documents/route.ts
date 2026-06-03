@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import {
   DocumentServiceError,
   fetchApplicantDetail,
@@ -15,10 +14,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
+    const decoded = await getCompanyContextOrThrow(request);
 
     const formData = await request.formData();
     const documentType = formData.get("documentType") as string | null;
@@ -43,9 +39,12 @@ export async function POST(
       remarks,
     });
 
-    const applicant = await fetchApplicantDetail(id);
+    const applicant = await fetchApplicantDetail(id, decoded);
     return NextResponse.json(applicant);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof DocumentServiceError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }

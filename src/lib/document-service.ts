@@ -55,7 +55,7 @@ type DocumentWithApplicant = Prisma.DocumentGetPayload<{
   };
 }>;
 
-type DocumentUser = AccessTokenPayload;
+type DocumentUser = AccessTokenPayload & { activeCompanyId: string };
 
 type UploadDocumentInput = {
   file: File;
@@ -345,7 +345,8 @@ function parseExpiryDate(expiryDate?: string | null): Date | null {
 }
 
 async function loadDocumentWithApplicant(
-  documentId: string
+  documentId: string,
+  user: DocumentUser
 ): Promise<DocumentWithApplicant> {
   const document = await prisma.document.findUnique({
     where: { id: documentId },
@@ -355,6 +356,10 @@ async function loadDocumentWithApplicant(
   });
 
   if (!document) {
+    throw new DocumentServiceError(404, "Document record not found.");
+  }
+
+  if (!user.isPlatformAdmin && document.companyId !== user.activeCompanyId) {
     throw new DocumentServiceError(404, "Document record not found.");
   }
 
@@ -383,11 +388,15 @@ function getDocumentProvider(document: {
   };
 }
 
-export async function fetchApplicantDetail(applicantId: string) {
-  const applicant = await prisma.applicant.findUnique({
-    where: { id: applicantId },
+export async function fetchApplicantDetail(applicantId: string, user: DocumentUser) {
+  const applicant = await prisma.applicant.findFirst({
+    where: { id: applicantId, companyId: user.activeCompanyId },
     include: applicantDetailInclude,
   });
+
+  if (!applicant) {
+    throw new DocumentServiceError(404, "Applicant record not found.");
+  }
 
   return serializeApplicantDetail(applicant);
 }
@@ -399,6 +408,7 @@ export async function listDocumentsForUser(
   const scopedWhere = await assertListAccess(user, filters);
   const where: Prisma.DocumentWhereInput = {
     ...scopedWhere,
+    companyId: user.activeCompanyId, // FORCE TENANT ISOLATION
     ...(filters.applicantId ? { applicantId: filters.applicantId } : {}),
     ...(filters.status ? { status: filters.status as DocumentStatus } : {}),
     ...(filters.documentType
@@ -469,8 +479,8 @@ export async function uploadDocumentForUser(input: UploadDocumentInput) {
   const documentType = input.documentType as DocumentType;
   const expiryDate = parseExpiryDate(input.expiryDate);
 
-  const applicant = await prisma.applicant.findUnique({
-    where: { id: applicantId },
+  const applicant = await prisma.applicant.findFirst({
+    where: { id: applicantId, companyId: input.user.activeCompanyId },
     select: {
       id: true,
       fullName: true,
@@ -514,6 +524,7 @@ export async function uploadDocumentForUser(input: UploadDocumentInput) {
           storagePath: uploadedDocumentFile.storagePath,
           mimeType: uploadedDocumentFile.mimeType ?? input.file.type ?? null,
           fileSize: uploadedDocumentFile.fileSize ?? input.file.size,
+          companyId: input.user.activeCompanyId, // SET TENANT ID
         },
       });
 
@@ -537,15 +548,21 @@ export async function uploadDocumentForUser(input: UploadDocumentInput) {
             expiryDate: expiryDate?.toISOString() ?? null,
             remarks: input.remarks ?? null,
           } as Prisma.InputJsonValue,
+          companyId: input.user.activeCompanyId,
           ipAddress: getRequestIpAddress(input.request),
         },
       });
 
       const staffUsers = await tx.user.findMany({
         where: {
-          role: {
-            name: {
-              in: ["Super Admin", "Operations Admin", "Documentation Officer"],
+          memberships: {
+            some: {
+              companyId: input.user.activeCompanyId,
+              role: {
+                name: {
+                  in: ["Super Admin", "Operations Admin", "Documentation Officer"],
+                },
+              },
             },
           },
           isActive: true,
@@ -559,6 +576,7 @@ export async function uploadDocumentForUser(input: UploadDocumentInput) {
             userId: staffUser.id,
             title: "New Document Sourced",
             message: `A new ${documentType.replace(/_/g, " ")} document has been uploaded for applicant ${applicant.fullName} and requires verification.`,
+            companyId: input.user.activeCompanyId,
           })),
         });
       }
@@ -585,7 +603,7 @@ export async function uploadDocumentForUser(input: UploadDocumentInput) {
 export async function updateDocumentForUser(input: UpdateDocumentInput) {
   await assertVerifyAccess(input.user);
 
-  const document = await loadDocumentWithApplicant(input.documentId);
+  const document = await loadDocumentWithApplicant(input.documentId, input.user);
   const expiryDate = parseExpiryDate(input.expiryDate);
 
   const updatedDocument = await prisma.$transaction(async (tx) => {
@@ -619,6 +637,7 @@ export async function updateDocumentForUser(input: UpdateDocumentInput) {
           notes: input.notes ?? null,
           verifiedAt: new Date().toISOString(),
         } as Prisma.InputJsonValue,
+        companyId: input.user.activeCompanyId,
         ipAddress: getRequestIpAddress(input.request),
       },
     });
@@ -629,6 +648,7 @@ export async function updateDocumentForUser(input: UpdateDocumentInput) {
           userId: document.applicant.userId,
           title: `Compliance File: ${input.status === "VERIFIED" ? "Approved" : "Rejected"}`,
           message: `Your document (${document.documentType.replace(/_/g, " ")}) has been reviewed and ${input.status.toLowerCase()}.${input.notes ? ` Notes: ${input.notes}` : ""}`,
+          companyId: input.user.activeCompanyId,
         },
       });
     }
@@ -645,6 +665,7 @@ export async function updateDocumentForUser(input: UpdateDocumentInput) {
             userId: agent.userId,
             title: "Compliance Review Alert",
             message: `Applicant ${document.applicant.fullName}'s ${document.documentType.replace(/_/g, " ")} document was ${input.status.toLowerCase()}.${input.notes ? ` Notes: ${input.notes}` : ""}`,
+            companyId: input.user.activeCompanyId,
           },
         });
       }
@@ -659,7 +680,7 @@ export async function updateDocumentForUser(input: UpdateDocumentInput) {
 export async function deleteDocumentForUser(input: DeleteDocumentInput) {
   await assertDeleteAccess(input.user);
 
-  const document = await loadDocumentWithApplicant(input.documentId);
+  const document = await loadDocumentWithApplicant(input.documentId, input.user);
   const { provider, storagePath, bucket } = getDocumentProvider(document);
 
   await provider.deleteApplicantDocumentFile(storagePath, { bucket });
@@ -683,6 +704,7 @@ export async function deleteDocumentForUser(input: DeleteDocumentInput) {
           storagePath: document.storagePath ?? document.fileUrl,
           bucket: document.bucket,
         } as Prisma.InputJsonValue,
+        companyId: input.user.activeCompanyId,
         ipAddress: getRequestIpAddress(input.request),
       },
     });
@@ -698,7 +720,7 @@ export async function createDocumentDownloadResponse(
   user: DocumentUser,
   documentId: string
 ) {
-  const document = await loadDocumentWithApplicant(documentId);
+  const document = await loadDocumentWithApplicant(documentId, user);
   await assertDownloadAccess(user, document.applicant);
 
   const { provider, storagePath, bucket, storageProviderName } =
@@ -735,7 +757,7 @@ export async function createLocalStorageDownloadResponse(
     },
   });
 
-  if (!document) {
+  if (!document || (!user.isPlatformAdmin && document.companyId !== user.activeCompanyId)) {
     throw new DocumentServiceError(404, "Document record not found.");
   }
 

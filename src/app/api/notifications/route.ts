@@ -1,20 +1,11 @@
-// src/app/api/notifications/route.ts
-// GET /api/notifications - Fetch paginated inbox notifications for the authenticated user
-// POST /api/notifications - Simulate a real notification row in non-production environments
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 
 export async function GET(request: Request) {
   try {
-    // 1. Authenticate Request
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId } = decoded;
+    // 1. Authenticate Request and resolve company context
+    const { activeCompanyId, userId } = await getCompanyContextOrThrow(request);
 
     // 2. Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -23,7 +14,10 @@ export async function GET(request: Request) {
     const pageSize = Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10));
 
     // 3. Build query filters
-    const where: any = { userId };
+    const where: any = {
+      userId,
+      companyId: activeCompanyId, // FORCE TENANT ISOLATION
+    };
     if (unreadOnly) {
       where.isRead = false;
     }
@@ -40,7 +34,7 @@ export async function GET(request: Request) {
         take: pageSize,
       }),
       prisma.notification.count({
-        where: { userId, isRead: false },
+        where: { userId, companyId: activeCompanyId, isRead: false },
       }),
     ]);
 
@@ -59,7 +53,10 @@ export async function GET(request: Request) {
         channelStatus: "Healthy",
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/notifications Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },
@@ -70,13 +67,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    // 1. Authenticate Request
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId } = decoded;
+    // 1. Authenticate Request and resolve company context
+    const { activeCompanyId, userId } = await getCompanyContextOrThrow(request);
 
     // 2. Dev-only simulation guard
     if (process.env.NODE_ENV === "production") {
@@ -93,11 +85,15 @@ export async function POST(request: Request) {
         title: "Consulate Clearance Completed",
         message: `System audited candidate passport dossier. Emigration certificate issued successfully at ${new Date().toLocaleTimeString()}.`,
         isRead: false,
+        companyId: activeCompanyId, // SET TENANT ID
       },
     });
 
     return NextResponse.json(newNot);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("POST /api/notifications Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },

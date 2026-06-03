@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth";
 import * as argon2 from "argon2";
 
-async function generateUniqueSlug(name: string): Promise<string> {
+async function generateUniqueSlug(tx: any, name: string): Promise<string> {
   let slug = name
     .toLowerCase()
     .trim()
@@ -23,7 +23,7 @@ async function generateUniqueSlug(name: string): Promise<string> {
   let counter = 1;
 
   while (true) {
-    const existing = await prisma.company.findUnique({
+    const existing = await tx.company.findUnique({
       where: { slug: uniqueSlug },
     });
     if (!existing) {
@@ -85,11 +85,11 @@ export async function POST(
       );
     }
 
-    // Generate unique slug
-    const slug = await generateUniqueSlug(application.companyName);
-
     // Create Company, Subscription, Settings, and User in a transaction
     const company = await prisma.$transaction(async (tx) => {
+      // Generate unique slug inside the transaction using transaction client
+      const slug = await generateUniqueSlug(tx, application.companyName);
+
       // 1. Create the Company
       const newCompany = await tx.company.create({
         data: {
@@ -149,7 +149,41 @@ export async function POST(
             isActive: true,
           },
         });
+      } else {
+        // Temporarily assign existing company-level Super Admin/Admin role if current User.roleId requires it
+        const currentRole = await tx.role.findUnique({
+          where: { id: ownerUser.roleId },
+        });
+        const isCompanyAdmin = currentRole?.name === "Super Admin" || currentRole?.name === "Operations Admin";
+        if (!isCompanyAdmin) {
+          ownerUser = await tx.user.update({
+            where: { id: ownerUser.id },
+            data: { roleId: superAdminRole.id },
+          });
+        }
       }
+
+      // 4b. Create default UserMembership for the company owner
+      await tx.userMembership.upsert({
+        where: {
+          userId_companyId: {
+            userId: ownerUser.id,
+            companyId: newCompany.id,
+          },
+        },
+        update: {
+          roleId: superAdminRole.id,
+          status: "ACTIVE",
+          isOwner: true,
+        },
+        create: {
+          userId: ownerUser.id,
+          companyId: newCompany.id,
+          roleId: superAdminRole.id,
+          status: "ACTIVE",
+          isOwner: true,
+        },
+      });
 
       // 5. Update the Company Application
       await tx.companyApplication.update({

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import * as argon2 from "argon2";
 import { z } from "zod";
 import crypto from "crypto";
@@ -20,16 +19,11 @@ const ProvisionPortalAccessSchema = z.object({
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
-    const { userId, roleName } = decoded;
-
-    // 1. Fetch the applicant from database
-    const applicant = await prisma.applicant.findUnique({
-      where: { id },
+    // 1. Fetch the applicant from database inside active company
+    const applicant = await prisma.applicant.findFirst({
+      where: { id, companyId: activeCompanyId },
     });
 
     if (!applicant) {
@@ -37,13 +31,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     // 2. Role-based authorization check
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     let isAuthorized = isSuperOrOps;
 
     if (roleName === "Agent") {
-      const agent = await prisma.agent.findUnique({
-        where: { userId },
+      const agent = await prisma.agent.findFirst({
+        where: { userId, companyId: activeCompanyId },
       });
       if (agent && applicant.agentId === agent.id) {
         isAuthorized = true;
@@ -120,13 +113,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const randomUnusablePassword = crypto.randomUUID() + "-" + crypto.randomUUID();
       passwordHash = await argon2.hash(randomUnusablePassword);
       
-      // Activation token gap handling: Since ActivationToken model does not exist, return dev activation link in development
+      // Activation token gap handling: ActivationToken model does not exist, return dev activation link in development
       const mockToken = crypto.randomBytes(32).toString("hex");
       if (process.env.NODE_ENV !== "production") {
         devActivationLink = `/activate?token=${mockToken}&email=${encodeURIComponent(finalEmail)}`;
       }
     } else {
-      // TEMP_PASSWORD mode: generate strong random temporary password
+      // TEMP_PASSWORD mode: generate random temporary password
       const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
       let pass = "";
       for (let i = 0; i < 12; i++) {
@@ -151,6 +144,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       });
 
+      // Provision UserMembership for applicant under active company
+      await tx.userMembership.create({
+        data: {
+          userId: newUser.id,
+          companyId: activeCompanyId,
+          roleId: applicantRole.id,
+          status: "ACTIVE",
+          isOwner: false,
+        },
+      });
+
       // Link Applicant.userId to newly created User.id
       const updatedApplicant = await tx.applicant.update({
         where: { id },
@@ -167,6 +171,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           title: "Portal Access Provisioned",
           message: "Your applicant portal login access has been successfully configured. You can now log in.",
           isRead: false,
+          companyId: activeCompanyId,
         },
       });
 
@@ -187,6 +192,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           phone: validatedData.phone || applicant.phone || null,
           userId: result.newUser.id,
         } as any,
+        companyId: activeCompanyId,
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       },
     });
@@ -201,7 +207,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       devActivationLink, // Returned only in development mode
     });
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
     }

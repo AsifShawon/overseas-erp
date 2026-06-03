@@ -3,8 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { z } from "zod";
 
 // Zod validation schema for updating a Job Order
@@ -25,17 +24,11 @@ const UpdateJobOrderSchema = z.object({
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // RBAC validation
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
-    const hasManage = permissions.includes("MANAGE_JOB_ORDERS" as any);
+    const hasManage = permissions.includes("MANAGE_JOB_ORDERS");
 
     if (!isSuperOrOps && !hasManage) {
       return NextResponse.json(
@@ -44,9 +37,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
-    // Retrieve existing Job Order
-    const jobOrder = await prisma.jobOrder.findUnique({
-      where: { id },
+    // Retrieve existing Job Order within active company
+    const jobOrder = await prisma.jobOrder.findFirst({
+      where: { id, companyId: activeCompanyId },
     });
 
     if (!jobOrder) {
@@ -108,6 +101,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             status: updated.status,
           },
         } as any,
+        companyId: activeCompanyId,
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       },
     });
@@ -127,6 +121,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
 
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
     }

@@ -3,8 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import {
   applicantDetailInclude,
   serializeApplicantDetail,
@@ -33,15 +32,9 @@ const TransitionSchema = z.object({
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // RBAC: Staff must hold TRANSITION_WORKFLOW permission or be Super Admin / Operations Admin
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     if (!isSuperOrOps && !permissions.includes("TRANSITION_WORKFLOW")) {
       return NextResponse.json(
@@ -57,9 +50,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     // Perform state transition within transaction
     await prisma.$transaction(async (tx) => {
-      // 1. Read applicant
-      const applicant = await tx.applicant.findUnique({
-        where: { id },
+      // 1. Read applicant within active company
+      const applicant = await tx.applicant.findFirst({
+        where: { id, companyId: activeCompanyId },
         include: {
           agent: true,
           documents: true,
@@ -146,6 +139,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           newStage: nextStage,
           changedById: userId,
           changeNotes: remarks || null,
+          companyId: activeCompanyId,
         },
       });
 
@@ -156,14 +150,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             userId: applicant.userId,
             title: "Application Status Update",
             message: `Your application stage has been updated from ${applicant.currentStage} to ${nextStage}.${isOverrideUsed ? " (Authorized override used)" : ""}`,
+            companyId: activeCompanyId,
           },
         });
       }
 
       // 6. Create Notification row for linked agent user if available (agentId -> Agent -> userId)
       if (applicant.agentId) {
-        const agent = await tx.agent.findUnique({
-          where: { id: applicant.agentId },
+        const agent = await tx.agent.findFirst({
+          where: { id: applicant.agentId, companyId: activeCompanyId },
           select: { userId: true },
         });
         if (agent) {
@@ -172,6 +167,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               userId: agent.userId,
               title: "Candidate Progress Alert",
               message: `Candidate ${applicant.fullName}'s stage updated to ${nextStage}.${isOverrideUsed ? " (Authorized override used)" : ""}`,
+              companyId: activeCompanyId,
             },
           });
         }
@@ -192,19 +188,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             overrideUsed: isOverrideUsed,
             missingPrerequisites: missingDocs.length > 0 ? missingDocs : undefined,
           } as any,
+          companyId: activeCompanyId,
           ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
         },
       });
     });
 
     // Fetch updated applicant with sorted relation models to match GET response format
-    const fullUpdatedApplicant = await prisma.applicant.findUnique({
-      where: { id },
+    const fullUpdatedApplicant = await prisma.applicant.findFirst({
+      where: { id, companyId: activeCompanyId },
       include: applicantDetailInclude,
     });
 
+    if (!fullUpdatedApplicant) {
+      return NextResponse.json({ error: "Applicant record not found." }, { status: 404 });
+    }
+
     return NextResponse.json(serializeApplicantDetail(fullUpdatedApplicant));
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
     }

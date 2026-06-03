@@ -4,8 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { generateAgentCode } from "@/lib/sequence";
 import * as argon2 from "argon2";
 import { z } from "zod";
@@ -29,12 +28,7 @@ const CreateAgentSchema = z.object({
  */
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Applicants are strictly forbidden
     if (roleName === "Applicant") {
@@ -44,7 +38,6 @@ export async function GET(request: Request) {
       );
     }
 
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     const hasManageAgents = permissions.includes("MANAGE_AGENTS");
     const hasViewCommissions = permissions.includes("VIEW_COMMISSIONS");
@@ -72,7 +65,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("active") === "true";
 
-    const where: any = {};
+    const where: any = {
+      companyId: activeCompanyId, // FORCE TENANT ISOLATION
+    };
     if (activeOnly) {
       where.isActive = true;
     }
@@ -111,7 +106,10 @@ export async function GET(request: Request) {
     }));
 
     return NextResponse.json({ data: mappedAgents });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/agents Error:", error);
     return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });
   }
@@ -123,15 +121,9 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // RBAC validation
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     const hasManageAgents = permissions.includes("MANAGE_AGENTS");
 
@@ -206,7 +198,7 @@ export async function POST(request: Request) {
       passwordHash = await argon2.hash(tempPasswordPlain);
     }
 
-    // 4. Atomic transaction to create User & Agent profile
+    // 4. Atomic transaction to create User, Agent profile & UserMembership
     const result = await prisma.$transaction(async (tx) => {
       // Create User record with role 'Agent'
       const newUser = await tx.user.create({
@@ -218,6 +210,17 @@ export async function POST(request: Request) {
           roleId: agentRole.id,
           isActive: true,
           mustChangePassword: validatedData.accessMode === "TEMP_PASSWORD",
+        },
+      });
+
+      // Provision UserMembership under activeCompanyId for agent role
+      await tx.userMembership.create({
+        data: {
+          userId: newUser.id,
+          companyId: activeCompanyId,
+          roleId: agentRole.id,
+          status: "ACTIVE",
+          isOwner: false,
         },
       });
 
@@ -237,6 +240,7 @@ export async function POST(request: Request) {
           tier: validatedData.tier,
           phone: validatedData.phone || null,
           isActive: true,
+          companyId: activeCompanyId, // SET TENANT ID
         },
       });
 
@@ -247,6 +251,7 @@ export async function POST(request: Request) {
           title: "Sourcing Portal Access Configured",
           message: `Your sourcing partner profile for ${validatedData.companyName} has been successfully provisioned.`,
           isRead: false,
+          companyId: activeCompanyId,
         },
       });
 
@@ -273,6 +278,7 @@ export async function POST(request: Request) {
           phone: result.newUser.phone,
           accessMode: validatedData.accessMode,
         } as any,
+        companyId: activeCompanyId,
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       },
     });
@@ -297,7 +303,10 @@ export async function POST(request: Request) {
       devActivationLink, // Returned only in development mode
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
     }

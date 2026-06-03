@@ -4,8 +4,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
-import { signAccessToken, signRefreshToken, getRefreshTokenCookieOptions } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { signAccessToken, signRefreshToken, getRefreshTokenCookieOptions, resolveUserSessionPayload } from "@/lib/auth";
 import * as argon2 from "argon2";
 
 export async function POST(request: Request) {
@@ -42,19 +41,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
-    // 4. Create Access & Refresh Tokens
-    const accessToken = await signAccessToken({
-      userId: user.id,
-      email: user.email,
-      roleName: user.role.name,
-    });
+    // 4. Resolve session payload (incorporating memberships and roles)
+    const sessionPayload = await resolveUserSessionPayload(user.id);
+    if (!sessionPayload) {
+      return NextResponse.json(
+        { error: "No active company workspace is available for this account." },
+        { status: 401 }
+      );
+    }
+
+    // 5. Create Access & Refresh Tokens
+    const accessToken = await signAccessToken(sessionPayload);
 
     const refreshToken = await signRefreshToken({
       userId: user.id,
     });
-
-    // 5. Fetch dynamic permissions from the database
-    const permissions = await getUserPermissions(user.id);
 
     // 6. Store Refresh Token in HttpOnly cookie
     const cookieStore = await cookies();
@@ -71,10 +72,11 @@ export async function POST(request: Request) {
     await prisma.auditLog.create({
       data: {
         userId: user.id,
-        roleName: user.role.name,
+        roleName: sessionPayload.roleName,
         actionType: "LOGIN_SUCCESS",
         tableName: "User",
         recordId: user.id,
+        companyId: sessionPayload.activeCompanyId,
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       },
     });
@@ -86,11 +88,16 @@ export async function POST(request: Request) {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        roleName: user.role.name,
+        isPlatformAdmin: sessionPayload.isPlatformAdmin,
+        activeCompanyId: sessionPayload.activeCompanyId,
+        activeCompanyName: sessionPayload.activeCompanyName,
+        membershipId: sessionPayload.membershipId,
+        roleName: sessionPayload.roleName,
         agentCode: user.agentProfile?.agentCode || null,
         applicantId: user.applicantProfile?.id || null,
-        permissions,
+        permissions: sessionPayload.permissions,
         mustChangePassword: user.mustChangePassword,
+        companyStatus: sessionPayload.companyStatus,
       },
     });
   } catch (error) {

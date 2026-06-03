@@ -3,17 +3,12 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 
 export async function GET(request: Request) {
   try {
-    // 1. Authenticate the Request
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    // 1. Authenticate and resolve company context
+    const { activeCompanyId, userId, roleName } = await getCompanyContextOrThrow(request);
 
     // 2. Bound Applicant access completely
     if (roleName === "Applicant") {
@@ -53,25 +48,26 @@ export async function GET(request: Request) {
         documentPendingCount,
         jobOrdersRaw,
       ] = await Promise.all([
-        prisma.applicant.count({ where: { isArchived: false } }),
-        prisma.applicant.count({ where: { isArchived: true } }),
-        prisma.agent.count(),
-        prisma.agent.count({ where: { isActive: true } }),
-        prisma.jobOrder.count(),
-        prisma.jobOrder.count({ where: { status: "OPEN" } }),
-        prisma.jobOrder.aggregate({ _sum: { totalQuota: true } }),
-        prisma.jobOrder.aggregate({ _sum: { allocatedQuota: true } }),
-        prisma.invoice.aggregate({ _sum: { amount: true } }),
-        prisma.receipt.aggregate({ _sum: { amountPaid: true } }),
-        prisma.invoice.aggregate({ _sum: { outstanding: true } }),
-        prisma.commission.aggregate({ where: { status: "ACCRUED" }, _sum: { amount: true } }),
-        prisma.commission.aggregate({ where: { status: "PAID" }, _sum: { amount: true } }),
+        prisma.applicant.count({ where: { isArchived: false, companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { isArchived: true, companyId: activeCompanyId } }),
+        prisma.agent.count({ where: { companyId: activeCompanyId } }),
+        prisma.agent.count({ where: { isActive: true, companyId: activeCompanyId } }),
+        prisma.jobOrder.count({ where: { companyId: activeCompanyId } }),
+        prisma.jobOrder.count({ where: { status: "OPEN", companyId: activeCompanyId } }),
+        prisma.jobOrder.aggregate({ where: { companyId: activeCompanyId }, _sum: { totalQuota: true } }),
+        prisma.jobOrder.aggregate({ where: { companyId: activeCompanyId }, _sum: { allocatedQuota: true } }),
+        prisma.invoice.aggregate({ where: { companyId: activeCompanyId }, _sum: { amount: true } }),
+        prisma.receipt.aggregate({ where: { companyId: activeCompanyId }, _sum: { amountPaid: true } }),
+        prisma.invoice.aggregate({ where: { companyId: activeCompanyId }, _sum: { outstanding: true } }),
+        prisma.commission.aggregate({ where: { status: "ACCRUED", companyId: activeCompanyId }, _sum: { amount: true } }),
+        prisma.commission.aggregate({ where: { status: "PAID", companyId: activeCompanyId }, _sum: { amount: true } }),
         prisma.applicant.groupBy({
           by: ["currentStage"],
-          where: { isArchived: false },
+          where: { isArchived: false, companyId: activeCompanyId },
           _count: { id: true },
         }),
         prisma.auditLog.findMany({
+          where: { companyId: activeCompanyId },
           orderBy: { timestamp: "desc" },
           take: 10,
           include: {
@@ -84,12 +80,14 @@ export async function GET(request: Request) {
           },
         }),
         prisma.notification.findMany({
+          where: { companyId: activeCompanyId },
           orderBy: { createdAt: "desc" },
           take: 10,
         }),
         prisma.applicant.findMany({
           where: {
             isArchived: false,
+            companyId: activeCompanyId,
             passportExpiry: { lte: sixMonthsFromNow },
           },
           select: {
@@ -102,9 +100,10 @@ export async function GET(request: Request) {
           take: 5,
         }),
         prisma.document.count({
-          where: { status: "PENDING_VERIFICATION" },
+          where: { status: "PENDING_VERIFICATION", companyId: activeCompanyId },
         }),
         prisma.jobOrder.findMany({
+          where: { companyId: activeCompanyId },
           orderBy: { createdAt: "desc" },
         }),
       ]);
@@ -188,12 +187,13 @@ export async function GET(request: Request) {
     // -------------------------------------------------------------
     if (roleName === "HR Officer") {
       const [appliedCount, interviewedCount, selectedCount, recruitmentQueueRaw, openJobOrders, totalQuotaAgg, allocatedQuotaAgg, totalPlacedCount] = await Promise.all([
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "APPLIED" } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "INTERVIEWED" } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "SELECTED" } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "APPLIED", companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "INTERVIEWED", companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "SELECTED", companyId: activeCompanyId } }),
         prisma.applicant.findMany({
           where: {
             isArchived: false,
+            companyId: activeCompanyId,
             currentStage: { in: ["APPLIED", "INTERVIEWED"] },
           },
           select: {
@@ -206,10 +206,10 @@ export async function GET(request: Request) {
           },
           orderBy: { createdAt: "desc" },
         }),
-        prisma.jobOrder.count({ where: { status: "OPEN" } }),
-        prisma.jobOrder.aggregate({ _sum: { totalQuota: true } }),
-        prisma.jobOrder.aggregate({ _sum: { allocatedQuota: true } }),
-        prisma.applicant.count(),
+        prisma.jobOrder.count({ where: { status: "OPEN", companyId: activeCompanyId } }),
+        prisma.jobOrder.aggregate({ where: { companyId: activeCompanyId }, _sum: { totalQuota: true } }),
+        prisma.jobOrder.aggregate({ where: { companyId: activeCompanyId }, _sum: { allocatedQuota: true } }),
+        prisma.applicant.count({ where: { companyId: activeCompanyId } }),
       ]);
 
       const recruitmentQueue = recruitmentQueueRaw.map((app) => ({
@@ -244,15 +244,16 @@ export async function GET(request: Request) {
         medicalFitCount,
         pendingDocumentApplicantsRaw,
       ] = await Promise.all([
-        prisma.document.count({ where: { status: "PENDING_VERIFICATION" } }),
-        prisma.document.count({ where: { status: "VERIFIED" } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "MEDICAL_WAITING" } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "MEDICAL_FIT" } }),
+        prisma.document.count({ where: { status: "PENDING_VERIFICATION", companyId: activeCompanyId } }),
+        prisma.document.count({ where: { status: "VERIFIED", companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "MEDICAL_WAITING", companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "MEDICAL_FIT", companyId: activeCompanyId } }),
         prisma.applicant.findMany({
           where: {
             isArchived: false,
+            companyId: activeCompanyId,
             documents: {
-              some: { status: "PENDING_VERIFICATION" },
+              some: { status: "PENDING_VERIFICATION", companyId: activeCompanyId },
             },
           },
           select: {
@@ -261,7 +262,7 @@ export async function GET(request: Request) {
             passportNumber: true,
             trade: true,
             documents: {
-              where: { status: "PENDING_VERIFICATION" },
+              where: { status: "PENDING_VERIFICATION", companyId: activeCompanyId },
               select: {
                 id: true,
                 documentType: true,
@@ -307,18 +308,20 @@ export async function GET(request: Request) {
         clearedForVisaCount,
         visaQueueRaw,
       ] = await Promise.all([
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_SUBMITTED" } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_STAMPED" } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_REJECTED" } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_SUBMITTED", companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_STAMPED", companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_REJECTED", companyId: activeCompanyId } }),
         prisma.applicant.count({
           where: {
             isArchived: false,
+            companyId: activeCompanyId,
             currentStage: { in: ["MEDICAL_FIT", "TRAINING_COMPLETED"] },
           },
         }),
         prisma.applicant.findMany({
           where: {
             isArchived: false,
+            companyId: activeCompanyId,
             currentStage: { in: ["VISA_SUBMITTED", "VISA_STAMPED", "VISA_REJECTED"] },
           },
           select: {
@@ -368,16 +371,18 @@ export async function GET(request: Request) {
         accruedCommAgg,
         paidCommAgg,
       ] = await Promise.all([
-        prisma.invoice.aggregate({ _sum: { amount: true } }),
-        prisma.receipt.aggregate({ _sum: { amountPaid: true } }),
-        prisma.invoice.aggregate({ _sum: { outstanding: true } }),
+        prisma.invoice.aggregate({ where: { companyId: activeCompanyId }, _sum: { amount: true } }),
+        prisma.receipt.aggregate({ where: { companyId: activeCompanyId }, _sum: { amountPaid: true } }),
+        prisma.invoice.aggregate({ where: { companyId: activeCompanyId }, _sum: { outstanding: true } }),
         prisma.invoice.count({
           where: {
+            companyId: activeCompanyId,
             outstanding: { gt: 0 },
             dueDate: { lt: new Date() },
           },
         }),
         prisma.invoice.findMany({
+          where: { companyId: activeCompanyId },
           orderBy: { createdAt: "desc" },
           include: {
             applicant: {
@@ -387,8 +392,8 @@ export async function GET(request: Request) {
             },
           },
         }),
-        prisma.commission.aggregate({ where: { status: "ACCRUED" }, _sum: { amount: true } }),
-        prisma.commission.aggregate({ where: { status: "PAID" }, _sum: { amount: true } }),
+        prisma.commission.aggregate({ where: { status: "ACCRUED", companyId: activeCompanyId }, _sum: { amount: true } }),
+        prisma.commission.aggregate({ where: { status: "PAID", companyId: activeCompanyId }, _sum: { amount: true } }),
       ]);
 
       const totalInvoiced = Number(totalInvoicedAgg._sum.amount || 0);
@@ -423,8 +428,8 @@ export async function GET(request: Request) {
     // sourcing agent cohort
     // -------------------------------------------------------------
     if (roleName === "Agent") {
-      const agent = await prisma.agent.findUnique({
-        where: { userId },
+      const agent = await prisma.agent.findFirst({
+        where: { userId, companyId: activeCompanyId },
       });
 
       if (!agent) {
@@ -448,13 +453,13 @@ export async function GET(request: Request) {
         paidCommAgg,
         ownApplicantsRaw,
       ] = await Promise.all([
-        prisma.applicant.count({ where: { agentId } }),
-        prisma.applicant.count({ where: { agentId, isArchived: false } }),
-        prisma.applicant.count({ where: { agentId, currentStage: "DEPLOYED" } }),
-        prisma.commission.aggregate({ where: { agentId, status: "ACCRUED" }, _sum: { amount: true } }),
-        prisma.commission.aggregate({ where: { agentId, status: "PAID" }, _sum: { amount: true } }),
+        prisma.applicant.count({ where: { agentId, companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { agentId, isArchived: false, companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { agentId, currentStage: "DEPLOYED", companyId: activeCompanyId } }),
+        prisma.commission.aggregate({ where: { agentId, status: "ACCRUED", companyId: activeCompanyId }, _sum: { amount: true } }),
+        prisma.commission.aggregate({ where: { agentId, status: "PAID", companyId: activeCompanyId }, _sum: { amount: true } }),
         prisma.applicant.findMany({
-          where: { agentId },
+          where: { agentId, companyId: activeCompanyId },
           select: {
             id: true,
             fullName: true,
@@ -491,7 +496,10 @@ export async function GET(request: Request) {
 
     // fallback
     return NextResponse.json({ error: "Role not recognized." }, { status: 400 });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/reports/dashboard Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },

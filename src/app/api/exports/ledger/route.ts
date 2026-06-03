@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Block Agent and Applicant roles
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -22,7 +16,6 @@ export async function GET(request: Request) {
     }
 
     // RBAC: Check accounts permissions
-    const permissions = await getUserPermissions(userId);
     const isAuthorized =
       roleName === "Super Admin" ||
       roleName === "Operations Admin" ||
@@ -42,11 +35,14 @@ export async function GET(request: Request) {
     const search = url.searchParams.get("search") || "";
     const transactionType = url.searchParams.get("transactionType") || "";
 
-    const whereClause: any = {};
+    const whereClause: any = {
+      companyId: activeCompanyId,
+    };
 
     if (search) {
       const matchingApplicants = await prisma.applicant.findMany({
         where: {
+          companyId: activeCompanyId,
           OR: [
             { fullName: { contains: search, mode: "insensitive" } },
             { passportNumber: { contains: search, mode: "insensitive" } },
@@ -58,6 +54,7 @@ export async function GET(request: Request) {
 
       const matchingInvoices = await prisma.invoice.findMany({
         where: {
+          companyId: activeCompanyId,
           invoiceNo: { contains: search, mode: "insensitive" },
         },
         select: { id: true },
@@ -66,6 +63,7 @@ export async function GET(request: Request) {
 
       const matchingReceipts = await prisma.receipt.findMany({
         where: {
+          companyId: activeCompanyId,
           receiptNo: { contains: search, mode: "insensitive" },
         },
         select: { id: true },
@@ -102,11 +100,11 @@ export async function GET(request: Request) {
     const referenceIds = ledgerEntries.map((e) => e.referenceId);
 
     const invoices = await prisma.invoice.findMany({
-      where: { id: { in: referenceIds } },
+      where: { id: { in: referenceIds }, companyId: activeCompanyId },
     });
 
     const receipts = await prisma.receipt.findMany({
-      where: { id: { in: referenceIds } },
+      where: { id: { in: referenceIds }, companyId: activeCompanyId },
       include: {
         invoice: {
           select: {
@@ -164,7 +162,13 @@ export async function GET(request: Request) {
 
     const csvText = buildCsv(headers, rows);
     return csvResponse(`ledger_export_${Date.now()}.csv`, csvText);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { error: "Unauthorized access or inactive company workspace." },
+        { status: 401 }
+      );
+    }
     console.error("GET /api/exports/ledger Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred during ledger CSV generation." },

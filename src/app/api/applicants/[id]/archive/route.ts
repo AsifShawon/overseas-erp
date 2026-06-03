@@ -1,10 +1,6 @@
-// src/app/api/applicants/[id]/archive/route.ts
-// PATCH /api/applicants/[id]/archive - Soft-archive or restore a candidate file with audit tracking
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import {
   applicantDetailInclude,
   serializeApplicantDetail,
@@ -23,14 +19,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    
-    // 1. Authenticate Request
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // 2. Boundary Check: Applicant and Agent roles are strictly blocked from this mutation
     if (roleName === "Applicant" || roleName === "Agent") {
@@ -41,7 +30,6 @@ export async function PATCH(
     }
 
     // 3. RBAC Checks: Allow Super Admin, Operations Admin, or staff with UPDATE_APPLICANT or ARCHIVE_APPLICANT
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     const hasPermission =
       permissions.includes("ARCHIVE_APPLICANT") ||
@@ -69,9 +57,9 @@ export async function PATCH(
 
     // 5. Execute DB Transaction
     const updatedApplicant = await prisma.$transaction(async (tx) => {
-      // Find applicant
-      const applicant = await tx.applicant.findUnique({
-        where: { id },
+      // Find applicant within active company
+      const applicant = await tx.applicant.findFirst({
+        where: { id, companyId: activeCompanyId },
       });
 
       if (!applicant) {
@@ -110,6 +98,7 @@ export async function PATCH(
             after: { isArchived: updated.isArchived, archivedAt: updated.archivedAt },
             reason: reason || "No explanation provided",
           } as any,
+          companyId: activeCompanyId,
           ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
         },
       });
@@ -117,8 +106,13 @@ export async function PATCH(
       // Retrieve administrative staff users to dispatch system alerts
       const adminUsers = await tx.user.findMany({
         where: {
-          role: {
-            name: { in: ["Super Admin", "Operations Admin"] },
+          memberships: {
+            some: {
+              companyId: activeCompanyId,
+              role: {
+                name: { in: ["Super Admin", "Operations Admin"] },
+              },
+            },
           },
           isActive: true,
         },
@@ -133,6 +127,7 @@ export async function PATCH(
           message: `Applicant file for "${applicant.fullName}" was successfully ${
             action === "ARCHIVE" ? "soft-archived" : "restored"
           }. Reason: "${reason || "No explanation provided"}".`,
+          companyId: activeCompanyId,
         },
       });
 
@@ -146,20 +141,24 @@ export async function PATCH(
               message: `Staff user "${roleName}" has ${
                 action === "ARCHIVE" ? "soft-archived" : "restored"
               } candidate "${applicant.fullName}". Reason: "${reason || "None"}".`,
+              companyId: activeCompanyId,
             },
           });
         }
       }
 
       // Fetch and return the fully nested applicant payload
-      return tx.applicant.findUnique({
-        where: { id },
+      return tx.applicant.findFirst({
+        where: { id, companyId: activeCompanyId },
         include: applicantDetailInclude,
       });
     });
 
     return NextResponse.json(serializeApplicantDetail(updatedApplicant));
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
     }

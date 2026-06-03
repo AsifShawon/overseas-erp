@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Block Agent and Applicant roles
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -22,7 +16,6 @@ export async function GET(request: Request) {
     }
 
     // RBAC: Check accounts permissions
-    const permissions = await getUserPermissions(userId);
     const isAuthorized =
       roleName === "Super Admin" ||
       roleName === "Operations Admin" ||
@@ -41,11 +34,14 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
 
-    const whereClause: any = {};
+    const whereClause: any = {
+      companyId: activeCompanyId,
+    };
 
     if (search) {
       const matchingApplicants = await prisma.applicant.findMany({
         where: {
+          companyId: activeCompanyId,
           OR: [
             { fullName: { contains: search, mode: "insensitive" } },
             { passportNumber: { contains: search, mode: "insensitive" } },
@@ -57,6 +53,7 @@ export async function GET(request: Request) {
 
       const matchingInvoices = await prisma.invoice.findMany({
         where: {
+          companyId: activeCompanyId,
           invoiceNo: { contains: search, mode: "insensitive" },
         },
         select: { id: true },
@@ -124,7 +121,13 @@ export async function GET(request: Request) {
 
     const csvText = buildCsv(headers, rows);
     return csvResponse(`receipts_export_${Date.now()}.csv`, csvText);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { error: "Unauthorized access or inactive company workspace." },
+        { status: 401 }
+      );
+    }
     console.error("GET /api/exports/receipts Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred during receipt CSV generation." },

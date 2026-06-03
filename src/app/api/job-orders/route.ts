@@ -4,8 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { z } from "zod";
 
 // Zod validation schema for creating a new Job Order
@@ -36,7 +35,7 @@ function getCountryCode(country: string): string {
 }
 
 // Sequential Job Order Number Generator (e.g. JO-KSA-2026-042)
-async function generateJobOrderNumber(country: string, tx: any): Promise<string> {
+async function generateJobOrderNumber(country: string, activeCompanyId: string, tx: any): Promise<string> {
   const db = tx || prisma;
   const countryCode = getCountryCode(country);
   const currentYear = new Date().getFullYear();
@@ -44,6 +43,7 @@ async function generateJobOrderNumber(country: string, tx: any): Promise<string>
 
   const orders = await db.jobOrder.findMany({
     where: {
+      companyId: activeCompanyId,
       orderNumber: {
         startsWith: prefix,
       },
@@ -80,12 +80,7 @@ async function generateJobOrderNumber(country: string, tx: any): Promise<string>
  */
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Placed candidates (Applicants) strictly forbidden
     if (roleName === "Applicant") {
@@ -95,7 +90,6 @@ export async function GET(request: Request) {
       );
     }
 
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     const hasViewAccess =
       isSuperOrOps ||
@@ -127,7 +121,9 @@ export async function GET(request: Request) {
     const pageSize = Math.max(1, parseInt(searchParams.get("pageSize") || "100")); // large default for dashboard lists
     const skip = (page - 1) * pageSize;
 
-    const where: any = {};
+    const where: any = {
+      companyId: activeCompanyId, // FORCE TENANT ISOLATION
+    };
 
     if (enforcedOpenOnly) {
       where.status = "OPEN";
@@ -165,14 +161,15 @@ export async function GET(request: Request) {
       }),
       prisma.$transaction(async (tx) => {
         const aggregates = await tx.jobOrder.aggregate({
+          where: { companyId: activeCompanyId },
           _sum: {
             totalQuota: true,
             allocatedQuota: true,
           },
         });
-        const openOrders = await tx.jobOrder.count({ where: { status: "OPEN" } });
-        const closedOrders = await tx.jobOrder.count({ where: { status: "CLOSED" } });
-        const completedOrders = await tx.jobOrder.count({ where: { status: "COMPLETED" } });
+        const openOrders = await tx.jobOrder.count({ where: { companyId: activeCompanyId, status: "OPEN" } });
+        const closedOrders = await tx.jobOrder.count({ where: { companyId: activeCompanyId, status: "CLOSED" } });
+        const completedOrders = await tx.jobOrder.count({ where: { companyId: activeCompanyId, status: "COMPLETED" } });
         return {
           totalQuota: aggregates._sum.totalQuota || 0,
           allocatedQuota: aggregates._sum.allocatedQuota || 0,
@@ -224,7 +221,10 @@ export async function GET(request: Request) {
         completedOrders: statsData.completedOrders,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/job-orders Error:", error);
     return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });
   }
@@ -236,17 +236,11 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // RBAC permission check
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
-    const hasManage = permissions.includes("MANAGE_JOB_ORDERS" as any);
+    const hasManage = permissions.includes("MANAGE_JOB_ORDERS");
 
     if (!isSuperOrOps && !hasManage) {
       return NextResponse.json(
@@ -262,7 +256,7 @@ export async function POST(request: Request) {
       // Resolve sequential order number
       let finalOrderNumber = validatedData.orderNumber?.trim();
       if (!finalOrderNumber) {
-        finalOrderNumber = await generateJobOrderNumber(validatedData.country, tx);
+        finalOrderNumber = await generateJobOrderNumber(validatedData.country, activeCompanyId, tx);
       } else {
         const conflict = await tx.jobOrder.findUnique({
           where: { orderNumber: finalOrderNumber },
@@ -284,15 +278,21 @@ export async function POST(request: Request) {
           allocatedQuota: 0, // Set explicitly to 0 on initialization
           commissionAmount: validatedData.commissionAmount,
           status: validatedData.status || "OPEN",
+          companyId: activeCompanyId, // SET TENANT ID
         },
       });
 
       // Dispatch notifications to related internal staff
       const staff = await tx.user.findMany({
         where: {
-          role: {
-            name: {
-              in: ["Super Admin", "Operations Admin", "HR Officer"],
+          memberships: {
+            some: {
+              companyId: activeCompanyId,
+              role: {
+                name: {
+                  in: ["Super Admin", "Operations Admin", "HR Officer"],
+                },
+              },
             },
           },
         },
@@ -306,6 +306,7 @@ export async function POST(request: Request) {
             title: "New Job Demand Sourced",
             message: `Vacancies for ${jobOrder.trade} (${jobOrder.totalQuota} slots) at ${jobOrder.employerName} have been registered under ref: ${jobOrder.orderNumber}.`,
             isRead: false,
+            companyId: activeCompanyId,
           })),
         });
       }
@@ -333,6 +334,7 @@ export async function POST(request: Request) {
           commissionAmount: Number(result.commissionAmount),
           status: result.status,
         } as any,
+        companyId: activeCompanyId,
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       },
     });
@@ -349,6 +351,9 @@ export async function POST(request: Request) {
     }, { status: 201 });
 
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
     }

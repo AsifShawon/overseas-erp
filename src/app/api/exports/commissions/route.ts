@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Applicant role blocked
     if (roleName === "Applicant") {
@@ -22,7 +16,6 @@ export async function GET(request: Request) {
     }
 
     // RBAC Permissions check
-    const permissions = await getUserPermissions(userId);
     const isStaffOrAdmin =
       roleName === "Super Admin" ||
       roleName === "Operations Admin" ||
@@ -42,8 +35,8 @@ export async function GET(request: Request) {
     // Resolve Agent Scope if the logged-in user is an external Agent
     let agentIdScope: string | null = null;
     if (isAgent) {
-      const agentProfile = await prisma.agent.findUnique({
-        where: { userId },
+      const agentProfile = await prisma.agent.findFirst({
+        where: { userId, companyId: activeCompanyId },
         select: { id: true },
       });
       if (!agentProfile) {
@@ -62,13 +55,23 @@ export async function GET(request: Request) {
     const agentIdParam = url.searchParams.get("agentId") || "";
 
     // Build the query where clause
-    const whereClause: any = {};
+    const whereClause: any = {
+      companyId: activeCompanyId,
+    };
 
     // Apply agent cohort constraints
     if (agentIdScope) {
       whereClause.agentId = agentIdScope;
     } else if (agentIdParam) {
-      whereClause.agentId = agentIdParam;
+      // Ensure requested agentId belongs to the company
+      const targetAgent = await prisma.agent.findFirst({
+        where: { id: agentIdParam, companyId: activeCompanyId },
+      });
+      if (!targetAgent) {
+        whereClause.agentId = "NON_EXISTENT";
+      } else {
+        whereClause.agentId = agentIdParam;
+      }
     }
 
     // Apply search filters
@@ -151,7 +154,13 @@ export async function GET(request: Request) {
 
     const csvText = buildCsv(headers, rows);
     return csvResponse(`commissions_export_${Date.now()}.csv`, csvText);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { error: "Unauthorized access or inactive company workspace." },
+        { status: 401 }
+      );
+    }
     console.error("GET /api/exports/commissions Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred during commission CSV generation." },

@@ -6,6 +6,7 @@ import { useToast } from "@/context/ToastContext";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { Eye, EyeOff, Lock, ShieldAlert, CheckCircle, Loader2, Globe2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 function ForcePasswordReset() {
   const { accessToken, logout } = useMockAuth();
@@ -230,15 +231,86 @@ function ForcePasswordReset() {
 
 function InnerAppShell({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { user } = useMockAuth();
+  const { user, logout } = useMockAuth();
+  const pathname = usePathname();
+  const router = useRouter();
 
   // If user is flagged to force change their password, bypass entire ERP navigation frame
   if (user && user.mustChangePassword) {
     return <ForcePasswordReset />;
   }
 
+  // 1. Platform pages guard: platform pages require isPlatformAdmin
+  if (pathname.startsWith("/platform") && !user.isPlatformAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white dark:bg-slate-950 shadow-xl border border-slate-100 dark:border-slate-800 rounded-2xl p-6 text-center space-y-4">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
+            <ShieldAlert className="h-8 w-8" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            Access Denied
+          </h2>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+            You do not have permission to access the platform administration area.
+          </p>
+          <button
+            onClick={() => router.push(user.roleName === "Applicant" ? "/applicant/portal" : "/dashboard")}
+            className="w-full rounded-lg bg-slate-950 dark:bg-slate-50 dark:text-slate-950 text-white font-semibold py-2 text-xs transition-colors hover:bg-slate-800 dark:hover:bg-slate-200"
+          >
+            Go Back to Safety
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. ERP pages guard: require activeCompanyId + companyStatus ACTIVE
+  const isApplicant = user.roleName === "Applicant";
+  const isPlatformAdminOnly = user.isPlatformAdmin && !user.activeCompanyId;
+
+  if (!isApplicant && !pathname.startsWith("/platform")) {
+    if (isPlatformAdminOnly) {
+      // Platform admin with no company memberships goes to platform
+      React.useEffect(() => {
+        router.push("/platform");
+      }, []);
+      return (
+        <div className="min-h-screen bg-bg text-text-theme flex items-center justify-center">
+          <Loader2 className="h-8 w-8 text-primary-theme animate-spin" />
+        </div>
+      );
+    }
+
+    if (!user.activeCompanyId || user.companyStatus !== "ACTIVE") {
+      return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-950 shadow-xl border border-slate-100 dark:border-slate-800 rounded-2xl p-6 text-center space-y-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
+              <ShieldAlert className="h-8 w-8" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              Workspace Inactive
+            </h2>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+              {user.activeCompanyId 
+                ? `Your workspace (${user.activeCompanyName}) is currently inactive or suspended. Please contact platform administration to restore access.`
+                : "No active company workspace is available for this account."}
+            </p>
+            <button
+              onClick={logout}
+              className="w-full rounded-lg bg-slate-950 dark:bg-slate-50 dark:text-slate-950 text-white font-semibold py-2 text-xs transition-colors hover:bg-slate-800 dark:hover:bg-slate-200"
+            >
+              Log Out
+            </button>
+          </div>
+        </div>
+      );
+    }
+  }
+
   // If user is Applicant, render a centered, mobile-responsive layout without sidebars
-  if (user.roleName === "Applicant") {
+  if (isApplicant) {
     return (
       <div className="min-h-screen bg-bg text-text-theme flex flex-col">
         <Topbar />

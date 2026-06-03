@@ -4,8 +4,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
-import { verifyRefreshToken, signAccessToken, signRefreshToken, getRefreshTokenCookieOptions } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { verifyRefreshToken, signAccessToken, signRefreshToken, getRefreshTokenCookieOptions, resolveUserSessionPayload } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -41,19 +40,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "User account has been deactivated." }, { status: 401 });
     }
 
-    // 4. Generate new tokens (Token Rotation)
-    const newAccessToken = await signAccessToken({
-      userId: user.id,
-      email: user.email,
-      roleName: user.role.name,
-    });
+    // 4. Resolve session payload (incorporating memberships and roles)
+    const sessionPayload = await resolveUserSessionPayload(user.id);
+    if (!sessionPayload) {
+      return NextResponse.json(
+        { error: "No active company workspace is available for this account." },
+        { status: 401 }
+      );
+    }
+
+    // 5. Generate new tokens (Token Rotation)
+    const newAccessToken = await signAccessToken(sessionPayload);
 
     const newRefreshToken = await signRefreshToken({
       userId: user.id,
     });
-
-    // 5. Fetch dynamic permissions
-    const permissions = await getUserPermissions(user.id);
 
     // 6. Update the HttpOnly refresh token cookie
     const cookieOpts = getRefreshTokenCookieOptions();
@@ -72,11 +73,16 @@ export async function POST(request: Request) {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        roleName: user.role.name,
+        isPlatformAdmin: sessionPayload.isPlatformAdmin,
+        activeCompanyId: sessionPayload.activeCompanyId,
+        activeCompanyName: sessionPayload.activeCompanyName,
+        membershipId: sessionPayload.membershipId,
+        roleName: sessionPayload.roleName,
         agentCode: user.agentProfile?.agentCode || null,
         applicantId: user.applicantProfile?.id || null,
-        permissions,
+        permissions: sessionPayload.permissions,
         mustChangePassword: user.mustChangePassword,
+        companyStatus: sessionPayload.companyStatus,
       },
     });
   } catch (error) {

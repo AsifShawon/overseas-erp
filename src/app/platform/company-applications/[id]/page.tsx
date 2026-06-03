@@ -3,7 +3,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, use } from "react";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -28,8 +28,8 @@ interface CompanyApplication {
   createdAt: string;
 }
 
-export default function CompanyApplicationDetail({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function CompanyApplicationDetail({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { user, accessToken, loading: authLoading } = useMockAuth();
   const router = useRouter();
   const toast = useToast();

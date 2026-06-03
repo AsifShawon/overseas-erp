@@ -3,8 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { z } from "zod";
 
 const PayoutSchema = z.object({
@@ -18,12 +17,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Explicitly block Agent and Applicant user roles
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -34,13 +28,12 @@ export async function POST(
     }
 
     // RBAC: Check permissions
-    const permissions = await getUserPermissions(userId);
     const isAuthorized =
       roleName === "Super Admin" ||
       roleName === "Operations Admin" ||
       roleName === "Accounts Officer" ||
-      permissions.includes("MANAGE_ACCOUNTS" as any) ||
-      permissions.includes("RECORD_PAYMENT" as any);
+      permissions.includes("MANAGE_ACCOUNTS") ||
+      permissions.includes("RECORD_PAYMENT");
 
     if (!isAuthorized) {
       return NextResponse.json(
@@ -58,9 +51,9 @@ export async function POST(
 
     // Execute atomic transaction for commission state update and log audit trail
     await prisma.$transaction(async (tx) => {
-      // 1. Fetch current commission details with associated profiles
-      const commission = await tx.commission.findUnique({
-        where: { id },
+      // 1. Fetch current commission details within active company
+      const commission = await tx.commission.findFirst({
+        where: { id, companyId: activeCompanyId },
         include: {
           agent: true,
           applicant: true,
@@ -116,6 +109,7 @@ export async function POST(
             userId: commission.agent.userId,
             title: "Commission Payout Released",
             message: `Your accrued placement commission of $${Number(commission.amount).toLocaleString()} for candidate ${commission.applicant.fullName} has been paid via transfer ref: ${payoutRef}.`,
+            companyId: activeCompanyId,
           },
         });
       }
@@ -140,6 +134,7 @@ export async function POST(
               payoutDate: resultCommission.payoutDate,
             },
           } as any,
+          companyId: activeCompanyId,
           ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
         },
       });
@@ -167,6 +162,9 @@ export async function POST(
 
     return NextResponse.json(responseData);
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.issues[0]?.message || "Validation failed." },

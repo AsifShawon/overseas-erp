@@ -3,17 +3,11 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Explicitly block Agent and Applicant user roles from corporate financial records
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -24,13 +18,12 @@ export async function GET(request: Request) {
     }
 
     // RBAC: Check permissions
-    const permissions = await getUserPermissions(userId);
     const isAuthorized =
       roleName === "Super Admin" ||
       roleName === "Operations Admin" ||
       roleName === "Accounts Officer" ||
-      permissions.includes("VIEW_ACCOUNTS" as any) ||
-      permissions.includes("MANAGE_ACCOUNTS" as any);
+      permissions.includes("VIEW_ACCOUNTS") ||
+      permissions.includes("MANAGE_ACCOUNTS");
 
     if (!isAuthorized) {
       return NextResponse.json(
@@ -50,12 +43,15 @@ export async function GET(request: Request) {
     const take = pageSize;
 
     // Build filters dynamically
-    const whereClause: any = {};
+    const whereClause: any = {
+      companyId: activeCompanyId, // FORCE TENANT ISOLATION
+    };
 
     if (search) {
-      // 1. Find applicant IDs where fullName or passportNumber matches search (case insensitive)
+      // 1. Find applicant IDs where fullName or passportNumber matches search (case insensitive) within active company
       const matchingApplicants = await prisma.applicant.findMany({
         where: {
+          companyId: activeCompanyId,
           OR: [
             { fullName: { contains: search, mode: "insensitive" } },
             { passportNumber: { contains: search, mode: "insensitive" } },
@@ -65,18 +61,20 @@ export async function GET(request: Request) {
       });
       const applicantIds = matchingApplicants.map((a) => a.id);
 
-      // 2. Find matching Invoices by invoiceNo
+      // 2. Find matching Invoices by invoiceNo within active company
       const matchingInvoices = await prisma.invoice.findMany({
         where: {
+          companyId: activeCompanyId,
           invoiceNo: { contains: search, mode: "insensitive" },
         },
         select: { id: true },
       });
       const invoiceIds = matchingInvoices.map((i) => i.id);
 
-      // 3. Find matching Receipts by receiptNo
+      // 3. Find matching Receipts by receiptNo within active company
       const matchingReceipts = await prisma.receipt.findMany({
         where: {
+          companyId: activeCompanyId,
           receiptNo: { contains: search, mode: "insensitive" },
         },
         select: { id: true },
@@ -95,24 +93,27 @@ export async function GET(request: Request) {
       whereClause.transactionType = transactionType;
     }
 
-    // Calculate dynamic stats
+    // Calculate dynamic stats scoped to activeCompanyId
     const billedAgg = await prisma.invoice.aggregate({
+      where: { companyId: activeCompanyId },
       _sum: { amount: true },
     });
     const totalBilled = Number(billedAgg._sum.amount || 0);
 
     const collectedAgg = await prisma.receipt.aggregate({
+      where: { companyId: activeCompanyId },
       _sum: { amountPaid: true },
     });
     const totalCollected = Number(collectedAgg._sum.amountPaid || 0);
 
     const outstandingAgg = await prisma.invoice.aggregate({
+      where: { companyId: activeCompanyId },
       _sum: { outstanding: true },
     });
     const totalOutstanding = Number(outstandingAgg._sum.outstanding || 0);
 
     const commissionAgg = await prisma.commission.aggregate({
-      where: { status: "ACCRUED" },
+      where: { status: "ACCRUED", companyId: activeCompanyId },
       _sum: { amount: true },
     });
     const totalCommissionsAccrued = Number(commissionAgg._sum.amount || 0);
@@ -141,11 +142,11 @@ export async function GET(request: Request) {
     const referenceIdsInPage = ledgerEntries.map((e) => e.referenceId);
 
     const invoices = await prisma.invoice.findMany({
-      where: { id: { in: referenceIdsInPage } },
+      where: { id: { in: referenceIdsInPage }, companyId: activeCompanyId },
     });
 
     const receipts = await prisma.receipt.findMany({
-      where: { id: { in: referenceIdsInPage } },
+      where: { id: { in: referenceIdsInPage }, companyId: activeCompanyId },
       include: {
         invoice: {
           select: {
@@ -207,6 +208,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("GET /api/accounts/ledger Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred while retrieving forensic ledger logs." },

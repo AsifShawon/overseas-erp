@@ -3,18 +3,12 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Applicants and Agents strictly prohibited from bulk exports
     if (roleName === "Applicant" || roleName === "Agent") {
@@ -25,7 +19,6 @@ export async function GET(request: Request) {
     }
 
     // RBAC: Staff roles must hold permission to view reports or manage job orders
-    const permissions = await getUserPermissions(userId);
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
     const hasExportAccess =
       isSuperOrOps ||
@@ -47,7 +40,9 @@ export async function GET(request: Request) {
     const country = searchParams.get("country") || "";
     const trade = searchParams.get("trade") || "";
 
-    const where: any = {};
+    const where: any = {
+      companyId: activeCompanyId,
+    };
 
     if (status && status !== "ALL") {
       where.status = status;
@@ -112,7 +107,13 @@ export async function GET(request: Request) {
     const csvText = buildCsv(headers, rows);
     return csvResponse(`job_orders_export_${Date.now()}.csv`, csvText);
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { error: "Unauthorized access or inactive company workspace." },
+        { status: 401 }
+      );
+    }
     console.error("GET /api/exports/job-orders Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred during CSV generation." },

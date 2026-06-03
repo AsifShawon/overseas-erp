@@ -3,8 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyAccessToken } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { verifyAccessToken, resolveUserSessionPayload } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
@@ -26,7 +25,6 @@ export async function GET(request: Request) {
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
-        role: true,
         agentProfile: true,
         applicantProfile: true,
       },
@@ -40,8 +38,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "User account has been deactivated." }, { status: 401 });
     }
 
-    // 4. Fetch dynamic permissions
-    const permissions = await getUserPermissions(user.id);
+    // 4. Resolve session payload (incorporating memberships and roles)
+    const sessionPayload = await resolveUserSessionPayload(user.id);
+    if (!sessionPayload) {
+      return NextResponse.json(
+        { error: "No active company workspace is available for this account." },
+        { status: 401 }
+      );
+    }
 
     // 5. Return user info
     return NextResponse.json({
@@ -49,11 +53,16 @@ export async function GET(request: Request) {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        roleName: user.role.name,
+        isPlatformAdmin: sessionPayload.isPlatformAdmin,
+        activeCompanyId: sessionPayload.activeCompanyId,
+        activeCompanyName: sessionPayload.activeCompanyName,
+        membershipId: sessionPayload.membershipId,
+        roleName: sessionPayload.roleName,
         agentCode: user.agentProfile?.agentCode || null,
         applicantId: user.applicantProfile?.id || null,
-        permissions,
+        permissions: sessionPayload.permissions,
         mustChangePassword: user.mustChangePassword,
+        companyStatus: sessionPayload.companyStatus,
       },
     });
   } catch (error) {

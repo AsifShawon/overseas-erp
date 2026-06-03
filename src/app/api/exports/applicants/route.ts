@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 import { getUserPermissions } from "@/lib/rbac";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Applicants cannot export lists
     if (roleName === "Applicant") {
@@ -24,8 +19,8 @@ export async function GET(request: Request) {
     // Boundary Check: Sourcing Agents scoped to own cohort
     let enforcedAgentId: string | undefined = undefined;
     if (roleName === "Agent") {
-      const agent = await prisma.agent.findUnique({
-        where: { userId },
+      const agent = await prisma.agent.findFirst({
+        where: { userId, companyId: activeCompanyId },
       });
       if (!agent) {
         return csvResponse("applicants_export.csv", buildCsv(
@@ -36,7 +31,6 @@ export async function GET(request: Request) {
       enforcedAgentId = agent.id;
     } else {
       // Staff roles: Must hold VIEW_APPLICANTS permission
-      const permissions = await getUserPermissions(userId);
       const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
       if (!isSuperOrOps && !permissions.includes("VIEW_APPLICANTS")) {
         return NextResponse.json(
@@ -58,13 +52,22 @@ export async function GET(request: Request) {
 
     // Build Prisma query filters
     const where: any = {
+      companyId: activeCompanyId,
       isArchived: archived,
     };
 
     if (enforcedAgentId) {
       where.agentId = enforcedAgentId;
     } else if (agentId) {
-      where.agentId = agentId;
+      // If filtering by agentId, make sure that agent also belongs to the company
+      const targetAgent = await prisma.agent.findFirst({
+        where: { id: agentId, companyId: activeCompanyId },
+      });
+      if (!targetAgent) {
+        where.agentId = "NON_EXISTENT";
+      } else {
+        where.agentId = agentId;
+      }
     }
 
     if (stage && stage !== "ALL") {
@@ -77,6 +80,7 @@ export async function GET(request: Request) {
 
     if (country) {
       where.jobOrder = {
+        companyId: activeCompanyId,
         country: {
           equals: country,
           mode: "insensitive",
@@ -143,7 +147,13 @@ export async function GET(request: Request) {
 
     const csvText = buildCsv(headers, rows);
     return csvResponse(`applicants_export_${Date.now()}.csv`, csvText);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json(
+        { error: "Unauthorized access or inactive company workspace." },
+        { status: 401 }
+      );
+    }
     console.error("GET /api/exports/applicants Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred during CSV generation." },

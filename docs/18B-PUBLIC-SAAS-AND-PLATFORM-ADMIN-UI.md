@@ -188,6 +188,7 @@ Returns `403` if unauthenticated or not a platform admin.
 - Only PENDING applications can be rejected (`400` otherwise)
 - Requires `rejectionReason` in body (`400` if missing/empty)
 - Does **not** create Company, User, Subscription, or Settings
+- The rejection reason is shown on the application detail page
 
 ---
 
@@ -200,16 +201,16 @@ prisma.$transaction(async (tx) => {
   1. Verify application is PENDING
   2. Find SaaSPlan where code = "STANDARD" (500 if missing)
   3. Find Role where name = "Super Admin" (500 if missing)
-  4. generateUniqueSlug(companyName) → e.g. "test-agency-ltd"
+  4. generateUniqueSlug(tx, companyName) → e.g. "test-agency-ltd"
      - lowercase, trim, replace special chars with hyphens
-     - check for slug collisions, append counter if needed
+     - check for slug collisions using tx.company.findUnique, append counter if needed
   5. Create Company (status = ACTIVE)
   6. Create CompanySubscription (planId = Standard plan, status = ACTIVE)
   7. Create CompanySettings (defaultLocale = "bn", all portals = true)
   8. Find or create owner User by ownerEmail:
-     - if exists: reuse existing user
-     - if not: create with temp password "Welcome@{random6}!"
-       and roleId = Super Admin
+     - if exists: reuse existing user. Verify if User's current role is "Super Admin" or "Operations Admin";
+       if not, temporarily assign roleId = Super Admin roleId to grant company administration permissions.
+     - if not: create with temp password "Welcome@{random6}!" and roleId = Super Admin
        // TODO: UserMembership model will replace this global roleId in next phase
   9. Update CompanyApplication:
      - status = APPROVED
@@ -244,7 +245,7 @@ When `POST /api/platform/company-applications/[id]/reject` is called:
 
 ## Slug Generation
 
-**Function**: `generateUniqueSlug(name: string)` in `approve/route.ts`
+**Function**: `generateUniqueSlug(tx: any, name: string)` in `approve/route.ts`
 
 ```
 "Test Agency Ltd" → "test-agency-ltd"
@@ -260,7 +261,7 @@ Algorithm:
 4. Collapse multiple consecutive hyphens
 5. Trim leading/trailing hyphens
 6. Fallback to `"company"` if result is empty
-7. Loop until unique, appending incrementing counter
+7. Loop until unique inside transaction using `tx.company.findUnique`, appending incrementing counter
 
 ---
 
@@ -290,6 +291,49 @@ model User {
 
 ---
 
+## Platform Admin Seeding Safety Rules
+
+The database seeding script (`prisma/seed.ts`) supports provisioning a platform administrator:
+- Reads `PLATFORM_ADMIN_EMAIL` and `PLATFORM_ADMIN_PASSWORD` from environment variables.
+- If missing, the seed prints an informational note and continues without crashing.
+- Dev values (`platform@agency.com` / `PlatformAdmin@2026!`) are defined in gitignored `.env` files for local dev helpers only.
+
+> [!CAUTION]
+> **Production Credentials Protection**: Hardcoded credentials must never be included in production configuration files, Dockerfiles, or production documentation. Production environments must define `PLATFORM_ADMIN_EMAIL` and `PLATFORM_ADMIN_PASSWORD` with long, randomly generated secure credentials.
+
+---
+
+## Manual QA Checklist
+
+### 1. Inbound Application Validation
+- [ ] Fill the `/apply` page. Submit an application. Verify it redirects to `/apply/success`.
+- [ ] Attempt to submit a duplicate application with the same company name or owner email. Verify a `409 Conflict` is returned.
+
+### 2. Platform Admin Dashboard & Authentication
+- [ ] Log in as a non-admin ERP user (e.g. `hr@agency.com`). Navigate to `/platform` or make requests to protected `/api/platform/*` endpoints. Verify they redirect to `/denied` (frontend) or return `403 Forbidden` (API).
+- [ ] Log in as a Platform Admin (`platform@agency.com`). Verify navigation sidebar contains the **Platform Admin** link.
+- [ ] Access the platform admin dashboard. Check if counters load and status list is filtered correctly.
+
+### 3. Application Approval Cycle
+- [ ] Open a PENDING registration dossier. Verify detail layout loads.
+- [ ] Click "Approve & Activate Company". Verify the confirmation modal shows.
+- [ ] Approve the application. Check if:
+  - [ ] A new `Company` is created with status `ACTIVE`.
+  - [ ] A `CompanySubscription` is created pointing to `STANDARD` plan with status `ACTIVE`.
+  - [ ] `CompanySettings` are provisioned.
+  - [ ] Owner `User` is created or upgraded to `Super Admin`.
+  - [ ] `CompanyApplication` status updates to `APPROVED` with auditor audit attribution.
+- [ ] Check if the application detail view now displays the status as "APPROVED" and hides action controls.
+
+### 4. Application Rejection Cycle
+- [ ] Create a new application. Log in as Platform Admin.
+- [ ] Open the new PENDING application. Click "Reject Application".
+- [ ] Submit rejection without a reason. Verify validation prevents it.
+- [ ] Enter a rejection reason and confirm. Check if status updates to `REJECTED` and no company/owner entities are created.
+- [ ] Verify the rejection reason shows on the detail page.
+
+---
+
 ## Navigation Updates
 
 ### Public Navigation
@@ -316,3 +360,4 @@ Normal ERP users (non-platform-admin) do **not** see this link.
 - Email notifications on approval/rejection
 - Billing/payment gateway integration
 - Company management dashboard for platform admins
+- Safe data migration script to isolate pre-existing ERP database records under a primary default tenant.

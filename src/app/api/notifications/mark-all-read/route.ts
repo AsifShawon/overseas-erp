@@ -3,22 +3,18 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 
 export async function POST(request: Request) {
   try {
-    // 1. Authenticate Request
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId } = decoded;
+    // 1. Authenticate Request and resolve company context
+    const { activeCompanyId, userId } = await getCompanyContextOrThrow(request);
 
     // 2. Perform bulk update inside database
     const updateResult = await prisma.notification.updateMany({
       where: {
         userId,
+        companyId: activeCompanyId, // FORCE TENANT ISOLATION
         isRead: false,
       },
       data: {
@@ -29,9 +25,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       count: updateResult.count,
-      message: "All user notifications successfully marked as read.",
+      message: "All user company notifications successfully marked as read.",
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("POST /api/notifications/mark-all-read Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },

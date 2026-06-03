@@ -3,17 +3,11 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { authenticateRequest } from "@/lib/auth";
-import { getUserPermissions } from "@/lib/rbac";
+import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
 
 export async function POST(request: Request) {
   try {
-    const decoded = await authenticateRequest(request);
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const { userId, roleName } = decoded;
+    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
 
     // Boundary Check: Explicitly block Agent and Applicant user roles from administrative accruals
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -24,12 +18,11 @@ export async function POST(request: Request) {
     }
 
     // RBAC: Check permissions
-    const permissions = await getUserPermissions(userId);
     const isAuthorized =
       roleName === "Super Admin" ||
       roleName === "Operations Admin" ||
       roleName === "Accounts Officer" ||
-      permissions.includes("MANAGE_ACCOUNTS" as any);
+      permissions.includes("MANAGE_ACCOUNTS");
 
     if (!isAuthorized) {
       return NextResponse.json(
@@ -42,9 +35,10 @@ export async function POST(request: Request) {
 
     // Execute atomic transaction for safe, concurrent-safe scans
     await prisma.$transaction(async (tx) => {
-      // 1. Scan eligible candidates: agentId exists, jobOrderId exists, stage is DEPLOYED, and no existing commission
+      // 1. Scan eligible candidates: companyId matches, agentId exists, jobOrderId exists, stage is DEPLOYED, and no existing commission
       const eligibleApplicants = await tx.applicant.findMany({
         where: {
+          companyId: activeCompanyId,
           agentId: { not: null },
           jobOrderId: { not: null },
           currentStage: "DEPLOYED",
@@ -69,6 +63,7 @@ export async function POST(request: Request) {
             jobOrderId: applicant.jobOrderId,
             amount: applicant.jobOrder.commissionAmount,
             status: "ACCRUED",
+            companyId: activeCompanyId,
           },
         });
 
@@ -81,6 +76,7 @@ export async function POST(request: Request) {
               userId: applicant.agent.userId,
               title: "Candidate Commission Accrued",
               message: `Placement commission of $${applicant.jobOrder.commissionAmount.toLocaleString()} has been accrued for candidate ${applicant.fullName} (${applicant.passportNumber}).`,
+              companyId: activeCompanyId,
             },
           });
         }
@@ -104,6 +100,7 @@ export async function POST(request: Request) {
                 status: commission.status,
               },
             } as any,
+            companyId: activeCompanyId,
             ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
           },
         });
@@ -116,6 +113,9 @@ export async function POST(request: Request) {
       message: `${createdCount} commissions successfully scanned and accrued.`,
     });
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
     console.error("POST /api/finance/commissions/accrue Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred while scanning candidate placements." },

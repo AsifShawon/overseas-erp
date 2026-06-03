@@ -26,6 +26,10 @@ interface AuthenticatedUser extends MockUser {
   permissions: PermissionCode[];
   mustChangePassword?: boolean;
   isPlatformAdmin?: boolean;
+  activeCompanyId?: string | null;
+  activeCompanyName?: string | null;
+  membershipId?: string | null;
+  companyStatus?: string | null;
 }
 
 interface AuthContextType {
@@ -131,6 +135,8 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data.user.roleName === "Applicant") {
         router.push("/applicant/portal");
+      } else if (data.user.isPlatformAdmin && !data.user.activeCompanyId) {
+        router.push("/platform");
       } else {
         router.push("/dashboard");
       }
