@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Globe2,
+  Mail,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -48,7 +49,15 @@ const SIDEBAR_LINKS: SidebarLink[] = [
   { label: "Reports", href: "/reports", icon: BarChart3, permission: "VIEW_REPORTS" },
   { label: "Notifications", href: "/notifications", icon: Bell, permission: "VIEW_NOTIFICATIONS" },
   { label: "Audit Logs", href: "/audit-logs", icon: History, permission: "VIEW_AUDIT_LOGS" },
+  { label: "Company Users", href: "/settings/users", icon: Users, permission: "VIEW_COMPANY_USERS" },
   { label: "RBAC Settings", href: "/rbac", icon: ShieldCheck, permission: "MANAGE_RBAC" },
+];
+
+const PLATFORM_LINKS: SidebarLink[] = [
+  { label: "Platform Dashboard", href: "/platform", icon: LayoutDashboard },
+  { label: "Company Applications", href: "/platform/company-applications", icon: FileText },
+  { label: "Global Email & SMTP", href: "/platform/settings/email", icon: Mail },
+  { label: "System Notifications", href: "/platform/notifications", icon: Bell },
 ];
 
 export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
@@ -72,7 +81,13 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
       case "Reports": return "reports";
       case "Notifications": return "notifications";
       case "Audit Logs": return "auditLogs";
+      case "Company Users": return "companyUsers";
       case "RBAC Settings": return "rbacSettings";
+      case "Platform Dashboard": return "platformDashboard";
+      case "Company Applications": return "companyApplications";
+      case "Global Email & SMTP": return "globalEmail";
+      case "System Notifications": return "systemNotifications";
+      case "Exit Platform Admin": return "exitPlatform";
       default: return "";
     }
   };
@@ -106,48 +121,88 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
       {/* Nav Links */}
       <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto scrollbar-thin scrollbar-thumb-border-strong">
-        {user.isPlatformAdmin && (
-          <Link
-            href="/platform"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group ${
-              pathname.startsWith("/platform")
-                ? "bg-primary-theme text-white shadow-sm shadow-primary-theme/30"
-                : "text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme"
-            }`}
-          >
-            <ShieldCheck className={`h-5 w-5 shrink-0 ${pathname.startsWith("/platform") ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
-            {!collapsed && <span className="truncate">Platform Admin</span>}
-          </Link>
+        {pathname.startsWith("/platform") ? (
+          <>
+            {PLATFORM_LINKS.map((link) => {
+              const isActive = pathname === link.href || (link.href !== "/platform" && pathname.startsWith(link.href));
+              const Icon = link.icon;
+              const navKey = getNavLinkKey(link.label);
+              const localizedLabel = navKey ? t(`nav.${navKey}`) : link.label;
+              const finalLabel = localizedLabel.startsWith("nav.") ? link.label : localizedLabel;
+
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group ${
+                    isActive
+                      ? "bg-primary-theme text-white shadow-sm shadow-primary-theme/30"
+                      : "text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme"
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 shrink-0 ${isActive ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
+                  {!collapsed && <span className="truncate">{finalLabel}</span>}
+                </Link>
+              );
+            })}
+
+            {user.activeCompanyId && (
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme transition-all duration-200 group mt-4 border-t border-dashed border-border-theme pt-4"
+              >
+                <Globe2 className="h-5 w-5 shrink-0 text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme" />
+                {!collapsed && <span className="truncate">{t("nav.exitPlatform") || "Exit Platform Admin"}</span>}
+              </Link>
+            )}
+          </>
+        ) : (
+          <>
+            {user.isPlatformAdmin && (
+              <Link
+                href="/platform"
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group ${
+                  pathname.startsWith("/platform")
+                    ? "bg-primary-theme text-white shadow-sm shadow-primary-theme/30"
+                    : "text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme"
+                }`}
+              >
+                <ShieldCheck className={`h-5 w-5 shrink-0 ${pathname.startsWith("/platform") ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
+                {!collapsed && <span className="truncate">Platform Admin</span>}
+              </Link>
+            )}
+            {SIDEBAR_LINKS.map((link) => {
+              // Check permission guard
+              if (link.permission && !hasAccess(link.permission)) return null;
+
+              // Agent special check: limit some links
+              if (user.roleName === "Agent" && (link.href === "/rbac" || link.href === "/audit-logs" || link.href === "/reports" || link.href === "/job-orders" || link.href === "/settings/users")) {
+                return null;
+              }
+
+              const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href));
+              const Icon = link.icon;
+              const navKey = getNavLinkKey(link.label);
+              const localizedLabel = navKey ? t(`nav.${navKey}`) : link.label;
+              const finalLabel = localizedLabel.startsWith("nav.") ? link.label : localizedLabel;
+
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group ${
+                    isActive
+                      ? "bg-primary-theme text-white shadow-sm shadow-primary-theme/30"
+                      : "text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme"
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 shrink-0 ${isActive ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
+                  {!collapsed && <span className="truncate">{finalLabel}</span>}
+                </Link>
+              );
+            })}
+          </>
         )}
-        {SIDEBAR_LINKS.map((link) => {
-          // Check permission guard
-          if (link.permission && !hasAccess(link.permission)) return null;
-
-          // Agent special check: limit some links
-          if (user.roleName === "Agent" && (link.href === "/rbac" || link.href === "/audit-logs" || link.href === "/reports" || link.href === "/job-orders")) {
-            return null;
-          }
-
-          const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href));
-          const Icon = link.icon;
-          const navKey = getNavLinkKey(link.label);
-          const localizedLabel = navKey ? t(`nav.${navKey}`) : link.label;
-
-          return (
-            <Link
-              key={link.label}
-              href={link.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group ${
-                isActive
-                  ? "bg-primary-theme text-white shadow-sm shadow-primary-theme/30"
-                  : "text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme"
-              }`}
-            >
-              <Icon className={`h-5 w-5 shrink-0 ${isActive ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
-              {!collapsed && <span className="truncate">{localizedLabel}</span>}
-            </Link>
-          );
-        })}
       </nav>
 
       {/* User Status Bottom Info */}

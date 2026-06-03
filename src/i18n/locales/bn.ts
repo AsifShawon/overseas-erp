@@ -70,6 +70,11 @@ export const bn: TranslationKeys = {
     rbacSettings: "রোল ও পারমিশন",
     brandTitle: "Visa",
     brandTitleHighlight: "Tek",
+    platformDashboard: "প্ল্যাটফর্ম ড্যাশবোর্ড",
+    companyApplications: "কোম্পানি আবেদনসমূহ",
+    globalEmail: "গ্লোবাল ইমেল ও SMTP",
+    systemNotifications: "সিস্টেম নোটিফিকেশন",
+    exitPlatform: "প্ল্যাটফর্ম এডমিন থেকে প্রস্থান",
   },
   dashboard: {
     pageTitle: "কমান্ড ড্যাশবোর্ড",

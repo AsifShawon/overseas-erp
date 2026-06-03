@@ -2,296 +2,286 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
 import { useMockAuth } from "@/context/MockAuthContext";
-import { Bell, BellOff, CheckCircle, AlertTriangle, Plus, Loader2 } from "lucide-react";
-import { ErrorState } from "@/components/ui/ErrorState";
+import {
+  Bell, BellOff, CheckCircle, AlertTriangle, Loader2,
+  RefreshCw, ExternalLink, Clock, Filter, Info,
+  AlertCircle, Zap, Shield, CreditCard, FileText, Workflow,
+} from "lucide-react";
 import { useToast } from "@/context/ToastContext";
-import { useT } from "@/i18n/useT";
-import { formatNumber, formatDateTime } from "@/i18n/format";
+
+type Priority = "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
+type FilterTab = "all" | "unread" | "high_priority" | "payments" | "documents" | "workflow" | "tasks" | "platform";
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  priority: Priority;
+  isRead: boolean;
+  actionUrl?: string;
+  relatedModel?: string;
+  createdAt: string;
+  dueAt?: string;
+  companyId?: string;
+}
+
+const PRIORITY_COLORS: Record<Priority, string> = {
+  LOW:      "text-slate-400",
+  NORMAL:   "text-indigo-500",
+  HIGH:     "text-amber-500",
+  CRITICAL: "text-red-500",
+};
+
+const PRIORITY_BG: Record<Priority, string> = {
+  LOW:      "bg-slate-100 text-slate-600",
+  NORMAL:   "bg-indigo-50 text-indigo-700",
+  HIGH:     "bg-amber-50 text-amber-700",
+  CRITICAL: "bg-red-50 text-red-700",
+};
+
+function getTypeIcon(type: string) {
+  if (type.startsWith("INVOICE") || type.startsWith("PAYMENT") || type.startsWith("RECEIPT"))
+    return <CreditCard className="h-4 w-4" />;
+  if (type.startsWith("DOCUMENT"))
+    return <FileText className="h-4 w-4" />;
+  if (type.startsWith("APPLICANT") || type.startsWith("TASK"))
+    return <Workflow className="h-4 w-4" />;
+  if (type.startsWith("PLATFORM"))
+    return <Shield className="h-4 w-4" />;
+  if (type.startsWith("COMMISSION"))
+    return <Zap className="h-4 w-4" />;
+  if (type === "PASSWORD_CHANGED" || type === "ACCOUNT_ACTIVATION")
+    return <Shield className="h-4 w-4" />;
+  return <Bell className="h-4 w-4" />;
+}
+
+function timeAgo(dateStr: string): string {
+  const d    = new Date(dateStr);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60)    return "just now";
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 export default function NotificationsPage() {
-  const { accessToken } = useMockAuth();
+  const { accessToken, user } = useMockAuth();
   const toast = useToast();
-  const { t, locale } = useT();
 
-  const [notificationsList, setNotificationsList] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState({
-    total: 0,
-    unread: 0,
-    channelStatus: "Healthy",
+  const [error, setError]         = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
+  const [stats, setStats] = useState({ total: 0, unread: 0 });
+
+  const fetchNotifications = useCallback(async (showLoader = true) => {
+    if (!accessToken) return;
+    if (showLoader) setIsLoading(true);
+    setError(null);
+    try {
+      const url = user?.isPlatformAdmin
+        ? "/api/notifications?pageSize=100"
+        : "/api/notifications?pageSize=100";
+
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!res.ok) throw new Error("Failed to fetch notifications");
+      const result = await res.json();
+      setNotifications(result.data || []);
+      setStats({ total: result.meta?.total || 0, unread: result.stats?.unread || 0 });
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      if (showLoader) setIsLoading(false);
+    }
+  }, [accessToken, user]);
+
+  useEffect(() => { fetchNotifications(true); }, [fetchNotifications]);
+
+  const handleMarkRead = async (id: string) => {
+    if (!accessToken) return;
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
+    setStats((s) => ({ ...s, unread: Math.max(0, s.unread - 1) }));
+    try {
+      await fetch(`/api/notifications/${id}`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    } catch { fetchNotifications(false); }
+  };
+
+  const handleMarkAllRead = async () => {
+    if (!accessToken) return;
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setStats((s) => ({ ...s, unread: 0 }));
+    try {
+      await fetch("/api/notifications/mark-all-read", {
+        method: "POST", headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    } catch { fetchNotifications(false); }
+  };
+
+  const filteredNotifications = notifications.filter((n) => {
+    if (activeFilter === "all")           return true;
+    if (activeFilter === "unread")        return !n.isRead;
+    if (activeFilter === "high_priority") return n.priority === "HIGH" || n.priority === "CRITICAL";
+    if (activeFilter === "payments")      return n.type.startsWith("INVOICE") || n.type.startsWith("PAYMENT") || n.type.startsWith("RECEIPT");
+    if (activeFilter === "documents")     return n.type.startsWith("DOCUMENT") || n.type.includes("DOCUMENT");
+    if (activeFilter === "workflow")      return n.type.startsWith("APPLICANT");
+    if (activeFilter === "tasks")         return n.type.startsWith("TASK") || n.type.includes("DUE") || n.type.includes("OVERDUE");
+    if (activeFilter === "platform")      return n.type.startsWith("PLATFORM") || n.companyId === null;
+    return true;
   });
 
-  const fetchNotifications = useCallback(
-    async (showLoader = true) => {
-      if (!accessToken) return;
-      if (showLoader) setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch("/api/notifications?pageSize=100", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || `Failed to fetch notifications (${response.status})`);
-        }
-        const result = await response.json();
-        setNotificationsList(result.data || []);
-        if (result.stats) {
-          setStats(result.stats);
-        } else {
-          const unreadCount = (result.data || []).filter((n: any) => !n.isRead).length;
-          setStats({
-            total: result.meta?.total || (result.data || []).length,
-            unread: unreadCount,
-            channelStatus: "Healthy",
-          });
-        }
-      } catch (err: any) {
-        setError(err.message || "An unexpected error occurred while loading notifications.");
-      } finally {
-        if (showLoader) setIsLoading(false);
-      }
-    },
-    [accessToken]
-  );
-
-  // Initial load
-  useEffect(() => {
-    fetchNotifications(true);
-  }, [fetchNotifications]);
-
-  const handleMarkAsRead = async (notId: string) => {
-    if (!accessToken) return;
-
-    // Optimistic UI update
-    setNotificationsList((prev) => prev.map((n) => (n.id === notId ? { ...n, isRead: true } : n)));
-    setStats((prev) => ({
-      ...prev,
-      unread: Math.max(0, prev.unread - 1),
-    }));
-
-    try {
-      const response = await fetch(`/api/notifications/${notId}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to mark notification as read.");
-      }
-      // Sync background state
-      fetchNotifications(false);
-    } catch (err: any) {
-      console.error("Mark as read API failure:", err);
-      // Revert/refetch on failure
-      fetchNotifications(false);
-    }
-  };
-
-  const handleMarkAllAsRead = async () => {
-    if (!accessToken) return;
-
-    // Optimistic UI update
-    setNotificationsList((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    setStats((prev) => ({
-      ...prev,
-      unread: 0,
-    }));
-
-    try {
-      const response = await fetch("/api/notifications/mark-all-read", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to mark all notifications as read.");
-      }
-      // Sync background state
-      fetchNotifications(false);
-    } catch (err: any) {
-      console.error("Mark all as read API failure:", err);
-      fetchNotifications(false);
-    }
-  };
-
-  const handleSimulateAlert = async () => {
-    if (!accessToken) return;
-
-    try {
-      const response = await fetch("/api/notifications", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to simulate system alert.");
-      }
-      const newNot = await response.json();
-
-      // Update local state instantly
-      setNotificationsList((prev) => [newNot, ...prev]);
-      setStats((prev) => ({
-        ...prev,
-        total: prev.total + 1,
-        unread: prev.unread + 1,
-      }));
-    } catch (err: any) {
-      console.error("Simulate alert API failure:", err);
-      toast.error(
-        err.message || "Failed to simulate system alert. Ensure you are in development mode."
-      );
-    }
-  };
+  const TABS: { key: FilterTab; label: string }[] = [
+    { key: "all",           label: "All" },
+    { key: "unread",        label: `Unread${stats.unread > 0 ? ` (${stats.unread})` : ""}` },
+    { key: "high_priority", label: "Priority" },
+    { key: "payments",      label: "Payments" },
+    { key: "documents",     label: "Documents" },
+    { key: "workflow",      label: "Workflow" },
+    { key: "tasks",         label: "Tasks & Due" },
+    ...(user?.isPlatformAdmin ? [{ key: "platform" as FilterTab, label: "Platform" }] : []),
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("notifications.pageTitle")}
-        description={t("notifications.pageDesc")}
+        title="Notification Center"
+        description="All alerts, reminders, and system messages in one place."
         breadcrumbs={[
-          { label: locale === "bn" ? "ইআরপি হাব" : "ERP Hub", href: "/dashboard" },
-          { label: t("nav.notifications") },
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Notifications" },
         ]}
         actions={
           <div className="flex items-center gap-2">
             <button
-              onClick={handleSimulateAlert}
-              className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800 dark:bg-slate-50 dark:text-slate-950 dark:hover:bg-slate-200 shadow-sm transition-all duration-250 cursor-pointer"
+              onClick={() => fetchNotifications(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 transition-all cursor-pointer"
             >
-              <Plus className="h-4 w-4" />{" "}
-              {locale === "bn" ? "সিস্টেম অ্যালার্ট সিমুলেট করুন" : "Simulate System Alert"}
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
             </button>
-            {notificationsList.length > 0 && stats.unread > 0 && (
+            {stats.unread > 0 && (
               <button
-                onClick={handleMarkAllAsRead}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 transition-all duration-250 cursor-pointer"
+                onClick={handleMarkAllRead}
+                className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-all cursor-pointer shadow-sm"
               >
-                <CheckCircle className="h-4 w-4 text-emerald-600" /> {t("notifications.markAllRead")}
+                <CheckCircle className="h-3.5 w-3.5" /> Mark All Read
               </button>
             )}
           </div>
         }
       />
 
-      {/* Overview */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          title={locale === "bn" ? "মোট ইনবক্স নোটিফিকেশন" : "Total Inbox Notifications"}
-          value={formatNumber(stats.total, locale)}
-          description={
-            locale === "bn" ? "নিবন্ধিত লজিস্টিক সতর্কবার্তা" : "Regulatory log alerts logged"
-          }
-          iconName="Bell"
-        />
-        <StatCard
-          title={locale === "bn" ? "অপেক্ষমাণ নোটিফিকেশন" : "Awaiting Read Vetting"}
-          value={
-            locale === "bn"
-              ? `${formatNumber(stats.unread, locale)} টি অপঠিত`
-              : `${stats.unread} Unread`
-          }
-          description={
-            locale === "bn"
-              ? "জরুরি রিভিউর অপেক্ষায় থাকা নোটিফিকেশন"
-              : "Urgent operations alerts pending review"
-          }
-          iconName="MailOpen"
-          trend={{ value: stats.unread > 0 ? String(stats.unread) : "0", isPositive: false }}
-        />
-        <StatCard
-          title={locale === "bn" ? "নোটিফিকেশন চ্যানেল স্ট্যাটাস" : "Notification Channel Status"}
-          value={
-            stats.channelStatus === "Healthy"
-              ? locale === "bn"
-                ? "সচল"
-                : "Healthy"
-              : stats.channelStatus
-          }
-          description={locale === "bn" ? "লাইভ এসএমটিপি ফিড চালু" : "Emigration SMTP feeds live"}
-          iconName="ShieldCheck"
-        />
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label: "Total", value: stats.total, color: "text-slate-800 dark:text-white" },
+          { label: "Unread", value: stats.unread, color: "text-indigo-600" },
+          { label: "High Priority", value: notifications.filter((n) => n.priority === "HIGH" || n.priority === "CRITICAL").length, color: "text-amber-600" },
+          { label: "Due Reminders", value: notifications.filter((n) => n.type.includes("DUE") || n.type.includes("OVERDUE")).length, color: "text-red-600" },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+            <p className="text-xs text-slate-500 dark:text-slate-400">{s.label}</p>
+            <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Notifications List Card */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-          <Bell className="h-4.5 w-4.5 text-indigo-500 animate-bounce" />{" "}
-          {locale === "bn" ? "রেগুলেটরি অ্যালার্ট ফিড" : "Regulatory Alert Feed"}
-        </h3>
+      {/* Tabs */}
+      <div className="flex gap-1 overflow-x-auto pb-1">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveFilter(tab.key)}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+              activeFilter === tab.key
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
+      {/* Notification List */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 overflow-hidden">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <div className="flex flex-col items-center justify-center py-20 space-y-3">
             <Loader2 className="h-8 w-8 text-indigo-500 animate-spin" />
-            <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
-              {locale === "bn" ? "অ্যালার্ট ফিড সিঙ্ক করা হচ্ছে..." : "Syncing Alerts Feed..."}
-            </p>
+            <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Loading notifications...</p>
           </div>
         ) : error ? (
-          <ErrorState
-            title={locale === "bn" ? "ইনবক্স সিঙ্ক ত্রুটি" : "Inbox Sync Error"}
-            description={error}
-            iconName="AlertCircle"
-          />
-        ) : notificationsList.length === 0 ? (
-          <div className="text-center py-16 space-y-3 animate-in fade-in duration-300">
-            <BellOff className="h-10 w-10 text-slate-300 mx-auto" />
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-              {locale === "bn" ? "নোটিফিকেশন ইনবক্স খালি" : "Emigration Alert Inbox Empty"}
-            </h4>
-            <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-              {locale === "bn"
-                ? "আপনার সেশনের সক্রিয় রোলের জন্য কোনো সতর্কবার্তা ফাইল নেই। নতুন অ্যালার্ট ফায়ার করতে উপরে \"সিস্টেম অ্যালার্ট সিমুলেট করুন\" বাটনে ক্লিক করুন।"
-                : "Your session active role has zero pending operations warning files. Try clicking \"Simulate System Alert\" above to fire a live database event."}
+          <div className="flex flex-col items-center justify-center py-16 space-y-2 text-center px-8">
+            <AlertCircle className="h-8 w-8 text-red-400" />
+            <p className="text-sm font-semibold text-red-600">{error}</p>
+          </div>
+        ) : filteredNotifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-3">
+            <BellOff className="h-10 w-10 text-slate-300" />
+            <p className="text-sm font-bold text-slate-600 dark:text-slate-300">No notifications in this filter</p>
+            <p className="text-xs text-slate-400 max-w-xs text-center">
+              Try switching to a different tab or wait for new events.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in duration-300">
-            {notificationsList.map((not) => (
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {filteredNotifications.map((n) => (
               <div
-                key={not.id}
-                className={`py-4 flex gap-4 items-start transition-all duration-200 ${
-                  !not.isRead
-                    ? "bg-slate-50/50 dark:bg-slate-900/10 px-3 rounded-lg border-l-4 border-indigo-600"
-                    : "px-3"
+                key={n.id}
+                className={`flex gap-4 items-start p-4 transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900/40 ${
+                  !n.isRead ? "border-l-4 border-indigo-600 bg-indigo-50/20 dark:bg-indigo-950/10" : ""
                 }`}
               >
-                <div
-                  className={`rounded-full p-2 shrink-0 ${
-                    !not.isRead ? "bg-indigo-50 text-indigo-600" : "bg-slate-100 text-slate-400"
-                  }`}
-                >
-                  <AlertTriangle className="h-4.5 w-4.5" />
+                {/* Icon */}
+                <div className={`shrink-0 rounded-full p-2 ${!n.isRead ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40" : "bg-slate-100 text-slate-400 dark:bg-slate-800"}`}>
+                  {getTypeIcon(n.type)}
                 </div>
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      {not.title} {!not.isRead && <span className="h-2 w-2 rounded-full bg-indigo-600"></span>}
-                    </h4>
-                    <span className="text-[10px] text-slate-400">
-                      {formatDateTime(not.createdAt, locale)}
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                        {n.title}
+                        {!n.isRead && <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-600 ml-1.5 align-middle" />}
+                      </h4>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${PRIORITY_BG[n.priority]}`}>
+                        {n.priority}
+                      </span>
+                    </div>
+                    <span className="shrink-0 text-[10px] text-slate-400 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />{timeAgo(n.createdAt)}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 leading-normal">{not.message}</p>
-                  {!not.isRead && (
-                    <button
-                      onClick={() => handleMarkAsRead(not.id)}
-                      className="mt-2 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1 cursor-pointer transition-colors duration-150"
-                    >
-                      <CheckCircle className="h-3.5 w-3.5" /> {t("notifications.markRead")}
-                    </button>
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{n.message}</p>
+
+                  {n.dueAt && (
+                    <p className="text-[10px] text-amber-600 font-semibold flex items-center gap-1">
+                      <Clock className="h-3 w-3" />Due: {new Date(n.dueAt).toLocaleDateString()}
+                    </p>
                   )}
+
+                  <div className="flex items-center gap-3 pt-1">
+                    {!n.isRead && (
+                      <button
+                        onClick={() => handleMarkRead(n.id)}
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <CheckCircle className="h-3.5 w-3.5" /> Mark Read
+                      </button>
+                    )}
+                    {n.actionUrl && (
+                      <a
+                        href={n.actionUrl}
+                        className="text-[10px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 flex items-center gap-1 transition-colors"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> View
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

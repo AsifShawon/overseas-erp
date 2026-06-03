@@ -100,6 +100,18 @@ export async function POST(request: Request) {
           passwordHash,
           isActive: true,
           mustChangePassword: false,
+          passwordChangedAt: new Date(),
+        },
+      });
+
+      // Update their memberships from INVITED to ACTIVE
+      await tx.userMembership.updateMany({
+        where: {
+          userId: activationToken.userId,
+          status: "INVITED",
+        },
+        data: {
+          status: "ACTIVE",
         },
       });
 

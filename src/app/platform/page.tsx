@@ -18,6 +18,7 @@ import {
   Clock,
   Building2,
   AlertTriangle,
+  Mail,
 } from "lucide-react";
 
 interface Stats {
@@ -252,49 +253,73 @@ export default function PlatformDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Applications card */}
-        <div className="rounded-2xl border border-border-theme bg-surface p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-primary-theme/10 border border-primary-theme/20 flex items-center justify-center">
-              <FileText className="h-4.5 w-4.5 text-primary-theme" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-text-theme">Company Applications</h3>
-              <p className="text-[10px] text-text-soft">Review, approve, or reject tenant registrations</p>
+        <div className="rounded-2xl border border-border-theme bg-surface p-6 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-primary-theme/10 border border-primary-theme/20 flex items-center justify-center">
+                <FileText className="h-4.5 w-4.5 text-primary-theme" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-text-theme">Company Applications</h3>
+                <p className="text-[10px] text-text-soft">Review, approve, or reject tenant registrations</p>
+              </div>
             </div>
           </div>
           <Link
             href="/platform/company-applications"
             id="platform-goto-applications"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-theme hover:bg-primary-hover py-2.5 text-xs font-bold text-white shadow-sm transition-all duration-200"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-theme hover:bg-primary-hover py-2.5 text-xs font-bold text-white shadow-sm transition-all duration-200 mt-2"
           >
             Open Application Registry
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        {/* Platform info card */}
-        <div className="rounded-2xl border border-border-theme bg-surface p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-              <LayoutDashboard className="h-4.5 w-4.5 text-indigo-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-text-theme">SaaS Plan Status</h3>
-              <p className="text-[10px] text-text-soft">Standard plan available for all tenants</p>
+        {/* Global SMTP settings card */}
+        <div className="rounded-2xl border border-border-theme bg-surface p-6 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                <Mail className="h-4.5 w-4.5 text-amber-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-text-theme">Global Email & SMTP</h3>
+                <p className="text-[10px] text-text-soft">Monitor config status and run test delivery checks</p>
+              </div>
             </div>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-lg bg-bg border border-border-theme px-3 py-2">
-              <span className="text-xs font-semibold text-text-theme">Standard Plan</span>
-              <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">
-                Active
-              </span>
+          <Link
+            href="/platform/settings/email"
+            id="platform-goto-email-settings"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 py-2.5 text-xs font-bold text-white shadow-sm transition-all duration-200 mt-2"
+          >
+            Configure SMTP Gateway
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {/* Platform info card */}
+        <div className="rounded-2xl border border-border-theme bg-surface p-6 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                <LayoutDashboard className="h-4.5 w-4.5 text-indigo-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-text-theme">SaaS Plan Status</h3>
+                <p className="text-[10px] text-text-soft">Standard plan active for all tenants</p>
+              </div>
             </div>
-            <p className="text-[10px] text-text-soft px-1">
-              All approved companies receive the Standard plan. Billing gateway planned for next phase.
-            </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded-lg bg-bg border border-border-theme px-3 py-2">
+                <span className="text-xs font-semibold text-text-theme">Standard Plan</span>
+                <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+                  Active
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

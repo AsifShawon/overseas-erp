@@ -68,6 +68,11 @@ export const en = {
     rbacSettings: "RBAC Settings",
     brandTitle: "Visa",
     brandTitleHighlight: "Tek",
+    platformDashboard: "Platform Dashboard",
+    companyApplications: "Company Applications",
+    globalEmail: "Global Email & SMTP",
+    systemNotifications: "System Notifications",
+    exitPlatform: "Exit Platform Admin",
   },
   dashboard: {
     pageTitle: "Command Dashboard",

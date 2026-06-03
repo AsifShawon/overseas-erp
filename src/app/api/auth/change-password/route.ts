@@ -6,11 +6,12 @@ import { prisma } from "@/lib/db";
 import { authenticateRequest } from "@/lib/auth";
 import * as argon2 from "argon2";
 import { z } from "zod";
+import { sendPasswordChangedAlert } from "@/lib/email/email-service";
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required."),
-  newPassword: z.string().min(8, "New password must be at least 8 characters long."),
-  confirmPassword: z.string().min(8, "Confirm password must be at least 8 characters long."),
+  newPassword: z.string().min(12, "New password must be at least 12 characters long."),
+  confirmPassword: z.string().min(12, "Confirm password must be at least 12 characters long."),
 });
 
 export async function POST(request: Request) {
@@ -74,9 +75,10 @@ export async function POST(request: Request) {
       data: {
         userId: user.id,
         roleName: user.role.name,
-        actionType: "CHANGE_PASSWORD",
+        actionType: "PASSWORD_CHANGED",
         tableName: "User",
         recordId: user.id,
+        companyId: decoded.activeCompanyId || null,
         delta: {
           email: user.email,
           fullName: user.fullName,
@@ -86,6 +88,18 @@ export async function POST(request: Request) {
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       },
     });
+
+    // 9. Send email notification (failsafe, do not block main flow)
+    try {
+      await sendPasswordChangedAlert(
+        user.email,
+        user.fullName,
+        decoded.activeCompanyId || undefined,
+        user.id
+      );
+    } catch (emailErr) {
+      console.error("Failsafe: failed to send password changed alert email:", emailErr);
+    }
 
     return NextResponse.json({
       success: true,

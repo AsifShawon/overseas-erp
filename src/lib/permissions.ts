@@ -17,7 +17,12 @@ export type PermissionCode =
   | "VIEW_AUDIT_LOGS"
   | "MANAGE_RBAC"
   | "VIEW_NOTIFICATIONS"
-  | "MANAGE_JOB_ORDERS";
+  | "MANAGE_JOB_ORDERS"
+  | "VIEW_COMPANY_USERS"
+  | "INVITE_COMPANY_USER"
+  | "UPDATE_COMPANY_USER"
+  | "SUSPEND_COMPANY_USER"
+  | "VIEW_COMPANY_ROLES";
 
 export interface Role {
   id: string;
@@ -49,6 +54,11 @@ export const SYSTEM_ROLES: Record<string, Role> = {
       "MANAGE_RBAC",
       "VIEW_NOTIFICATIONS",
       "MANAGE_JOB_ORDERS",
+      "VIEW_COMPANY_USERS",
+      "INVITE_COMPANY_USER",
+      "UPDATE_COMPANY_USER",
+      "SUSPEND_COMPANY_USER",
+      "VIEW_COMPANY_ROLES",
     ],
   },
   OPERATIONS_ADMIN: {
@@ -71,6 +81,11 @@ export const SYSTEM_ROLES: Record<string, Role> = {
       "VIEW_AUDIT_LOGS",
       "VIEW_NOTIFICATIONS",
       "MANAGE_JOB_ORDERS",
+      "VIEW_COMPANY_USERS",
+      "INVITE_COMPANY_USER",
+      "UPDATE_COMPANY_USER",
+      "SUSPEND_COMPANY_USER",
+      "VIEW_COMPANY_ROLES",
     ],
   },
   HR_OFFICER: {

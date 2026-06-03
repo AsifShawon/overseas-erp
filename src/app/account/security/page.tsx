@@ -34,8 +34,8 @@ export default function AccountSecurityPage() {
       setErrorMsg(t("security.currentPasswordRequired"));
       return;
     }
-    if (newPassword.length < 8) {
-      setErrorMsg(t("security.passwordMinLength"));
+    if (newPassword.length < 12) {
+      setErrorMsg(locale === "bn" ? "নতুন পাসওয়ার্ড কমপক্ষে ১২ অক্ষরের হতে হবে।" : "New password must be at least 12 characters long.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -180,7 +180,7 @@ export default function AccountSecurityPage() {
                   {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-[10px] text-text-soft">{t("security.passwordLengthHelp")}</p>
+              <p className="text-[10px] text-text-soft">{locale === "bn" ? "পাসওয়ার্ড কমপক্ষে ১২ অক্ষরের হতে হবে।" : "Password must be at least 12 characters long."}</p>
             </div>
 
             {/* Confirm New Password Field */}

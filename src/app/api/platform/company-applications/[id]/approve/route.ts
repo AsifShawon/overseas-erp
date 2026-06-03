@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth";
 import * as argon2 from "argon2";
 import crypto from "crypto";
+import { sendCompanyOwnerActivation } from "@/lib/email/email-service";
 
 async function generateUniqueSlug(tx: any, name: string): Promise<string> {
   let slug = name
@@ -207,7 +208,16 @@ export async function POST(
         const rawToken = crypto.randomBytes(32).toString("hex");
         const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
-        await tx.accountActivationToken.create({
+        const accountActivationTokenClient =
+          tx.accountActivationToken ?? prisma.accountActivationToken;
+
+        if (!tx.accountActivationToken) {
+          console.warn(
+            "Approval transaction fallback: using root prisma.accountActivationToken because tx.accountActivationToken was unavailable."
+          );
+        }
+
+        await accountActivationTokenClient.create({
           data: {
             userId: ownerUser.id,
             companyId: newCompany.id,
@@ -223,13 +233,45 @@ export async function POST(
         company: newCompany,
         activationLink,
         existingUser: !isNewUser && !needsActivation,
+        ownerUserId: ownerUser.id,
       };
     });
+
+    // Failsafe SMTP trigger
+    let emailSent = false;
+    let emailWarning: string | null = null;
+    let rawToken: string | null = null;
+
+    if (result.activationLink) {
+      const match = result.activationLink.match(/token=([^&]+)/);
+      rawToken = match ? match[1] : null;
+      if (rawToken) {
+        try {
+          const emailRes = await sendCompanyOwnerActivation(
+            application.ownerEmail,
+            application.ownerFullName,
+            application.companyName,
+            rawToken,
+            result.company.id,
+            result.ownerUserId
+          );
+          emailSent = emailRes.sent;
+          if (!emailRes.sent) {
+            emailWarning = emailRes.reason || "SMTP is not configured in this environment.";
+          }
+        } catch (err: any) {
+          console.error("Failsafe: failed to send company owner activation email:", err);
+          emailWarning = err.message || "Failed to transmit activation email.";
+        }
+      }
+    }
 
     return NextResponse.json({
       company: result.company,
       activationLink: result.activationLink,
       existingUser: result.existingUser,
+      emailSent,
+      emailWarning,
     }, { status: 201 });
   } catch (error: any) {
     console.error("POST /api/platform/company-applications/[id]/approve Error:", error);

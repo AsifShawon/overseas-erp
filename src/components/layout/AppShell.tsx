@@ -34,8 +34,8 @@ function ForcePasswordReset() {
       setErrorMsg("Current password is required.");
       return;
     }
-    if (newPassword.length < 8) {
-      setErrorMsg("New password must be at least 8 characters long.");
+    if (newPassword.length < 12) {
+      setErrorMsg("New password must be at least 12 characters long.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -172,7 +172,7 @@ function ForcePasswordReset() {
                 {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            <p className="text-[10px] text-text-soft">Password must be at least 8 characters long.</p>
+            <p className="text-[10px] text-text-soft">Password must be at least 12 characters long.</p>
           </div>
 
           {/* Confirm New Password */}
@@ -268,13 +268,16 @@ function InnerAppShell({ children }: { children: React.ReactNode }) {
   // 2. ERP pages guard: require activeCompanyId + companyStatus ACTIVE
   const isApplicant = user.roleName === "Applicant";
   const isPlatformAdminOnly = user.isPlatformAdmin && !user.activeCompanyId;
+  // Redirect platform-only admins to the platform area.
+  // Call the hook unconditionally to preserve hook order between renders.
+  React.useEffect(() => {
+    if (isPlatformAdminOnly && !pathname.startsWith("/platform")) {
+      router.push("/platform");
+    }
+  }, [isPlatformAdminOnly, pathname, router]);
 
   if (!isApplicant && !pathname.startsWith("/platform")) {
     if (isPlatformAdminOnly) {
-      // Platform admin with no company memberships goes to platform
-      React.useEffect(() => {
-        router.push("/platform");
-      }, []);
       return (
         <div className="min-h-screen bg-bg text-text-theme flex items-center justify-center">
           <Loader2 className="h-8 w-8 text-primary-theme animate-spin" />
