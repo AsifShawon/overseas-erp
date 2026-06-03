@@ -13,7 +13,7 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   // Route paths that do NOT use the AppShell frame (e.g. login)
-  const isAuthRoute = pathname === "/login" || pathname === "/";
+  const isAuthRoute = pathname === "/login" || pathname === "/" || pathname?.startsWith("/apply");
 
   const renderContent = () => {
     if (isAuthRoute) {

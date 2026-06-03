@@ -25,6 +25,7 @@ const PRESET_CREDENTIALS: Record<string, { email: string; password: string }> = 
 interface AuthenticatedUser extends MockUser {
   permissions: PermissionCode[];
   mustChangePassword?: boolean;
+  isPlatformAdmin?: boolean;
 }
 
 interface AuthContextType {
@@ -48,7 +49,7 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
 
   const router = useRouter();
   const pathname = usePathname();
-  const isAuthRoute = pathname === "/login" || pathname === "/";
+  const isAuthRoute = pathname === "/login" || pathname === "/" || pathname?.startsWith("/apply");
 
   // Silent refresh handler to authenticate via HttpOnly cookie
   const handleRefresh = async (): Promise<boolean> => {

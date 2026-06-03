@@ -2,6 +2,7 @@
 // JWT utility using jose (Zero-dependency, edge-compatible)
 
 import { SignJWT, jwtVerify } from "jose";
+import { prisma } from "./db";
 
 const ACCESS_SECRET = new TextEncoder().encode(
   process.env.JWT_ACCESS_SECRET || "dev_access_secret_replace_in_production_with_64_char_string"
@@ -100,4 +101,26 @@ export async function authenticateRequest(request: Request): Promise<AccessToken
     return null;
   }
 }
+
+/**
+ * Require the user to be a platform administrator.
+ * Returns the database user and decoded token payload, or throws an error/returns null.
+ */
+export async function requirePlatformAdmin(request: Request) {
+  const decoded = await authenticateRequest(request);
+  if (!decoded) {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.userId },
+  });
+
+  if (!user || !user.isActive || !user.isPlatformAdmin) {
+    return null;
+  }
+
+  return { user, decoded };
+}
+
 

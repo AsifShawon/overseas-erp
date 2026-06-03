@@ -106,6 +106,19 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
       {/* Nav Links */}
       <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto scrollbar-thin scrollbar-thumb-border-strong">
+        {user.isPlatformAdmin && (
+          <Link
+            href="/platform"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group ${
+              pathname.startsWith("/platform")
+                ? "bg-primary-theme text-white shadow-sm shadow-primary-theme/30"
+                : "text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme"
+            }`}
+          >
+            <ShieldCheck className={`h-5 w-5 shrink-0 ${pathname.startsWith("/platform") ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
+            {!collapsed && <span className="truncate">Platform Admin</span>}
+          </Link>
+        )}
         {SIDEBAR_LINKS.map((link) => {
           // Check permission guard
           if (link.permission && !hasAccess(link.permission)) return null;

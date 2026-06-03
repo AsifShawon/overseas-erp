@@ -119,6 +119,7 @@ model User {
   phone              String?
   roleId             String
   isActive           Boolean   @default(true)
+  isPlatformAdmin    Boolean   @default(false)
   twoFactorSecret    String?
   mustChangePassword Boolean   @default(false)
   passwordChangedAt  DateTime?

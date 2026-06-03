@@ -325,7 +325,33 @@ async function main() {
     },
   });
 
-  console.log(`   ✓ 9 users seeded.\n`);
+  // Platform Admin User Seeding
+  const platformEmail = process.env.PLATFORM_ADMIN_EMAIL;
+  const platformPassword = process.env.PLATFORM_ADMIN_PASSWORD;
+
+  if (platformEmail && platformPassword) {
+    console.log("   👑 Seeding Platform Admin User...");
+    const platformAdminHash = await argon2.hash(platformPassword);
+    await prisma.user.upsert({
+      where: { email: platformEmail },
+      update: {
+        isPlatformAdmin: true,
+      },
+      create: {
+        email: platformEmail,
+        passwordHash: platformAdminHash,
+        fullName: "Platform Admin",
+        roleId: roleMap["Super Admin"],
+        isActive: true,
+        isPlatformAdmin: true,
+      },
+    });
+    console.log(`   ✓ Platform Admin (${platformEmail}) seeded.\n`);
+  } else {
+    console.log("   ℹ️ Skipping Platform Admin seeding: PLATFORM_ADMIN_EMAIL or PLATFORM_ADMIN_PASSWORD not set in .env.\n");
+  }
+
+  console.log(`   ✓ Users seeded.\n`);
 
   // ------------------------------------------
   // STEP 5: Seed Agents

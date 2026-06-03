@@ -1,7 +1,10 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-const url = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
+const isVercel = Boolean(process.env.VERCEL);
+const url = isVercel
+  ? process.env.DATABASE_URL ?? process.env.DIRECT_URL
+  : process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 
 if (!url) {
   throw new Error("DIRECT_URL or DATABASE_URL is required");
