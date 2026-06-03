@@ -4,10 +4,10 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { useRouter } from "next/navigation";
-import { Globe2, ShieldAlert, ArrowRight, UserCheck, Lock, Mail, Loader2, AlertCircle } from "lucide-react";
+import { Globe2, ShieldAlert, ArrowRight, UserCheck, Lock, Mail, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useT } from "@/i18n/useT";
 
 // Password map for seeded users to power developer quick sign-in cards
@@ -31,7 +31,17 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("activated") === "true") {
+        setSuccessMessage("Your account is activated. Please log in.");
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +107,16 @@ export default function LoginPage() {
           <p className="text-[11px] text-text-soft mb-6 leading-relaxed">
             {t("auth.subtitle")}
           </p>
+
+          {successMessage && (
+            <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3.5 text-xs text-emerald-700 dark:border-emerald-950/30 dark:bg-emerald-950/10 dark:text-emerald-400">
+              <CheckCircle2 className="h-4.5 w-4.5 shrink-0 text-emerald-600 mt-0.5 dark:text-emerald-400" />
+              <div>
+                <strong className="font-bold block text-[11px] mb-0.5">Success</strong>
+                <p className="text-[10px] text-emerald-600/90 dark:text-emerald-400/90 font-medium">{successMessage}</p>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-100 bg-rose-50/50 p-3.5 text-xs text-rose-700 dark:border-rose-950/30 dark:bg-rose-950/10 dark:text-rose-400 animate-shake">

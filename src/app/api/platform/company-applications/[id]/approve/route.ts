@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth";
 import * as argon2 from "argon2";
+import crypto from "crypto";
 
 async function generateUniqueSlug(tx: any, name: string): Promise<string> {
   let slug = name
@@ -86,7 +87,7 @@ export async function POST(
     }
 
     // Create Company, Subscription, Settings, and User in a transaction
-    const company = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Generate unique slug inside the transaction using transaction client
       const slug = await generateUniqueSlug(tx, application.companyName);
 
@@ -133,10 +134,15 @@ export async function POST(
         where: { email: application.ownerEmail },
       });
 
+      let isNewUser = false;
+      let needsActivation = false;
+
       if (!ownerUser) {
-        // Generate a random temporary password
-        const tempPassword = "Welcome@" + Math.random().toString(36).slice(-6) + "!";
-        const passwordHash = await argon2.hash(tempPassword);
+        isNewUser = true;
+        needsActivation = true;
+        // Generate an unusable temporary password
+        const randomUnusablePassword = crypto.randomUUID() + "-" + crypto.randomUUID();
+        const passwordHash = await argon2.hash(randomUnusablePassword);
 
         ownerUser = await tx.user.create({
           data: {
@@ -144,7 +150,6 @@ export async function POST(
             fullName: application.ownerFullName,
             phone: application.ownerPhone,
             passwordHash,
-            // TODO: UserMembership model will replace this global roleId mapping in the next phase
             roleId: superAdminRole.id,
             isActive: true,
           },
@@ -196,10 +201,36 @@ export async function POST(
         },
       });
 
-      return newCompany;
+      // Generate activation token if user is new or needs activation
+      let activationLink: string | null = null;
+      if (isNewUser || needsActivation) {
+        const rawToken = crypto.randomBytes(32).toString("hex");
+        const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+        await tx.accountActivationToken.create({
+          data: {
+            userId: ownerUser.id,
+            companyId: newCompany.id,
+            tokenHash,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          },
+        });
+
+        activationLink = `/activate-account?token=${rawToken}`;
+      }
+
+      return {
+        company: newCompany,
+        activationLink,
+        existingUser: !isNewUser && !needsActivation,
+      };
     });
 
-    return NextResponse.json(company, { status: 201 });
+    return NextResponse.json({
+      company: result.company,
+      activationLink: result.activationLink,
+      existingUser: result.existingUser,
+    }, { status: 201 });
   } catch (error: any) {
     console.error("POST /api/platform/company-applications/[id]/approve Error:", error);
     return NextResponse.json(

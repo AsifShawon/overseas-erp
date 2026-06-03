@@ -128,13 +128,14 @@ model User {
   updatedAt          DateTime  @updatedAt
 
   // Relationships
-  role                        Role                 @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  agentProfile                Agent?               @relation("UserToAgent")
-  applicantProfile            Applicant?           @relation("UserToApplicant")
+  role                        Role                     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  agentProfile                Agent?                   @relation("UserToAgent")
+  applicantProfile            Applicant?               @relation("UserToApplicant")
   notifications               Notification[]
   auditLogs                   AuditLog[]
-  reviewedCompanyApplications CompanyApplication[] @relation("ReviewedApplications")
+  reviewedCompanyApplications CompanyApplication[]     @relation("ReviewedApplications")
   memberships                 UserMembership[]
+  activationTokens            AccountActivationToken[]
 
   @@index([email])
   @@index([roleId])
@@ -522,6 +523,7 @@ model Company {
   notifications     Notification[]
   auditLogs         AuditLog[]
   memberships       UserMembership[]
+  activationTokens  AccountActivationToken[]
 
   @@index([status])
   @@index([ownerEmail])
@@ -589,4 +591,23 @@ model UserMembership {
   @@index([userId])
   @@index([roleId])
   @@index([companyId, status])
+}
+
+model AccountActivationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  companyId String?
+  tokenHash String    @unique
+  type      String    @default("COMPANY_OWNER_ACTIVATION")
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([expiresAt])
 }

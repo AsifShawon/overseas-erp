@@ -7,7 +7,7 @@ import React, { useEffect, useState, use } from "react";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FileText, Loader2, ArrowLeft, ShieldAlert, CheckCircle, AlertTriangle, XCircle, Info } from "lucide-react";
+import { FileText, Loader2, ArrowLeft, ShieldAlert, CheckCircle, AlertTriangle, XCircle, Info, Copy } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
 interface CompanyApplication {
@@ -40,6 +40,19 @@ export default function CompanyApplicationDetail({ params }: { params: Promise<{
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+
+  const [approvalResult, setApprovalResult] = useState<{
+    activationLink: string | null;
+    existingUser: boolean;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    toast.success("Activation link copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Security guard for Platform Admin
   useEffect(() => {
@@ -94,6 +107,10 @@ export default function CompanyApplicationDetail({ params }: { params: Promise<{
       if (res.ok) {
         toast.success(`Successfully approved ${application.companyName}!`);
         setShowApproveConfirm(false);
+        setApprovalResult({
+          activationLink: data.activationLink,
+          existingUser: data.existingUser,
+        });
         fetchApplication();
       } else {
         toast.error(data.error || "Approval transaction failed.");
@@ -358,19 +375,82 @@ export default function CompanyApplicationDetail({ params }: { params: Promise<{
 
             {/* Inactive details state checks */}
             {application.status === "APPROVED" && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-950/40 dark:bg-emerald-950/20 text-xs text-emerald-800 dark:text-emerald-400 space-y-2 flex items-start gap-2.5">
-                <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
-                <div>
-                  <strong className="font-bold">Tenant Active</strong>
-                  <p className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 mt-1 leading-relaxed">
-                    This company has been successfully vetted and approved. The owner account is fully active under standard package subscriptions.
-                  </p>
-                  {application.approvedCompanyId && (
-                    <span className="inline-block mt-3 text-[10px] font-bold font-mono">
-                      Tenant ID: {application.approvedCompanyId}
-                    </span>
-                  )}
+              <div className="space-y-4">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-950/40 dark:bg-emerald-950/20 text-xs text-emerald-800 dark:text-emerald-400 space-y-2 flex items-start gap-2.5">
+                  <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+                  <div>
+                    <strong className="font-bold">Tenant Active</strong>
+                    <p className="text-[10px] text-emerald-800/80 dark:text-emerald-400/80 mt-1 leading-relaxed">
+                      This company has been successfully vetted and approved. The owner account is fully active under standard package subscriptions.
+                    </p>
+                    {application.approvedCompanyId && (
+                      <span className="inline-block mt-3 text-[10px] font-bold font-mono">
+                        Tenant ID: {application.approvedCompanyId}
+                      </span>
+                    )}
+                  </div>
                 </div>
+
+                {/* Just Approved Success Details Panel */}
+                {approvalResult ? (
+                  approvalResult.activationLink ? (
+                    <div className="rounded-xl border border-primary-theme/30 bg-primary-theme/5 p-4 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <Info className="h-4.5 w-4.5 text-primary-theme shrink-0 mt-0.5" />
+                        <div className="text-xs text-text-theme">
+                          <strong className="font-bold text-text-theme">Company approved. Share this activation link with the owner:</strong>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={typeof window !== "undefined" ? `${window.location.origin}${approvalResult.activationLink}` : ""}
+                          className="flex-1 rounded-lg border border-border-theme bg-bg py-1.5 px-2.5 text-[10px] font-mono text-text-theme outline-none"
+                        />
+                        <button
+                          onClick={() =>
+                            handleCopyLink(
+                              typeof window !== "undefined" ? `${window.location.origin}${approvalResult.activationLink}` : ""
+                            )
+                          }
+                          className="rounded-lg bg-primary-theme hover:bg-primary-hover px-3 py-1.5 text-[10px] font-bold text-white transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          {copied ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-text-soft italic">
+                        ⚠️ This is a temporary manual flow. Email invitation will be added later.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/20 p-4 text-xs text-emerald-800 dark:text-emerald-400">
+                      <p className="font-semibold">
+                        Company approved. Existing owner user can log in with their current password.
+                      </p>
+                    </div>
+                  )
+                ) : (
+                  // Default details state if already approved on previous navigation/refresh
+                  <div className="rounded-xl border border-border-theme bg-surface-soft p-4 space-y-2.5 text-xs text-text-theme">
+                    <div className="text-[10px] text-text-soft uppercase tracking-wider block font-bold">
+                      Account Reference
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-text-soft uppercase tracking-wider block">Owner Email</span>
+                      <span className="font-mono text-[11px] font-semibold">{application.ownerEmail}</span>
+                    </div>
+                    <div className="pt-2 border-t border-border-theme/40">
+                      <p className="text-[10px] text-text-soft leading-normal">
+                        Note: Existing owner can log in with current credentials.
+                      </p>
+                      <p className="text-[9px] text-text-soft/60 mt-1">
+                        TODO: Resend activation link (Future feature)
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
