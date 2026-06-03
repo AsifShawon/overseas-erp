@@ -311,7 +311,13 @@ export default function ApplicantPortalPage() {
 
         {activeTab === "ledger" && (
           <div className="space-y-6">
-            <LedgerTable entries={ledgers} outstandingBalance={outstandingBalance} />
+            <LedgerTable
+              entries={ledgers}
+              outstandingBalance={outstandingBalance}
+              applicantName={applicant.fullName}
+              passportNumber={applicant.passportNumber}
+              trade={applicant.trade}
+            />
 
             {/* Quick print receipt section */}
             {receipts.length > 0 && (

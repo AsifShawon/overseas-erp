@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { MockLedgerEntry, MockInvoice } from "@/lib/mockData";
 import { StatusBadge } from "../ui/StatusBadge";
 import { useMockAuth } from "@/context/MockAuthContext";
-import { Landmark, Printer, CreditCard, Receipt as ReceiptIcon, FilePlus, X } from "lucide-react";
+import { Landmark, Printer, CreditCard, Receipt as ReceiptIcon, FilePlus, X, Download } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { useT } from "@/i18n/useT";
 import { formatDate, formatCurrency } from "@/i18n/format";
@@ -16,6 +16,9 @@ interface LedgerTableProps {
   onRecordPayment?: (amount: number, method: string, ref: string, invoiceId: string) => void | Promise<void>;
   onRecordInvoice?: (amount: number, desc: string, dueDate: string) => void | Promise<void>;
   invoices?: MockInvoice[];
+  applicantName?: string;
+  passportNumber?: string;
+  trade?: string;
 }
 
 export function LedgerTable({
@@ -24,6 +27,9 @@ export function LedgerTable({
   onRecordPayment,
   onRecordInvoice,
   invoices = [],
+  applicantName,
+  passportNumber,
+  trade,
 }: LedgerTableProps) {
   const { user } = useMockAuth();
   const toast = useToast();
@@ -71,6 +77,237 @@ export function LedgerTable({
     setDueDate("");
     setSelectedInvoiceId("");
     setModalOpen(false);
+  };
+
+  const escapeCsv = (val: any) => {
+    if (val === null || val === undefined) return "";
+    const str = String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const exportToCSV = () => {
+    const headers = [
+      locale === "bn" ? "পোস্টিংয়ের তারিখ" : "Posting Date",
+      locale === "bn" ? "লেনদেনের ধরণ" : "Transaction Type",
+      locale === "bn" ? "রেফারেন্স ডকুমেন্ট" : "Reference Document",
+      locale === "bn" ? "ডেবিট (পাওনা পরিমাণ)" : "Debit (Amount Owed)",
+      locale === "bn" ? "ক্রেডিট (পরিশোধিত পরিমাণ)" : "Credit (Amount Paid)",
+      locale === "bn" ? "চলতি ব্যালেন্স" : "Running Balance"
+    ];
+    
+    const csvRows = [
+      headers.map(escapeCsv).join(","),
+      ...entries.map(entry => [
+        formatDate(entry.timestamp, locale),
+        entry.transactionType,
+        entry.referenceNo,
+        entry.debit > 0 ? entry.debit : 0,
+        entry.credit > 0 ? entry.credit : 0,
+        entry.runningBalance
+      ].map(escapeCsv).join(","))
+    ];
+    
+    const csvContent = "\uFEFF" + csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `statement_${applicantName ? applicantName.replace(/\s+/g, "_") : "ledger"}_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(locale === "bn" ? "স্টেটমেন্ট সিএসভি ফাইল ডাউনলোড করা হয়েছে।" : "Statement CSV downloaded successfully.");
+  };
+
+  const handlePrintPDF = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error(locale === "bn" ? "পপ-আপ উইন্ডো খোলা যায়নি। অনুগ্রহ করে পপ-আপ ব্লকার নিষ্ক্রিয় করুন।" : "Could not open print window. Please disable your pop-up blocker.");
+      return;
+    }
+
+    const title = locale === "bn" ? "লেনদেনের স্টেটমেন্ট" : "Emigration Ledger Statement";
+    const currencySymbol = "৳";
+
+    const rowsHtml = entries.map(entry => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px 12px; color: #475569;">${formatDate(entry.timestamp, locale)}</td>
+        <td style="padding: 10px 12px; font-weight: bold; color: #1e293b;">${entry.transactionType}</td>
+        <td style="padding: 10px 12px; font-family: monospace; color: #0f172a; font-weight: bold;">${entry.referenceNo}</td>
+        <td style="padding: 10px 12px; text-align: right; color: ${entry.debit > 0 ? "#dc2626" : "#94a3b8"}; font-weight: bold;">${entry.debit > 0 ? currencySymbol + Number(entry.debit).toLocaleString(locale === "bn" ? "bn-BD" : "en-US", { minimumFractionDigits: 2 }) : "-"}</td>
+        <td style="padding: 10px 12px; text-align: right; color: ${entry.credit > 0 ? "#16a34a" : "#94a3b8"}; font-weight: bold;">${entry.credit > 0 ? currencySymbol + Number(entry.credit).toLocaleString(locale === "bn" ? "bn-BD" : "en-US", { minimumFractionDigits: 2 }) : "-"}</td>
+        <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #0f172a;">${currencySymbol}${Number(entry.runningBalance).toLocaleString(locale === "bn" ? "bn-BD" : "en-US", { minimumFractionDigits: 2 })}</td>
+      </tr>
+    `).join("");
+
+    const statementStatus = outstandingBalance === 0 
+      ? (locale === "bn" ? "সম্পূর্ণ পরিশোধিত" : "Account Fully Paid") 
+      : (locale === "bn" ? "কিস্তি বকেয়া রয়েছে" : "Installment Arrears Due");
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title}</title>
+        <meta charset="utf-8" />
+        <style>
+          body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            margin: 0;
+            padding: 40px;
+            line-height: 1.5;
+            background-color: #ffffff;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid #4f46e5;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .logo-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #4f46e5;
+          }
+          .meta-info {
+            text-align: right;
+            font-size: 13px;
+            color: #64748b;
+          }
+          .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #475569;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+          }
+          .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 35px;
+          }
+          .info-block {
+            font-size: 14px;
+          }
+          .info-row {
+            margin-bottom: 8px;
+            display: flex;
+          }
+          .info-label {
+            color: #64748b;
+            font-weight: 500;
+            width: 140px;
+            flex-shrink: 0;
+          }
+          .info-value {
+            font-weight: 700;
+            color: #0f172a;
+          }
+          .table-container {
+            margin-top: 20px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+          }
+          th {
+            background-color: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+            font-weight: 700;
+            color: #475569;
+          }
+          .footer {
+            margin-top: 80px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+            text-align: center;
+            font-size: 11px;
+            color: #94a3b8;
+          }
+          @media print {
+            body {
+              padding: 20px;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="logo-title">VisaTek ERP</div>
+            <div style="font-size: 14px; color: #475569; font-weight: 600; margin-top: 4px;">${title}</div>
+          </div>
+          <div class="meta-info">
+            <div>${locale === "bn" ? "তারিখ:" : "Statement Date:"} ${new Date().toLocaleDateString(locale === "bn" ? "bn-BD" : "en-US")}</div>
+            <div>${locale === "bn" ? "প্রিন্ট টাইম:" : "Print Time:"} ${new Date().toLocaleTimeString(locale === "bn" ? "bn-BD" : "en-US")}</div>
+          </div>
+        </div>
+
+        <div class="details-grid">
+          <div>
+            <div class="section-title">${locale === "bn" ? "আবেদনকারীর তথ্য" : "Applicant Details"}</div>
+            <div class="info-block">
+              <div class="info-row"><span class="info-label">${locale === "bn" ? "নাম:" : "Name:"}</span> <span class="info-value">${applicantName || "—"}</span></div>
+              <div class="info-row"><span class="info-label">${locale === "bn" ? "পাসপোর্ট নম্বর:" : "Passport No:"}</span> <span class="info-value" style="font-family: monospace;">${passportNumber || "—"}</span></div>
+              <div class="info-row"><span class="info-label">${locale === "bn" ? "ট্রেড / পেশা:" : "Trade Segment:"}</span> <span class="info-value">${trade || "—"}</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="section-title">${locale === "bn" ? "হিসাব সারসংক্ষেপ" : "Financial Summary"}</div>
+            <div class="info-block">
+              <div class="info-row"><span class="info-label">${locale === "bn" ? "মোট বকেয়া ব্যালেন্স:" : "Outstanding Balance:"}</span> <span class="info-value" style="color: ${outstandingBalance > 0 ? "#dc2626" : "#16a34a"}; font-size: 16px;">${currencySymbol}${Number(outstandingBalance).toLocaleString(locale === "bn" ? "bn-BD" : "en-US", { minimumFractionDigits: 2 })}</span></div>
+              <div class="info-row"><span class="info-label">${locale === "bn" ? "স্টেটমেন্ট স্ট্যাটাস:" : "Account Status:"}</span> <span class="info-value">${statementStatus}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="section-title">${locale === "bn" ? "লেনদেন খতিয়ান ইতিহাস" : "Transaction Ledger History"}</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 15%;">${locale === "bn" ? "তারিখ" : "Date"}</th>
+                <th style="width: 15%;">${locale === "bn" ? "লেনদেনের ধরণ" : "Type"}</th>
+                <th style="width: 25%;">${locale === "bn" ? "রেফারেন্স নম্বর" : "Reference No"}</th>
+                <th style="width: 15%; text-align: right;">${locale === "bn" ? "ডেবিট" : "Debit"}</th>
+                <th style="width: 15%; text-align: right;">${locale === "bn" ? "ক্রেডিট" : "Credit"}</th>
+                <th style="width: 15%; text-align: right;">${locale === "bn" ? "ব্যালেন্স" : "Balance"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="footer">
+          Generated by VisaTek ERP — Confidential Statement Page
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const isAccounts = ["Super Admin", "Accounts Officer"].includes(user.roleName);
@@ -136,16 +373,24 @@ export function LedgerTable({
 
       {/* Main Ledger Table */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-100 p-5 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 p-5 dark:border-slate-800">
           <h3 className="text-sm md:text-base font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
             {locale === "bn" ? "ডাবল-এন্ট্রি লেজার লগ" : "Double-Entry Ledger Log"}
           </h3>
-          <button
-            onClick={() => toast.info(locale === "bn" ? "ভাউচার প্রিন্ট করার প্রক্রিয়া অনুকরণ করা হচ্ছে..." : "Simulating print statement download...")}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-xs md:text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 cursor-pointer"
-          >
-            <Printer className="h-4 w-4" /> {locale === "bn" ? "স্টেটমেন্ট প্রিন্ট করুন" : "Print Statement"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrintPDF}
+              className="flex items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2.5 text-xs md:text-sm font-bold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900/30 dark:bg-indigo-950/20 dark:text-indigo-400 cursor-pointer transition"
+            >
+              <Printer className="h-4 w-4" /> {locale === "bn" ? "স্টেটমেন্ট প্রিন্ট করুন" : "Print Statement"}
+            </button>
+            <button
+              onClick={exportToCSV}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-xs md:text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 cursor-pointer transition"
+            >
+              <Download className="h-4 w-4" /> {locale === "bn" ? "সিএসভি এক্সপোর্ট করুন" : "Export CSV"}
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">

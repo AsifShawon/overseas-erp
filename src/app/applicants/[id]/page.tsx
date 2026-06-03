@@ -766,6 +766,9 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
               onRecordPayment={handleRecordPayment}
               onRecordInvoice={handleRecordInvoice}
               invoices={invoices}
+              applicantName={applicant.fullName}
+              passportNumber={applicant.passportNumber}
+              trade={applicant.trade}
             />
           )}
         </div>
