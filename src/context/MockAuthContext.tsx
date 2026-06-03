@@ -77,7 +77,7 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(null);
         setAccessToken(null);
         if (!isAuthRoute) {
-          router.push("/login");
+          router.push("/");
         }
       }
       if (mounted) {
@@ -92,7 +92,7 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
       if (mounted) {
         const success = await handleRefresh();
         if (!success && !isAuthRoute) {
-          router.push("/login");
+          router.push("/");
         }
       }
     }, 10 * 60 * 1000);
@@ -106,7 +106,7 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
   // Redirect to login if user is logged out and visits a protected route
   useEffect(() => {
     if (!loading && !currentUser && !isAuthRoute) {
-      router.push("/login");
+      router.push("/");
     }
   }, [pathname, currentUser, loading]);
 
@@ -156,7 +156,10 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
       setAccessToken(null);
       setCurrentUser(null);
       setLoading(false);
-      router.push("/login");
+      // Hard navigation so the full React tree (including MockAuthProvider) is
+      // re-mounted fresh. router.push keeps the provider alive, causing a race
+      // where the homepage's auth-check effect fires before state settles.
+      window.location.href = "/";
     }
   };
 

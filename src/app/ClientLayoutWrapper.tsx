@@ -17,9 +17,12 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
 
   const renderContent = () => {
     if (isAuthRoute) {
+      // Homepage (/), apply pages (/apply/*) manage their own full-page layout.
+      // Only /login uses the centered vertically-aligned layout.
+      const isFullPageRoute = pathname === "/" || pathname?.startsWith("/apply");
       return (
         <MockAuthProvider>
-          <div className="min-h-screen bg-bg text-text-theme flex flex-col justify-center transition-colors duration-200">
+          <div className={`min-h-screen bg-bg text-text-theme transition-colors duration-200${isFullPageRoute ? "" : " flex flex-col justify-center"}`}>
             {children}
           </div>
         </MockAuthProvider>
