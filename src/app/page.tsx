@@ -246,44 +246,47 @@ export default function HomePage() {
 
   // ─── Landing Page (unauthenticated visitors) ────────────────────────────────
   return (
-    <div className="min-h-screen bg-bg text-text-theme">
+    <div className="min-h-screen bg-bg text-text-theme selection:bg-primary-soft selection:text-primary-theme">
       <PublicNav />
 
       {/* ── HERO SECTION ────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        {/* Background gradient decorations */}
+      <section className="relative overflow-hidden py-24 lg:py-32 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-soft/45 via-bg to-bg">
+        {/* Dynamic mesh decorative background pattern */}
+        <div className="pointer-events-none absolute inset-0 opacity-[0.03] dark:opacity-[0.05] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-primary-theme/5 blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 h-[400px] w-[400px] rounded-full bg-violet-500/5 blur-3xl" />
+          <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-primary-theme/10 blur-3xl animate-pulse" />
+          <div className="absolute -bottom-20 -left-20 h-[500px] w-[500px] rounded-full bg-brand-red/5 blur-3xl" />
         </div>
 
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 md:py-28 lg:py-36">
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             {/* Trust badge */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary-theme/20 bg-primary-theme/5 px-4 py-1.5 text-xs font-semibold text-primary-theme">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Trusted SaaS ERP for Overseas Recruitment
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary-theme/20 bg-surface px-4 py-1.5 text-xs font-bold text-primary-theme shadow-sm">
+              <ShieldCheck className="h-4 w-4 text-brand-red" />
+              Trusted SaaS ERP for Overseas Recruitment Agencies
             </div>
 
             {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-text-theme leading-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-text-theme leading-[1.15]">
               Run your overseas{" "}
-              <span className="text-primary-theme">recruitment agency</span>{" "}
+              <span className="bg-gradient-to-r from-primary-theme via-text-theme to-brand-red bg-clip-text text-transparent">
+                recruitment agency
+              </span>{" "}
               from one secure platform
             </h1>
 
             {/* Supporting text */}
-            <p className="mx-auto max-w-2xl text-lg text-text-soft leading-relaxed">
-              Manage applicants, agents, documents, payments, commissions, job orders, and progress
-              tracking in one centralized ERP built specifically for Bangladeshi recruitment agencies.
+            <p className="mx-auto max-w-2xl text-base sm:text-lg text-text-soft leading-relaxed">
+              Manage applicants, agents, compliance documents, invoices, agent commissions, and real-time operational metrics in one centralized ERP engineered for global recruitment efficiency.
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
               <Link
                 href="/apply"
                 id="hero-apply-btn"
-                className="inline-flex items-center gap-2.5 rounded-xl bg-primary-theme hover:bg-primary-hover px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary-theme/20 hover:shadow-xl hover:shadow-primary-theme/30 transition-all duration-200"
+                className="inline-flex items-center gap-2.5 rounded-xl bg-primary-theme hover:bg-primary-hover px-8 py-4 text-xs font-bold text-white shadow-lg shadow-primary-theme/25 hover:shadow-xl hover:shadow-primary-theme/35 hover:-translate-y-0.5 transition-all duration-300"
               >
                 Apply for Company Access
                 <ArrowRight className="h-4 w-4" />
@@ -291,39 +294,39 @@ export default function HomePage() {
               <Link
                 href="/login"
                 id="hero-login-btn"
-                className="inline-flex items-center gap-2 rounded-xl border border-border-theme bg-surface hover:bg-bg px-8 py-3.5 text-sm font-bold text-text-theme transition-all duration-200"
+                className="inline-flex items-center gap-2 rounded-xl border border-border-theme bg-surface hover:bg-bg-muted px-8 py-4 text-xs font-bold text-text-theme hover:-translate-y-0.5 shadow-sm transition-all duration-300"
               >
-                Login to ERP
+                Login to ERP Portal
               </Link>
             </div>
 
             {/* Trust note */}
-            <p className="text-xs text-text-soft font-medium flex items-center justify-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary-theme" />
-              Company access is activated after platform approval. No payment required upfront.
+            <p className="text-[11px] text-text-soft font-semibold flex items-center justify-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-brand-red" />
+              Tenant workspace is activated after platform authorization. No hidden setup costs.
             </p>
           </div>
 
           {/* Hero visual — stat badges */}
-          <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto">
+          <div className="mt-20 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto">
             {[
-              { label: "Workflow Stages", value: "12", icon: ClipboardList, color: "indigo" },
-              { label: "Document Types", value: "8+", icon: FileText, color: "blue" },
-              { label: "Role Types", value: "7", icon: Users, color: "violet" },
-              { label: "Uptime SLA", value: "99.9%", icon: Zap, color: "emerald" },
+              { label: "Workflow Stages", value: "12 Stages", icon: ClipboardList, color: "indigo" },
+              { label: "Document Verification", value: "8+ Types", icon: FileText, color: "blue" },
+              { label: "RBAC Security Profiles", value: "7 Roles", icon: Users, color: "violet" },
+              { label: "Platform SLA Uptime", value: "99.9% SLA", icon: Zap, color: "emerald" },
             ].map((stat) => {
               const c = colorMap[stat.color];
               const Icon = stat.icon;
               return (
                 <div
                   key={stat.label}
-                  className="rounded-2xl border border-border-theme bg-surface p-4 text-center shadow-sm"
+                  className="rounded-2xl border border-border-theme bg-surface p-6 text-center shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300"
                 >
-                  <div className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${c.bg} ${c.border} border`}>
-                    <Icon className={`h-4 w-4 ${c.text}`} />
+                  <div className={`mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${c.bg} ${c.border} border`}>
+                    <Icon className={`h-5 w-5 ${c.text}`} />
                   </div>
-                  <div className="text-2xl font-extrabold text-text-theme">{stat.value}</div>
-                  <div className="text-[10px] font-semibold text-text-soft mt-0.5">{stat.label}</div>
+                  <div className="text-xl font-extrabold text-text-theme">{stat.value}</div>
+                  <div className="text-[10px] font-bold text-text-soft uppercase tracking-wider mt-1">{stat.label}</div>
                 </div>
               );
             })}
@@ -332,37 +335,37 @@ export default function HomePage() {
       </section>
 
       {/* ── FEATURES SECTION ────────────────────────────────────────────────── */}
-      <section id="features" className="py-20 bg-surface border-y border-border-theme">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-3 mb-14">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-bg px-4 py-1.5 text-xs font-semibold text-text-soft">
-              <Star className="h-3.5 w-3.5 text-amber-500" />
-              Comprehensive Feature Set
+      <section id="features" className="py-24 bg-surface border-y border-border-theme">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center space-y-4 mb-16">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-bg px-4 py-1.5 text-xs font-bold text-text-soft shadow-sm">
+              <Star className="h-3.5 w-3.5 text-brand-red fill-brand-red" />
+              Enterprise Feature Matrix
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-text-theme tracking-tight">
-              Everything your agency needs
+            <h2 className="text-3xl sm:text-4xl font-black text-text-theme tracking-tight">
+              Everything your recruitment business needs
             </h2>
-            <p className="max-w-xl mx-auto text-sm text-text-soft">
-              Built from the ground up for overseas recruitment agencies, manpower companies, study abroad consultants, and worker-sending organizations.
+            <p className="max-w-xl mx-auto text-sm text-text-soft leading-relaxed">
+              Eliminate manuals and paper folders. Scale up placements with our complete compliance tracking suite.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {FEATURES.map((feature) => {
               const c = colorMap[feature.color];
               const Icon = feature.icon;
               return (
                 <div
                   key={feature.title}
-                  className={`relative rounded-2xl border border-border-theme bg-bg p-5 space-y-3 hover:border-border-strong hover:shadow-sm transition-all duration-200 ${feature.comingSoon ? "opacity-60" : ""}`}
+                  className={`relative rounded-2xl border border-border-theme bg-bg p-6 space-y-4 hover:border-primary-theme/30 hover:shadow-md hover:-translate-y-1 transition-all duration-300 ${feature.comingSoon ? "opacity-75" : ""}`}
                 >
                   {feature.comingSoon && (
-                    <span className="absolute top-3 right-3 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-600 uppercase tracking-wide">
-                      Soon
+                    <span className="absolute top-4 right-4 rounded-full bg-brand-red-soft border border-brand-red/20 px-2.5 py-0.5 text-[8px] font-bold text-brand-red uppercase tracking-wider">
+                      Upcoming
                     </span>
                   )}
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${c.bg} ${c.border} border`}>
-                    <Icon className={`h-5 w-5 ${c.text}`} />
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${c.bg} ${c.border} border`}>
+                    <Icon className={`h-5.5 w-5.5 ${c.text}`} />
                   </div>
                   <h3 className="text-sm font-bold text-text-theme">{feature.title}</h3>
                   <p className="text-xs text-text-soft leading-relaxed">{feature.desc}</p>
@@ -374,18 +377,18 @@ export default function HomePage() {
       </section>
 
       {/* ── HOW IT WORKS ────────────────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-3 mb-14">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-surface px-4 py-1.5 text-xs font-semibold text-text-soft">
-              <ChevronRight className="h-3.5 w-3.5 text-primary-theme" />
-              Simple Onboarding
+      <section id="how-it-works" className="py-24">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center space-y-4 mb-16">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-surface px-4 py-1.5 text-xs font-bold text-text-soft shadow-sm">
+              <ChevronRight className="h-3.5 w-3.5 text-brand-red" />
+              Workspace Provisioning Flow
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-text-theme tracking-tight">
-              How it works
+            <h2 className="text-3xl sm:text-4xl font-black text-text-theme tracking-tight">
+              Onboarding in 4 Simple Steps
             </h2>
-            <p className="max-w-xl mx-auto text-sm text-text-soft">
-              From application to a fully operational ERP workspace in four steps.
+            <p className="max-w-xl mx-auto text-sm text-text-soft leading-relaxed">
+              Launch your isolated cloud database and custom company workspace immediately.
             </p>
           </div>
 
@@ -394,27 +397,27 @@ export default function HomePage() {
               <div key={item.step} className="relative">
                 {/* Connector line */}
                 {index < HOW_IT_WORKS.length - 1 && (
-                  <div className="hidden lg:block absolute top-8 left-1/2 w-full h-px bg-gradient-to-r from-border-theme to-transparent z-0" />
+                  <div className="hidden lg:block absolute top-10 left-1/2 w-full h-0.5 bg-gradient-to-r from-border-theme via-border-theme/40 to-transparent z-0" />
                 )}
-                <div className="relative z-10 rounded-2xl border border-border-theme bg-surface p-6 space-y-4 hover:shadow-md transition-all duration-200">
+                <div className="relative z-10 rounded-2xl border border-border-theme bg-surface p-6 space-y-5 hover:shadow-md hover:-translate-y-1 transition-all duration-300">
                   <div className="flex items-center justify-between">
-                    <span className="text-4xl font-black text-primary-theme/15">{item.step}</span>
-                    <CheckCircle2 className="h-5 w-5 text-primary-theme/30" />
+                    <span className="text-4xl font-black bg-gradient-to-r from-primary-theme to-brand-red bg-clip-text text-transparent opacity-25">{item.step}</span>
+                    <CheckCircle2 className="h-5 w-5 text-brand-red" />
                   </div>
-                  <h3 className="text-sm font-bold text-text-theme">{item.title}</h3>
+                  <h3 className="text-xs font-extrabold text-text-theme uppercase tracking-wider">{item.title}</h3>
                   <p className="text-xs text-text-soft leading-relaxed">{item.desc}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="mt-10 text-center">
+          <div className="mt-12 text-center">
             <Link
               href="/apply"
               id="howitworks-apply-btn"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary-theme hover:bg-primary-hover px-7 py-3 text-sm font-bold text-white shadow-md transition-all duration-200"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary-theme hover:bg-primary-hover px-8 py-3.5 text-xs font-bold text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
             >
-              Start Your Application
+              Start Your Company Application
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -422,18 +425,18 @@ export default function HomePage() {
       </section>
 
       {/* ── ROLES SECTION ───────────────────────────────────────────────────── */}
-      <section id="roles" className="py-20 bg-surface border-y border-border-theme">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-3 mb-14">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-bg px-4 py-1.5 text-xs font-semibold text-text-soft">
-              <Users className="h-3.5 w-3.5 text-primary-theme" />
-              Role-Based Operations
+      <section id="roles" className="py-24 bg-surface border-y border-border-theme">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center space-y-4 mb-16">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-bg px-4 py-1.5 text-xs font-bold text-text-soft shadow-sm">
+              <Users className="h-3.5 w-3.5 text-brand-red" />
+              Fine-Grained Audited Roles
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-text-theme tracking-tight">
-              Built for every team member
+            <h2 className="text-3xl sm:text-4xl font-black text-text-theme tracking-tight">
+              Designed for every operational team member
             </h2>
-            <p className="max-w-xl mx-auto text-sm text-text-soft">
-              Granular role-based access ensures each staff member sees exactly what they need — nothing more.
+            <p className="max-w-xl mx-auto text-sm text-text-soft leading-relaxed">
+              Segregate tasks seamlessly. Hand off candidates from screening to medicals, visa stamping, and flights.
             </p>
           </div>
 
@@ -441,11 +444,11 @@ export default function HomePage() {
             {ROLES.map((role, index) => (
               <div
                 key={role.title}
-                className="rounded-2xl border border-border-theme bg-bg p-5 space-y-2 hover:border-primary-theme/30 hover:bg-primary-soft/5 transition-all duration-200"
+                className="rounded-2xl border border-border-theme bg-bg p-6 space-y-3 hover:border-brand-red/30 hover:bg-brand-red-soft/5 hover:-translate-y-0.5 transition-all duration-300"
               >
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary-theme" />
-                  <h3 className="text-xs font-bold text-text-theme">{role.title}</h3>
+                  <div className="h-2 w-2 rounded-full bg-brand-red animate-pulse" />
+                  <h3 className="text-xs font-extrabold text-text-theme uppercase tracking-wider">{role.title}</h3>
                 </div>
                 <p className="text-[11px] text-text-soft leading-relaxed pl-4">{role.desc}</p>
               </div>
@@ -455,56 +458,56 @@ export default function HomePage() {
       </section>
 
       {/* ── PRICING / PLAN SECTION ──────────────────────────────────────────── */}
-      <section id="pricing" className="py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-3 mb-14">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-surface px-4 py-1.5 text-xs font-semibold text-text-soft">
+      <section id="pricing" className="py-24">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center space-y-4 mb-16">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-surface px-4 py-1.5 text-xs font-bold text-text-soft shadow-sm">
               <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
-              Transparent Pricing
+              Subscription Plans
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-text-theme tracking-tight">
-              One plan. All features.
+            <h2 className="text-3xl sm:text-4xl font-black text-text-theme tracking-tight">
+              Transparent, simple pricing model
             </h2>
-            <p className="max-w-xl mx-auto text-sm text-text-soft">
-              We currently offer a single, fully-featured Standard Plan included with every approved company workspace.
+            <p className="max-w-xl mx-auto text-sm text-text-soft leading-relaxed">
+              We offer a single, fully unlocked tier. No hidden upgrade caps or per-user seat penalties.
             </p>
           </div>
 
           <div className="max-w-lg mx-auto">
-            <div className="relative rounded-3xl border-2 border-primary-theme/30 bg-surface p-8 shadow-xl shadow-primary-theme/5 space-y-6">
+            <div className="relative rounded-3xl border-2 border-primary-theme bg-surface p-8 shadow-xl hover:shadow-2xl transition-all duration-300 space-y-6">
               {/* Top accent */}
-              <div className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl bg-gradient-to-r from-primary-theme via-violet-500 to-indigo-500" />
+              <div className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl bg-gradient-to-r from-primary-theme via-text-theme to-brand-red" />
 
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-extrabold text-text-theme">Standard Plan</h3>
-                  <p className="text-xs text-text-soft mt-0.5">All core ERP features included</p>
+                  <h3 className="text-lg font-black text-text-theme uppercase tracking-wider">Standard Plan</h3>
+                  <p className="text-[11px] text-text-soft mt-0.5">All enterprise components included</p>
                 </div>
-                <div className="h-12 w-12 rounded-2xl bg-primary-theme/10 border border-primary-theme/20 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-2xl bg-primary-soft border border-primary-theme/20 flex items-center justify-center">
                   <ShieldCheck className="h-6 w-6 text-primary-theme" />
                 </div>
               </div>
 
-              <div className="rounded-xl bg-bg border border-border-theme p-4 text-center">
-                <span className="text-3xl font-extrabold text-text-theme">Included</span>
-                <span className="block text-xs text-text-soft mt-1">after platform approval</span>
+              <div className="rounded-xl bg-bg border border-border-theme py-4 text-center">
+                <span className="text-4xl font-black text-text-theme">Included</span>
+                <span className="block text-[10px] text-text-soft mt-1 font-semibold uppercase tracking-wider">With Authorized Sign-off</span>
               </div>
 
-              <ul className="space-y-2.5">
+              <ul className="space-y-3">
                 {[
-                  "Unlimited applicant records",
-                  "Agent portal access",
-                  "Document management & verification",
-                  "Invoice, receipt & ledger system",
-                  "Commission tracking & payouts",
-                  "12-stage workflow pipeline",
-                  "Reports & live dashboard",
-                  "RBAC with 7 role types",
-                  "Audit log & notification system",
+                  "Unlimited candidate files and dossiers",
+                  "Dedicated sourcing agent portals",
+                  "Visa & compliance documents tracker",
+                  "Invoice, collection ledgers & receipts",
+                  "Agent placement commissions registry",
+                  "12-stage automated pipeline",
+                  "Immutable system audits trail",
+                  "Fine-grained RBAC with 7 profiles",
+                  "Multi-channel notifications system",
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-xs text-text-theme font-medium">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                    {item}
+                  <li key={item} className="flex items-start gap-2.5 text-xs text-text-theme font-semibold">
+                    <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 shrink-0 mt-0.5" />
+                    <span>{item}</span>
                   </li>
                 ))}
               </ul>
@@ -512,14 +515,14 @@ export default function HomePage() {
               <Link
                 href="/apply"
                 id="pricing-apply-btn"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-theme hover:bg-primary-hover px-6 py-3 text-sm font-bold text-white shadow-md transition-all duration-200"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-theme hover:bg-primary-hover px-6 py-3.5 text-xs font-bold text-white shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
               >
                 Apply for Company Access
                 <ArrowRight className="h-4 w-4" />
               </Link>
 
-              <p className="text-center text-[10px] text-text-soft">
-                Billing & payment gateway coming in the next phase. Contact the platform team for enterprise pricing.
+              <p className="text-center text-[10px] text-text-soft font-semibold leading-normal">
+                Tenant billing modules will launch in the next development iteration. Active setups remain completely free during preview.
               </p>
             </div>
           </div>
@@ -527,18 +530,18 @@ export default function HomePage() {
       </section>
 
       {/* ── TRUST / SECURITY SECTION ────────────────────────────────────────── */}
-      <section className="py-20 bg-surface border-y border-border-theme">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-3 mb-14">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-bg px-4 py-1.5 text-xs font-semibold text-text-soft">
+      <section className="py-24 bg-surface border-y border-border-theme">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center space-y-4 mb-16">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border-theme bg-bg px-4 py-1.5 text-xs font-bold text-text-soft shadow-sm">
               <Lock className="h-3.5 w-3.5 text-primary-theme" />
-              Security & Trust
+              Vetting & Compliance
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-text-theme tracking-tight">
-              Built with security at the core
+            <h2 className="text-3xl sm:text-4xl font-black text-text-theme tracking-tight">
+              Enterprise security structure at the core
             </h2>
-            <p className="max-w-xl mx-auto text-sm text-text-soft">
-              Your applicant data, financial records, and documents are protected by enterprise-grade security architecture.
+            <p className="max-w-xl mx-auto text-sm text-text-soft leading-relaxed">
+              We encrypt sensitive passport scans and audit trail records so your agency stays compliant.
             </p>
           </div>
 
@@ -548,12 +551,12 @@ export default function HomePage() {
               return (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-border-theme bg-bg p-5 space-y-3 text-center hover:border-border-strong hover:shadow-sm transition-all duration-200"
+                  className="rounded-2xl border border-border-theme bg-bg p-6 space-y-4 text-center hover:border-brand-red/30 hover:shadow-md hover:-translate-y-1 transition-all duration-300"
                 >
-                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-primary-theme/10 border border-primary-theme/20">
-                    <Icon className="h-5 w-5 text-primary-theme" />
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft border border-primary-theme/20">
+                    <Icon className="h-5.5 w-5.5 text-primary-theme" />
                   </div>
-                  <h3 className="text-xs font-bold text-text-theme">{item.title}</h3>
+                  <h3 className="text-xs font-bold text-text-theme uppercase tracking-wider">{item.title}</h3>
                   <p className="text-[11px] text-text-soft leading-relaxed">{item.desc}</p>
                 </div>
               );
@@ -563,48 +566,47 @@ export default function HomePage() {
       </section>
 
       {/* ── BOTTOM CTA ──────────────────────────────────────────────────────── */}
-      <section className="py-20">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center space-y-8">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-text-theme tracking-tight">
+      <section className="py-24 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-brand-red-soft/20 via-bg to-bg">
+        <div className="mx-auto max-w-4xl px-6 lg:px-8 text-center space-y-8">
+          <h2 className="text-3xl sm:text-4xl font-black text-text-theme tracking-tight leading-[1.2]">
             Ready to digitize your recruitment operations?
           </h2>
-          <p className="text-base text-text-soft">
-            Join overseas recruitment agencies already managing their complete workflow on VisaTek ERP.
-            Apply today and get your workspace activated after review.
+          <p className="text-sm sm:text-base text-text-soft max-w-2xl mx-auto leading-relaxed">
+            Transition your teams to VisaTek today. Standard workspaces are activated instantly upon platform administration approval.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <Link
               href="/apply"
               id="bottom-apply-btn"
-              className="inline-flex items-center gap-2.5 rounded-xl bg-primary-theme hover:bg-primary-hover px-10 py-4 text-sm font-bold text-white shadow-lg shadow-primary-theme/20 hover:shadow-xl transition-all duration-200"
+              className="inline-flex items-center gap-2.5 rounded-xl bg-primary-theme hover:bg-primary-hover px-10 py-4 text-xs font-bold text-white shadow-lg shadow-primary-theme/25 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
             >
               Apply for Company Access
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 text-sm font-bold text-text-soft hover:text-text-theme transition-colors"
+              className="inline-flex items-center gap-2 text-xs font-bold text-text-soft hover:text-text-theme transition-colors"
             >
-              Already approved? Login →
+              Already registered? Login to ERP →
             </Link>
           </div>
-          <p className="text-xs text-text-soft">
-            Company access is activated after platform review. No credit card or upfront payment required.
+          <p className="text-[10px] text-text-soft font-semibold">
+            No credit cards required. Workspaces are provisioned onto dedicated database sub-tenants.
           </p>
         </div>
       </section>
 
       {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-border-theme bg-surface py-8">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="border-t border-border-theme bg-surface py-12">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center">
-              <img src="/visatek_logo_transparent.png" alt="VisaTek" className="h-8 w-auto object-contain" />
+              <img src="/visatek_logo_transparent.png" alt="VisaTek" className="h-9 w-auto object-contain" />
             </div>
-            <div className="flex items-center gap-5 text-xs text-text-soft">
+            <div className="flex items-center gap-6 text-xs font-bold text-text-soft">
               <Link href="/apply" className="hover:text-text-theme transition-colors">Apply</Link>
               <Link href="/login" className="hover:text-text-theme transition-colors">Login</Link>
-              <span>© 2026 VisaTek. All rights reserved.</span>
+              <span className="text-[11px] font-normal text-text-soft/80">© 2026 VisaTek ERP. All rights reserved.</span>
             </div>
           </div>
         </div>

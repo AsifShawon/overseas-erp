@@ -568,6 +568,7 @@ export const en = {
     DEPLOYED: "Candidate Deployed",
   },
   roles: {
+    "Platform Admin": "Platform Admin",
     "Super Admin": "Super Admin",
     "Operations Admin": "Operations Admin",
     "HR Officer": "HR Officer",

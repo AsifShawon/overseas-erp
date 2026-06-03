@@ -68,8 +68,8 @@ export function DataTable<T>({
     <div className="rounded-xl border border-border-theme bg-surface shadow-sm overflow-hidden">
       {/* Search & Filter Header */}
       <div className="flex flex-col gap-4 border-b border-border-theme p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-xs">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-text-soft">
+        <div className="relative flex-1 max-w-sm">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-text-soft">
             <Search className="h-4 w-4" />
           </span>
           <input
@@ -80,24 +80,24 @@ export function DataTable<T>({
               setCurrentPage(1);
             }}
             placeholder={resolvedSearchPlaceholder}
-            className="w-full rounded-lg border border-border-theme bg-bg py-1.5 pl-10 pr-4 text-xs outline-none focus:border-primary-theme focus:ring-1 focus:ring-primary-theme text-text-theme"
+            className="w-full rounded-xl border border-border-theme bg-bg py-2.5 pl-10 pr-4 text-sm outline-none focus:border-primary-theme focus:ring-2 focus:ring-primary-theme/20 text-text-theme"
           />
         </div>
         {filterComponent && <div className="flex items-center gap-3">{filterComponent}</div>}
       </div>
 
       {/* Grid Container */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto scrollbar-thin">
         {paginatedData.length === 0 ? (
           <div className="p-8">
             <EmptyState title={resolvedEmptyTitle} description={resolvedEmptyDesc} />
           </div>
         ) : (
-          <table className="w-full border-collapse text-left text-xs">
+          <table className="w-full border-collapse text-left text-sm leading-relaxed">
             <thead>
-              <tr className="border-b border-border-theme bg-bg-muted font-semibold text-text-muted">
+              <tr className="border-b border-border-theme bg-bg-muted font-bold text-text-theme">
                 {columns.map((col, idx) => (
-                  <th key={idx} className="px-6 py-3.5 tracking-wider">
+                  <th key={idx} className="px-6 py-4 text-[14px] md:text-[15px] font-bold tracking-wide uppercase/none whitespace-nowrap">
                     {col.header}
                   </th>
                 ))}
@@ -113,7 +113,7 @@ export function DataTable<T>({
                   }`}
                 >
                   {columns.map((col, colIdx) => (
-                    <td key={colIdx} className={`px-6 py-3.5 font-medium text-text-theme ${col.cellClassName || ""}`}>
+                    <td key={colIdx} className={`px-6 py-4.5 text-[14px] md:text-[15px] font-medium text-text-theme ${col.cellClassName || ""}`}>
                       {col.accessor(item)}
                     </td>
                   ))}
@@ -126,23 +126,23 @@ export function DataTable<T>({
 
       {/* Pagination Footer */}
       {filteredData.length > 0 && (
-        <div className="flex items-center justify-between border-t border-border-theme px-6 py-4">
-          <span className="text-[11px] text-text-soft">
+        <div className="flex items-center justify-between border-t border-border-theme px-6 py-4.5">
+          <span className="text-[13px] md:text-sm font-semibold text-text-soft">
             {t("common.showingEntries", {
               from: formatNumber(startIndex + 1, locale),
               to: formatNumber(Math.min(startIndex + itemsPerPage, totalItems), locale),
               total: formatNumber(totalItems, locale),
             })}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={handlePrevPage}
               disabled={currentPage === 1}
-              className="rounded-md border border-border-theme p-1 text-text-soft hover:bg-bg-muted disabled:opacity-40 transition-colors cursor-pointer"
+              className="rounded-lg border border-border-theme p-2 text-text-soft hover:bg-bg-muted disabled:opacity-40 transition-colors cursor-pointer"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4.5 w-4.5" />
             </button>
-            <span className="text-xs font-semibold text-text-theme">
+            <span className="text-xs md:text-sm font-semibold text-text-theme">
               {locale === "bn"
                 ? `পৃষ্ঠা ${formatNumber(currentPage, locale)} / ${formatNumber(totalPages, locale)}`
                 : `Page ${currentPage} of ${totalPages}`}
@@ -150,9 +150,9 @@ export function DataTable<T>({
             <button
               onClick={handleNextPage}
               disabled={currentPage === totalPages}
-              className="rounded-md border border-border-theme p-1 text-text-soft hover:bg-bg-muted disabled:opacity-40 transition-colors cursor-pointer"
+              className="rounded-lg border border-border-theme p-2 text-text-soft hover:bg-bg-muted disabled:opacity-40 transition-colors cursor-pointer"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4.5 w-4.5" />
             </button>
           </div>
         </div>

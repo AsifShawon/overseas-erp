@@ -40,6 +40,7 @@ export interface MockUser {
 }
 
 export const MOCK_USERS: MockUser[] = [
+  { id: "u-platform-admin", email: "platform@agency.com", fullName: "Platform Admin", roleName: "Platform Admin" },
   { id: "u-super-admin", email: "admin@agency.com", fullName: "Richard Vance", roleName: "Super Admin" },
   { id: "u-ops-admin", email: "ops@agency.com", fullName: "Helena Rostova", roleName: "Operations Admin" },
   { id: "u-hr-officer", email: "hr@agency.com", fullName: "Sarah Jenkins", roleName: "HR Officer" },

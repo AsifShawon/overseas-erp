@@ -217,7 +217,7 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Pipeline Stage Summary */}
-            <div className="lg:col-span-2 rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
+            <div className="lg:col-span-2 rounded-2xl border border-border-theme bg-surface p-6 shadow-sm hover:shadow-md transition-all duration-300">
               <h3 className="text-sm font-bold text-text-theme mb-4 flex items-center gap-2">
                 <TrendingUp className="h-4.5 w-4.5 text-primary-theme" /> {t("dashboard.pipelineStageDistribution")}
               </h3>
@@ -225,11 +225,24 @@ export default function DashboardPage() {
                 {(["SELECTED", "MEDICAL_WAITING", "VISA_SUBMITTED", "DEPLOYED"] as WorkflowStage[]).map((stage) => {
                   const count = stageCounts[stage] || 0;
                   const label = t(`workflow.${stage}`) || WORKFLOW_LABELS[stage];
+                  
+                  // Color highlights map
+                  const colorsMap: Record<string, { border: string, bg: string, text: string, dot: string }> = {
+                    SELECTED: { border: "border-indigo-100 dark:border-indigo-900/30", bg: "bg-indigo-50/20 dark:bg-indigo-950/10", text: "text-indigo-700 dark:text-indigo-400", dot: "bg-indigo-500" },
+                    MEDICAL_WAITING: { border: "border-amber-100 dark:border-amber-900/30", bg: "bg-amber-50/20 dark:bg-amber-950/10", text: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" },
+                    VISA_SUBMITTED: { border: "border-purple-100 dark:border-purple-900/30", bg: "bg-purple-50/20 dark:bg-purple-950/10", text: "text-purple-700 dark:text-purple-400", dot: "bg-purple-500" },
+                    DEPLOYED: { border: "border-emerald-100 dark:border-emerald-900/30", bg: "bg-emerald-50/20 dark:bg-emerald-950/10", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" }
+                  };
+                  const color = colorsMap[stage] || { border: "border-border-theme", bg: "bg-surface-soft", text: "text-text-theme", dot: "bg-primary-theme" };
+
                   return (
-                    <div key={stage} className="rounded-lg bg-surface-soft p-4 border border-border-theme">
-                      <p className="text-[10px] font-semibold text-text-soft uppercase tracking-wider truncate">{label}</p>
-                      <h4 className="mt-2 text-2xl font-bold text-text-theme">{formatNumber(count, locale)}</h4>
-                      <p className="text-[9px] text-text-soft mt-1">{t("dashboard.candidatesInStage")}</p>
+                    <div key={stage} className={`rounded-xl border ${color.border} ${color.bg} p-5 hover:scale-[1.02] transition-transform duration-200`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`h-1.5 w-1.5 rounded-full ${color.dot}`} />
+                        <p className={`text-[10px] font-bold ${color.text} uppercase tracking-wider truncate`}>{label}</p>
+                      </div>
+                      <h4 className="mt-3 text-3xl font-black text-text-theme">{formatNumber(count, locale)}</h4>
+                      <p className="text-[9px] text-text-soft font-semibold mt-1.5">{t("dashboard.candidatesInStage")}</p>
                     </div>
                   );
                 })}
@@ -237,7 +250,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Warning Widget */}
-            <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm flex flex-col justify-between">
+            <div className="rounded-2xl border border-border-theme bg-surface p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-300">
               <div>
                 <h3 className="text-sm font-bold text-text-theme mb-2 flex items-center gap-2">
                   <AlertTriangle className="h-4.5 w-4.5 text-amber-500" /> {t("dashboard.alertsWarnings")}
@@ -276,9 +289,9 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-border-theme flex justify-between items-center text-[10px] text-text-soft">
+              <div className="mt-4 pt-4 border-t border-border-theme flex justify-between items-center text-[10px] text-text-soft font-medium">
                 <span>{t("dashboard.lastUpdatedJustNow")}</span>
-                <span className="font-semibold text-primary-theme cursor-pointer">{t("dashboard.resolveAllBtn")}</span>
+                <span className="font-bold text-primary-theme cursor-pointer hover:underline">{t("dashboard.resolveAllBtn")}</span>
               </div>
             </div>
           </div>

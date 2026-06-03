@@ -261,7 +261,7 @@ export default function ApplicantPortalPage() {
       <div className="space-y-6">
         {activeTab === "progress" && (
           <div className="space-y-6">
-            <WorkflowStepper currentStage={applicant.currentStage} />
+            <WorkflowStepper currentStage={applicant.currentStage} showActionBox={false} />
 
             {/* Demographics Summary Card */}
             <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">

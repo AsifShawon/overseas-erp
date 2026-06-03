@@ -12,6 +12,7 @@ import { Globe2 } from "lucide-react";
 
 // Preset credentials mapped to the original demo user IDs for seamless dropdown switcher support
 const PRESET_CREDENTIALS: Record<string, { email: string; password: string }> = {
+  "u-platform-admin": { email: "platform@agency.com", password: "PlatformAdmin@2026!" },
   "u-super-admin": { email: "admin@agency.com", password: "SuperAdmin@2026!" },
   "u-ops-admin": { email: "ops@agency.com", password: "OpsAdmin@2026!" },
   "u-hr-officer": { email: "hr@agency.com", password: "HrOfficer@2026!" },

@@ -7,8 +7,8 @@
 :root {
   color-scheme: light;
   
-  --bg: #f8fafc;
-  --bg-muted: #f1f5f9;
+  --bg: #f5f7fa;
+  --bg-muted: #eef2f6;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
   --surface-soft: #f8fafc;
@@ -16,13 +16,18 @@
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
   
-  --text: #0f172a;
-  --text-muted: #475569;
+  --text: #090d16;
+  --text-muted: #334155;
   --text-soft: #64748b;
   
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-soft: #eef2ff;
+  /* Brand colors */
+  --primary: #1e3a8a; /* Deep professional blue */
+  --primary-hover: #172554;
+  --primary-soft: #eff6ff;
+  
+  --brand-red: #dc2626; /* Strong VisaTek red */
+  --brand-red-hover: #b91c1c;
+  --brand-red-soft: #fef2f2;
   
   --success: #059669;
   --success-soft: #ecfdf5;
@@ -37,31 +42,43 @@
   --info-soft: #eff6ff;
   
   --input-bg: #ffffff;
-  --input-text: #0f172a;
+  --input-text: #090d16;
   --input-placeholder: #94a3b8;
   --input-border: #cbd5e1;
+  
+  /* Sidebar dark navy tokens */
+  --sidebar-bg: #090d16;
+  --sidebar-text: #94a3b8;
+  --sidebar-hover-bg: #1e293b;
+  --sidebar-active-bg: #1e3a8a;
+  --sidebar-active-text: #ffffff;
+  --sidebar-border: #1e293b;
 }
 
 /* 3. Dark Theme Design Tokens (Manual Override Only) */
 [data-theme="dark"] {
   color-scheme: dark;
   
-  --bg: #0f172a;
-  --bg-muted: #111827;
-  --surface: #111827;
+  --bg: #0b0f19;
+  --bg-muted: #0f1524;
+  --surface: #0f1524;
   --surface-elevated: #1e293b;
-  --surface-soft: #020617;
+  --surface-soft: #090d16;
   
-  --border: #334155;
-  --border-strong: #475569;
+  --border: #1e293b;
+  --border-strong: #334155;
   
   --text: #f8fafc;
   --text-muted: #cbd5e1;
   --text-soft: #94a3b8;
   
-  --primary: #6366f1;
-  --primary-hover: #818cf8;
-  --primary-soft: rgba(99, 102, 241, 0.18);
+  --primary: #3b82f6; /* Lighter blue for dark mode visibility */
+  --primary-hover: #60a5fa;
+  --primary-soft: rgba(59, 130, 246, 0.15);
+  
+  --brand-red: #f43f5e;
+  --brand-red-hover: #fda4af;
+  --brand-red-soft: rgba(244, 63, 94, 0.15);
   
   --success: #10b981;
   --success-soft: rgba(16, 185, 129, 0.16);
@@ -75,10 +92,18 @@
   --info: #38bdf8;
   --info-soft: rgba(56, 189, 248, 0.16);
   
-  --input-bg: #020617;
+  --input-bg: #090d16;
   --input-text: #f8fafc;
-  --input-placeholder: #94a3b8;
-  --input-border: #475569;
+  --input-placeholder: #64748b;
+  --input-border: #1e293b;
+  
+  /* Sidebar dark navy tokens for dark mode */
+  --sidebar-bg: #070a13;
+  --sidebar-text: #94a3b8;
+  --sidebar-hover-bg: #0f1524;
+  --sidebar-active-bg: #3b82f6;
+  --sidebar-active-text: #ffffff;
+  --sidebar-border: #0f1524;
 }
 
 /* 4. Map Variables into Tailwind v4 Theme Configuration */
@@ -100,6 +125,10 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
   
+  --color-brand-red: var(--brand-red);
+  --color-brand-red-hover: var(--brand-red-hover);
+  --color-brand-red-soft: var(--brand-red-soft);
+  
   --color-success-theme: var(--success);
   --color-success-soft: var(--success-soft);
   
@@ -116,6 +145,13 @@
   --color-input-text: var(--input-text);
   --color-input-placeholder: var(--input-placeholder);
   --color-input-border: var(--input-border);
+  
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-hover-bg: var(--sidebar-hover-bg);
+  --color-sidebar-active-bg: var(--sidebar-active-bg);
+  --color-sidebar-active-text: var(--sidebar-active-text);
+  --color-sidebar-border: var(--sidebar-border);
 }
 
 /* 5. Base Styles for Layout and Core Elements */

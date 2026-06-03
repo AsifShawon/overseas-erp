@@ -72,26 +72,26 @@ export function DocumentCard({
 
   return (
     <div
-      className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-border-theme bg-surface p-4 shadow-sm transition-all duration-300 hover:shadow-md ${className}`}
+      className={`flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-2xl border border-border-theme bg-surface p-5 md:p-6 shadow-sm transition-all duration-300 hover:shadow-md ${className}`}
     >
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-theme">
-          <FileText className="h-5 w-5" />
+      <div className="flex items-start md:items-center gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-theme">
+          <FileText className="h-6 w-6" />
         </div>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-text-theme uppercase tracking-wider">
+        <div className="space-y-1.5 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[14px] md:text-[15px] font-bold text-text-theme tracking-wide leading-relaxed">
               {getDocTypeLabel()}
             </span>
-            <StatusBadge status={document.status} className="text-[9px] px-2 py-0" />
+            <StatusBadge status={document.status} className="text-xs md:text-sm px-2.5 py-0.5" />
           </div>
-          <p className="text-xs text-text-muted font-medium break-all flex items-center gap-1.5">
-            <span>{document.fileName}</span>
+          <p className="text-[13px] md:text-[14px] text-text-muted font-medium break-all flex flex-wrap items-center gap-2 whitespace-normal leading-relaxed">
+            <span className="break-all">{document.fileName}</span>
             {onDownload && (
               <button
                 onClick={handleDownloadClick}
                 title={locale === "bn" ? "ডকুমেন্ট ডাউনলোড করুন" : "Download Sourced Document"}
-                className="text-primary-theme hover:text-primary-hover font-semibold cursor-pointer underline flex items-center text-[11px]"
+                className="text-primary-theme hover:text-primary-hover font-bold cursor-pointer underline inline-flex items-center text-xs md:text-sm"
               >
                 {locale === "bn" ? "(ডাউনলোড)" : "(download)"}
               </button>
@@ -99,35 +99,35 @@ export function DocumentCard({
           </p>
 
           {document.verifiedBy ? (
-            <div className="flex items-center gap-1 text-[10px] text-success-theme font-semibold">
-              <ShieldCheck className="h-3.5 w-3.5" /> {locale === "bn" ? `${document.verifiedBy} দ্বারা যাচাইকৃত` : `Checked by ${document.verifiedBy}`}
+            <div className="flex items-center gap-1.5 text-xs md:text-sm text-success-theme font-bold leading-relaxed mt-1">
+              <ShieldCheck className="h-4.5 w-4.5" /> {locale === "bn" ? `${document.verifiedBy} দ্বারা যাচাইকৃত` : `Checked by ${document.verifiedBy}`}
             </div>
           ) : (
-            <div className="text-[10px] text-text-soft">{locale === "bn" ? "এখনো যাচাই করা হয়নি" : "Not verified yet"}</div>
+            <div className="text-xs md:text-sm text-text-soft leading-relaxed mt-1">{locale === "bn" ? "এখনো যাচাই করা হয়নি" : "Not verified yet"}</div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 w-full sm:w-auto justify-end border-t border-border-theme pt-3 sm:border-t-0 sm:pt-0">
+      <div className="flex items-center gap-3 w-full md:w-auto justify-end border-t border-border-theme pt-4 md:border-t-0 md:pt-0 shrink-0">
         {canVerify && document.status !== "VERIFIED" && onVerify && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => handleVerifyClick("VERIFIED")}
-              className="flex items-center gap-1 rounded bg-success-soft px-2.5 py-1 text-[10px] font-bold text-success-theme hover:opacity-90 cursor-pointer"
+              className="flex items-center gap-1.5 rounded-lg bg-success-soft px-3 py-1.5 text-xs md:text-sm font-bold text-success-theme hover:opacity-90 cursor-pointer"
             >
-              <CheckCircle className="h-3.5 w-3.5" /> {locale === "bn" ? "অনুমোদন" : "Approve"}
+              <CheckCircle className="h-4 w-4" /> {locale === "bn" ? "অনুমোদন" : "Approve"}
             </button>
             <button
               onClick={() => handleVerifyClick("REJECTED")}
-              className="flex items-center gap-1 rounded bg-danger-soft px-2.5 py-1 text-[10px] font-bold text-danger-theme hover:opacity-90 cursor-pointer"
+              className="flex items-center gap-1.5 rounded-lg bg-danger-soft px-3 py-1.5 text-xs md:text-sm font-bold text-danger-theme hover:opacity-90 cursor-pointer"
             >
-              <XCircle className="h-3.5 w-3.5" /> {locale === "bn" ? "প্রত্যাখ্যান" : "Reject"}
+              <XCircle className="h-4 w-4" /> {locale === "bn" ? "প্রত্যাখ্যান" : "Reject"}
             </button>
           </div>
         )}
 
         {document.status === "VERIFIED" && (
-          <span className="text-[10px] text-success-theme font-bold uppercase tracking-wider bg-success-soft px-2 py-0.5 rounded border border-success-theme">
+          <span className="text-xs md:text-sm text-success-theme font-bold uppercase tracking-wider bg-success-soft px-3 py-1 rounded-lg border border-success-theme">
             {locale === "bn" ? "লকড" : "Locked"}
           </span>
         )}
@@ -136,9 +136,9 @@ export function DocumentCard({
           <button
             onClick={handleDownloadClick}
             title={locale === "bn" ? "সুরক্ষিত ডাউনলোড" : "Download secure stream"}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-theme bg-bg text-text-soft hover:bg-bg-muted hover:text-text-theme cursor-pointer"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-theme bg-bg text-text-soft hover:bg-bg-muted hover:text-text-theme cursor-pointer"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-4.5 w-4.5" />
           </button>
         )}
       </div>
@@ -147,4 +147,3 @@ export function DocumentCard({
 }
 
 export default DocumentCard;
-

@@ -643,19 +643,19 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
         <div className="space-y-1">
           <button
             onClick={() => router.push("/applicants")}
-            className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-wider cursor-pointer"
+            className="flex items-center gap-1.5 text-xs md:text-sm font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-wider cursor-pointer"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> {t("applicantDetail.backBtn")}
+            <ArrowLeft className="h-4 w-4" /> {t("applicantDetail.backBtn")}
           </button>
           <div className="flex flex-wrap items-center gap-2 mt-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
               {applicant.fullName}
             </h1>
-            <span className="font-mono text-xs bg-slate-100 text-slate-500 border px-2 py-0.5 rounded dark:bg-slate-800 dark:border-slate-700">
+            <span className="font-mono text-xs md:text-sm bg-slate-100 text-slate-500 border px-2.5 py-0.5 rounded-lg dark:bg-slate-800 dark:border-slate-700 font-bold">
               ID: {applicant.id}
             </span>
           </div>
-          <p className="text-xs text-slate-400 font-medium">
+          <p className="text-sm md:text-[15px] text-slate-400 font-semibold leading-relaxed">
             {locale === "bn" ? "নিযুক্ত ট্রেড সেগমেন্ট: " : "Placement Trade Segment: "}<span className="font-bold text-slate-600 dark:text-slate-300">{applicant.trade}</span>
           </p>
         </div>
@@ -666,14 +666,14 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
             {applicant.isArchived ? (
               <button
                 onClick={() => handleSoftArchive("RESTORE")}
-                className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 transition-all hover:scale-105 active:scale-95 duration-200 cursor-pointer"
+                className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs md:text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 transition-all hover:scale-105 active:scale-95 duration-200 cursor-pointer"
               >
                 <RotateCcw className="h-4 w-4" /> {t("applicantDetail.restoreCandidate")}
               </button>
             ) : (
               <button
                 onClick={() => handleSoftArchive("ARCHIVE")}
-                className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 transition-all hover:scale-105 active:scale-95 duration-200 cursor-pointer"
+                className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs md:text-sm font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 transition-all hover:scale-105 active:scale-95 duration-200 cursor-pointer"
               >
                 <Archive className="h-4 w-4" /> {t("applicantDetail.softArchiveCandidate")}
               </button>
@@ -688,47 +688,47 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
       {/* Workspace Tabs Layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
         {/* Tab Navigation Panels */}
-        <div className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wide px-3 pb-3 border-b border-slate-100 dark:border-slate-800">
             {locale === "bn" ? "আবেদনকারী ফাইলের বিভাগসমূহ" : "Candidate Dossier Sections"}
           </h3>
           <button
             onClick={() => setActiveTab("bio")}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-left text-xs md:text-sm font-bold transition-all cursor-pointer ${
               activeTab === "bio"
                 ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
             }`}
           >
-            <User className="h-4 w-4" /> {t("applicantDetail.tabBioData")}
+            <User className="h-4.5 w-4.5" /> {t("applicantDetail.tabBioData")}
           </button>
           <button
             onClick={() => setActiveTab("compliance")}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-left text-xs md:text-sm font-bold transition-all cursor-pointer ${
               activeTab === "compliance"
                 ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
             }`}
           >
-            <FileText className="h-4 w-4" /> {t("applicantDetail.tabCompliance")}
+            <FileText className="h-4.5 w-4.5" /> {t("applicantDetail.tabCompliance")}
           </button>
           <button
             onClick={() => setActiveTab("financial")}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-left text-xs md:text-sm font-bold transition-all cursor-pointer ${
               activeTab === "financial"
                 ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
             }`}
           >
-            <CreditCard className="h-4 w-4" /> {t("applicantDetail.tabLedger")}
+            <CreditCard className="h-4.5 w-4.5" /> {t("applicantDetail.tabLedger")}
           </button>
 
           {/* Interactive Warning Banner */}
-          <div className="mt-8 rounded-lg bg-indigo-50/50 p-3.5 border border-indigo-100/50 dark:bg-indigo-950/10 dark:border-indigo-900/10">
-            <div className="flex gap-1.5 items-center text-[10px] text-indigo-800 dark:text-indigo-400 font-bold mb-1">
-              <Sparkles className="h-3.5 w-3.5 shrink-0 animate-pulse" /> {locale === "bn" ? "সরাসরি সিস্টেম সংযোগ" : "LIVE POSTGRESQL LINK"}
+          <div className="mt-8 rounded-xl bg-indigo-50/50 p-4 border border-indigo-100/50 dark:bg-indigo-950/10 dark:border-indigo-900/10">
+            <div className="flex gap-1.5 items-center text-xs md:text-sm text-indigo-800 dark:text-indigo-400 font-bold mb-1.5">
+              <Sparkles className="h-4.5 w-4.5 shrink-0 animate-pulse" /> {locale === "bn" ? "সরাসরি সিস্টেম সংযোগ" : "LIVE POSTGRESQL LINK"}
             </div>
-            <p className="text-[9px] text-indigo-700/80 leading-normal dark:text-indigo-400/80">
+            <p className="text-xs md:text-sm text-indigo-700/80 leading-relaxed dark:text-indigo-400/80 font-semibold">
               {locale === "bn"
                 ? "আবেদনকারীর সব ফাইল এবং লেনদেন সরাসরি ডাটাবেসে রিয়েল-টাইমে আপডেট হচ্ছে।"
                 : "Applicant records, files and accounting transactions are updated live in the PostgreSQL database."}
@@ -783,13 +783,13 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       {/* Glassmorphic Read-Only Warning Alert Modal */}
       {readOnlyAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-xl border border-indigo-100 bg-white p-6 shadow-xl dark:border-indigo-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-              <Sparkles className="h-5 w-5 animate-pulse shrink-0" />
-              <h3 className="text-sm font-bold uppercase tracking-wider">{locale === "bn" ? "সিস্টেম সংযোগ নোটিশ" : "SYSTEM CONNECTION NOTICE"}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-indigo-100 bg-white p-6 md:p-8 shadow-2xl dark:border-indigo-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400 pb-3 mb-4 border-b border-border-theme">
+              <Sparkles className="h-5.5 w-5.5 animate-pulse shrink-0" />
+              <h3 className="text-base md:text-lg font-bold uppercase tracking-wider">{locale === "bn" ? "সিস্টেম সংযোগ নোটিশ" : "SYSTEM CONNECTION NOTICE"}</h3>
             </div>
-            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            <p className="text-sm md:text-[15px] text-slate-600 dark:text-slate-400 leading-relaxed font-semibold">
               {locale === "bn"
                 ? `অ্যাকশন "${readOnlyAlert.action}" সফলভাবে সম্পন্ন হয়েছে।`
                 : `The action "${readOnlyAlert.action}" has been successfully verified.`}
@@ -797,7 +797,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setReadOnlyAlert(null)}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 hover:shadow-indigo-600/30 cursor-pointer"
+                className="rounded-xl bg-indigo-600 px-5 py-3 text-sm md:text-[15px] font-bold text-white transition hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 hover:shadow-indigo-600/30 cursor-pointer w-full sm:w-auto"
               >
                 {locale === "bn" ? "নিশ্চিত করুন" : "Acknowledge"}
               </button>
@@ -808,16 +808,16 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       {/* Glassmorphic Invoicing Loading Overlay */}
       {invoicing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-xl border border-slate-100 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-6 md:p-8 shadow-xl dark:border-slate-800 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
             <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-slate-900 mx-auto">
               <Globe2 className="h-6 w-6 text-indigo-500 animate-spin" />
             </div>
-            <div className="space-y-1">
-              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">
+            <div className="space-y-1.5">
+              <h3 className="text-sm md:text-base font-bold text-slate-800 dark:text-slate-100">
                 {locale === "bn" ? "ইনভয়েস প্রসেস করা হচ্ছে..." : "Processing Invoice Posting..."}
               </h3>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500">
+              <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 font-semibold leading-relaxed">
                 {locale === "bn"
                   ? "হিসাব খাতার ডাবল-এন্ট্রি এবং বকেয়া ব্যালেন্স সফলভাবে ডাটাবেসে পোস্টিং হচ্ছে।"
                   : "Writing double-entry ledger entries and updating outstanding balances securely."}
@@ -829,16 +829,16 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
       {/* Glassmorphic Receipt Loading Overlay */}
       {recordingReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-xl border border-slate-100 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-6 md:p-8 shadow-xl dark:border-slate-800 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
             <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-slate-900 mx-auto">
               <Globe2 className="h-6 w-6 text-indigo-500 animate-spin" />
             </div>
-            <div className="space-y-1">
-              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">
+            <div className="space-y-1.5">
+              <h3 className="text-sm md:text-base font-bold text-slate-800 dark:text-slate-100">
                 {locale === "bn" ? "রসিদ রেকর্ড করা হচ্ছে..." : "Recording Payment Receipt..."}
               </h3>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500">
+              <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 font-semibold leading-relaxed">
                 {locale === "bn"
                   ? "ক্রেডিট খাতা এন্ট্রি পোস্টিং এবং ইনভয়েস ব্যালেন্স সমন্বয় করা হচ্ছে।"
                   : "Writing double-entry credit ledger entries and decrementing invoice dues securely."}

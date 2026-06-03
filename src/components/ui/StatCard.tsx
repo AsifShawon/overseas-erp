@@ -20,28 +20,28 @@ export function StatCard({ title, value, description, iconName, trend, className
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border border-border-theme bg-surface p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-border-theme bg-surface p-6 md:p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${className}`}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-text-soft">{title}</span>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-[15px] md:text-base font-semibold text-text-soft leading-relaxed">{title}</span>
         {IconComponent && (
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary-theme">
-            <IconComponent className="h-5 w-5" />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-theme">
+            <IconComponent className="h-6 w-6" />
           </div>
         )}
       </div>
 
       <div className="mt-4">
-        <h3 className="text-3xl font-bold tracking-tight text-text-theme">{value}</h3>
+        <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight text-text-theme">{value}</h3>
         {description && (
-          <p className="mt-1 text-xs text-text-soft">{description}</p>
+          <p className="mt-2 text-sm text-text-soft leading-relaxed">{description}</p>
         )}
       </div>
 
       {trend && (
-        <div className="mt-4 flex items-center gap-1">
+        <div className="mt-4 flex items-center gap-2 flex-wrap">
           <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs md:text-sm font-bold ${
               trend.isPositive
                 ? "bg-success-soft text-success-theme"
                 : "bg-danger-soft text-danger-theme"
@@ -49,7 +49,7 @@ export function StatCard({ title, value, description, iconName, trend, className
           >
             {trend.isPositive ? "↑" : "↓"} {trend.value}
           </span>
-          <span className="text-[10px] text-text-soft">
+          <span className="text-xs md:text-sm text-text-soft leading-normal">
             {locale === "bn" ? "গত মাসের তুলনায়" : "vs last month"}
           </span>
         </div>

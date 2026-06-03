@@ -111,23 +111,23 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
   return (
     <div className="space-y-6">
       {/* Real Document Upload Panel */}
-      <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 md:p-8 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <h3 className="text-[17px] font-bold text-slate-800 dark:text-slate-200 leading-normal">
           {locale === "bn" ? "কমপ্লায়েন্স ডকুমেন্ট আপলোড করুন" : "Upload Compliance Document"}
         </h3>
         
-        <form onSubmit={handleUploadSubmit} className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <form onSubmit={handleUploadSubmit} className="mt-6 space-y-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {/* 1. Document Type */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-text-theme leading-relaxed">
                 {t("applicantDetail.documentType")}
               </label>
               <select
                 value={selectedDocType}
                 onChange={(e) => setSelectedDocType(e.target.value)}
                 disabled={uploading}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
+                className="w-full rounded-xl border border-border-theme bg-slate-50 py-3 px-4 text-[15px] leading-relaxed outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
               >
                 <option value="PASSPORT">{DOCUMENT_TYPE_LABELS[locale].PASSPORT}</option>
                 <option value="PHOTO">{DOCUMENT_TYPE_LABELS[locale].PHOTO}</option>
@@ -141,9 +141,9 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
             </div>
 
             {/* 2. File Input */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400">
-                {locale === "bn" ? "ফাইল নির্বাচন করুন (PDF, JPG, PNG, WEBP - সর্বোচ্চ ১০ মেগাবাইট)" : "Select File (PDF, JPG, PNG, WEBP - Max 10MB)"}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-text-theme leading-relaxed">
+                {locale === "bn" ? "ফাইল নির্বাচন করুন" : "Select File"}
               </label>
               <input
                 id="document-file-input"
@@ -151,13 +151,16 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
                 accept=".pdf,.png,.jpg,.jpeg,.webp"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                 disabled={uploading}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 file:mr-3 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-indigo-50 file:text-indigo-700 dark:file:bg-indigo-950 dark:file:text-indigo-400 cursor-pointer"
+                className="w-full rounded-xl border border-border-theme bg-slate-50 py-2.5 px-4 text-sm outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs md:file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-700 dark:file:bg-indigo-950 dark:file:text-indigo-400 cursor-pointer text-text-theme"
               />
+              <p className="text-[11px] text-slate-400/80 dark:text-slate-500/80 font-medium">
+                {locale === "bn" ? "অনুমোদিত ফাইল: PDF, JPG, PNG, WEBP" : "Permitted: PDF, JPG, PNG, WEBP"}
+              </p>
             </div>
 
             {/* 3. Optional Expiry Date */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-text-theme leading-relaxed">
                 {t("applicantDetail.expiryDate")}
               </label>
               <input
@@ -165,13 +168,13 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
                 disabled={uploading}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
+                className="w-full rounded-xl border border-border-theme bg-slate-50 py-3 px-4 text-[15px] leading-relaxed outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
               />
             </div>
 
             {/* 4. Optional Remarks */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-text-theme leading-relaxed">
                 {locale === "bn" ? "মন্তব্য / নোট (ঐচ্ছিক)" : "Remarks / Notes (Optional)"}
               </label>
               <input
@@ -180,24 +183,24 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
                 onChange={(e) => setRemarks(e.target.value)}
                 placeholder={locale === "bn" ? "যেমন: পাসপোর্টের সত্যায়িত কপি" : "e.g. Certified copy of passport page"}
                 disabled={uploading}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
+                className="w-full rounded-xl border border-border-theme bg-slate-50 py-3 px-4 text-[15px] leading-relaxed outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
               />
             </div>
           </div>
 
-          <div className="flex justify-end border-t border-slate-50 pt-3 dark:border-slate-800">
+          <div className="flex justify-end border-t border-slate-50 pt-4 dark:border-slate-800">
             <button
               type="submit"
               disabled={uploading || !selectedFile}
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-5 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:opacity-40 dark:bg-slate-50 dark:text-slate-950 dark:hover:bg-slate-200 shadow-sm"
+              className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-[15px] font-bold text-white transition hover:bg-slate-800 disabled:opacity-40 dark:bg-slate-50 dark:text-slate-950 dark:hover:bg-slate-200 shadow-sm cursor-pointer"
             >
               {uploading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> {locale === "bn" ? "ফাইল আপলোড হচ্ছে..." : "Uploading Sourced File..."}
+                  <Loader2 className="h-4.5 w-4.5 animate-spin" /> {locale === "bn" ? "ফাইল আপলোড হচ্ছে..." : "Uploading Sourced File..."}
                 </>
               ) : (
                 <>
-                  <FileUp className="h-4 w-4" /> {locale === "bn" ? "ডকুমেন্ট আপলোড করুন" : "Upload Document"}
+                  <FileUp className="h-4.5 w-4.5" /> {locale === "bn" ? "ডকুমেন্ট আপলোড করুন" : "Upload Document"}
                 </>
               )}
             </button>
@@ -206,15 +209,15 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
 
         {/* Dynamic Alerts */}
         {localError && (
-          <div className="mt-4 p-3 rounded-lg border border-rose-100 bg-rose-50 text-xs text-rose-700 font-medium dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400 flex items-center gap-2 animate-in fade-in duration-200">
-            <XCircle className="h-4 w-4 shrink-0" />
+          <div className="mt-4 p-4 rounded-xl border border-rose-100 bg-rose-50 text-sm text-rose-700 font-semibold dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400 flex items-center gap-2 animate-in fade-in duration-200">
+            <XCircle className="h-4.5 w-4.5 shrink-0" />
             <span>{localError}</span>
           </div>
         )}
 
         {localSuccess && (
-          <div className="mt-4 p-3 rounded-lg border border-emerald-100 bg-emerald-50 text-xs text-emerald-700 font-medium dark:bg-emerald-950/20 dark:border-emerald-900/30 dark:text-emerald-400 flex items-center gap-2 animate-in fade-in duration-200">
-            <CheckCircle className="h-4 w-4 shrink-0" />
+          <div className="mt-4 p-4 rounded-xl border border-emerald-100 bg-emerald-50 text-sm text-emerald-700 font-semibold dark:bg-emerald-950/20 dark:border-emerald-900/30 dark:text-emerald-400 flex items-center gap-2 animate-in fade-in duration-200">
+            <CheckCircle className="h-4.5 w-4.5 shrink-0" />
             <span>{localSuccess}</span>
           </div>
         )}
@@ -222,16 +225,16 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
 
       {/* Document Registry Checklist Grid */}
       <div className="space-y-4">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+        <h3 className="text-sm md:text-base font-bold text-slate-400 uppercase tracking-wider">
           {locale === "bn" ? "কমপ্লায়েন্স সত্যায়ন ডসিয়ার" : "Compliance Attestation Dossiers"}
         </h3>
         
         {documents.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl bg-slate-50/30 text-slate-400 dark:border-slate-800 text-xs">
+          <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl bg-slate-50/30 text-slate-400 dark:border-slate-800 text-sm">
             {t("applicantDetail.noDocuments")}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {documents.map((doc) => (
               <DocumentCard
                 key={doc.id}

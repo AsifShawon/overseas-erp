@@ -11,6 +11,7 @@ import { useT } from "@/i18n/useT";
 interface WorkflowStepperProps {
   currentStage: WorkflowStage;
   onTransition?: (newStage: WorkflowStage, notes: string) => void;
+  showActionBox?: boolean;
 }
 
 // Linear main flow for visual stepper
@@ -42,7 +43,7 @@ const ENUM_STAGE_LIST: WorkflowStage[] = [
   "DEPLOYED",
 ];
 
-export function WorkflowStepper({ currentStage, onTransition }: WorkflowStepperProps) {
+export function WorkflowStepper({ currentStage, onTransition, showActionBox = true }: WorkflowStepperProps) {
   const { user } = useMockAuth();
   const { t, locale } = useT();
   const [transitionNotes, setTransitionNotes] = useState("");
@@ -68,23 +69,23 @@ export function WorkflowStepper({ currentStage, onTransition }: WorkflowStepperP
   );
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+    <div className={showActionBox ? "grid grid-cols-1 gap-6 lg:grid-cols-4" : "w-full"}>
       {/* Workflow Stepper Banners */}
-      <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 lg:col-span-3">
+      <div className={`rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 ${showActionBox ? "lg:col-span-3" : "w-full"}`}>
         <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+          <h3 className="text-[17px] font-bold text-slate-800 dark:text-slate-200">
             {locale === "bn" ? "নিয়োগের অগ্রগতি টাইমলাইন" : "Recruitment Progress Timeline"}
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400">
+            <span className="text-xs md:text-sm font-semibold text-slate-400">
               {locale === "bn" ? "বর্তমান:" : "Current:"}
             </span>
-            <StatusBadge status={currentStage} />
+            <StatusBadge status={currentStage} className="text-xs md:text-sm px-2.5 py-0.5" />
           </div>
         </div>
 
         {/* Stepper Pipeline */}
-        <div className="mt-8 flex flex-col gap-6 md:flex-row md:items-center md:justify-between md:gap-2">
+        <div className="mt-8 flex flex-wrap justify-center lg:flex-nowrap lg:justify-between items-start gap-y-6 gap-x-2 md:gap-x-4 lg:gap-x-1.5">
           {STAGE_FLOW.map((stage, idx) => {
             const isCompleted = currentIndex > idx;
             const isActive = currentIndex === idx;
@@ -99,24 +100,23 @@ export function WorkflowStepper({ currentStage, onTransition }: WorkflowStepperP
             }
 
             const fullLabel = t(`workflow.${stage}`);
-            const abbreviatedLabel = fullLabel.length > 8 ? fullLabel.substring(0, 7) + ".." : fullLabel;
 
             return (
-              <div key={stage} className="flex flex-1 flex-col items-center text-center group relative">
+              <div key={stage} className="flex flex-col items-center text-center group relative min-w-[85px] lg:min-w-[55px] xl:min-w-[70px] flex-1">
                 {/* Visual Circle */}
                 <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold transition-all duration-300 ${circleClass}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-bold transition-all duration-300 ${circleClass}`}
                 >
                   {isCompleted ? <Check className="h-4.5 w-4.5" /> : idx + 1}
                 </div>
 
                 {/* Stepper Label */}
-                <span className="mt-2 block max-w-[90px] text-[10px] font-semibold text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white truncate">
-                  {abbreviatedLabel}
+                <span className="mt-2 block text-[11px] sm:text-xs lg:text-[12px] xl:text-[13px] font-semibold text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white whitespace-normal leading-relaxed">
+                  {fullLabel}
                 </span>
 
                 {/* Tooltip containing full display label */}
-                <div className="absolute bottom-full mb-2 hidden group-hover:block rounded bg-slate-900 px-2 py-1 text-[9px] text-white whitespace-nowrap shadow-md dark:bg-white dark:text-slate-900 z-10">
+                <div className="absolute bottom-full mb-2 hidden group-hover:block rounded bg-slate-900 px-3 py-1.5 text-xs text-white whitespace-nowrap shadow-md dark:bg-white dark:text-slate-900 z-10">
                   {fullLabel}
                 </div>
               </div>
@@ -126,13 +126,13 @@ export function WorkflowStepper({ currentStage, onTransition }: WorkflowStepperP
 
         {/* Dynamic Halted Banner */}
         {isHalted && (
-          <div className="mt-6 flex gap-3 rounded-lg border border-rose-100 bg-rose-50/20 p-4 dark:border-rose-950/20 dark:bg-rose-950/5">
-            <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
+          <div className="mt-6 flex gap-3.5 rounded-xl border border-rose-100 bg-rose-50/20 p-5 dark:border-rose-950/20 dark:bg-rose-950/5">
+            <AlertCircle className="h-6 w-6 text-rose-600 shrink-0" />
             <div>
-              <h4 className="text-xs font-bold text-rose-900 dark:text-rose-400">
+              <h4 className="text-sm md:text-base font-bold text-rose-900 dark:text-rose-400">
                 {locale === "bn" ? "আবেদন পাইপলাইন স্থগিত করা হয়েছে" : "Application Pipeline Halted"}
               </h4>
-              <p className="mt-1 text-[10px] text-rose-700/80 dark:text-rose-400/80">
+              <p className="mt-1.5 text-xs md:text-sm text-rose-700/80 dark:text-rose-400/80 leading-relaxed">
                 {locale === "bn"
                   ? `কমপ্লায়েন্স অডিটের সময় এই আবেদনকারী ${
                       currentStage === "MEDICAL_UNFIT" ? "মেডিকেল আনফিট (MEDICAL UNFIT)" : "ভিসা প্রত্যাখ্যাত (VISA REJECTED)"
@@ -147,62 +147,65 @@ export function WorkflowStepper({ currentStage, onTransition }: WorkflowStepperP
       </div>
 
       {/* Quick Staff Action Panel */}
-      <div className="rounded-xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <h3 className="border-b border-slate-100 pb-3 text-xs font-bold text-slate-800 dark:text-slate-200 dark:border-slate-800">
-          {locale === "bn" ? "ধাপ পরিবর্তন অ্যাকশন" : "Officer Stage Actions"}
-        </h3>
+      {showActionBox && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 flex flex-col justify-between">
+          <div>
+            <h3 className="border-b border-slate-100 pb-3 text-sm font-bold text-slate-800 dark:text-slate-200 dark:border-slate-800">
+              {locale === "bn" ? "ধাপ পরিবর্তন অ্যাকশন" : "Officer Stage Actions"}
+            </h3>
 
-        {isStaff ? (
-          <form onSubmit={handleTransitionSubmit} className="mt-4 space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                {locale === "bn" ? "লক্ষ্য ধাপ" : "Target Stage"}
-              </label>
-              <select
-                value={targetStage}
-                onChange={(e) => setTargetStage(e.target.value as WorkflowStage)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 text-text-theme"
-              >
-                {ENUM_STAGE_LIST.map((stageKey) => (
-                  <option key={stageKey} value={stageKey}>
-                    {t(`workflow.${stageKey}`)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isStaff ? (
+              <form onSubmit={handleTransitionSubmit} className="mt-4 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text-theme">
+                    {locale === "bn" ? "লক্ষ্য ধাপ" : "Target Stage"}
+                  </label>
+                  <select
+                    value={targetStage}
+                    onChange={(e) => setTargetStage(e.target.value as WorkflowStage)}
+                    className="w-full rounded-xl border border-border-theme bg-slate-50 py-3 px-4 text-[15px] leading-relaxed outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-950 text-text-theme"
+                  >
+                    {ENUM_STAGE_LIST.map((stageKey) => (
+                      <option key={stageKey} value={stageKey}>
+                        {t(`workflow.${stageKey}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                {locale === "bn" ? "অডিটিং মন্তব্য" : "Auditing Comments"}
-              </label>
-              <textarea
-                value={transitionNotes}
-                onChange={(e) => setTransitionNotes(e.target.value)}
-                placeholder={locale === "bn" ? "পাসপোর্ট, ভিসা বা ফ্লাইটের মন্তব্য লিখুন..." : "Enter passport, visa, or flight remarks..."}
-                rows={3}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 resize-none text-text-theme"
-              />
-            </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text-theme">
+                    {locale === "bn" ? "অডিটিং মন্তব্য" : "Auditing Comments"}
+                  </label>
+                  <textarea
+                    value={transitionNotes}
+                    onChange={(e) => setTransitionNotes(e.target.value)}
+                    placeholder={locale === "bn" ? "পাসপোর্ট, visa বা ফ্লাইটের মন্তব্য লিখুন..." : "Enter passport, visa, or flight remarks..."}
+                    rows={3}
+                    className="w-full rounded-xl border border-border-theme bg-slate-50 py-3 px-4 text-[15px] leading-relaxed outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-950 resize-none text-text-theme"
+                  />
+                </div>
 
-            <button
-              type="submit"
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 py-2 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-sm shadow-indigo-600/30 cursor-pointer"
-            >
-              <Play className="h-3.5 w-3.5" /> {locale === "bn" ? "ধাপ পরিবর্তন সম্পাদন করুন" : "Commit Transition"}
-            </button>
-          </form>
-        ) : (
-          <div className="mt-6 text-center">
-            <p className="text-[10px] text-slate-400">
-              {locale === "bn"
-                ? "শুধুমাত্র এজেন্সির কর্মকর্তা কর্মচারীরাই ধাপ পরিবর্তন সম্পাদন করতে পারেন। সোর্সিং এজেন্ট এবং আবেদনকারীদের ক্ষেত্রে শুধুমাত্র রিড-অনলি টাইমলাইন প্রদর্শিত হয়।"
-                : "Only Agency staff can execute workflow state-transitions. Sourced agents and candidates have read-only progress timelines."}
-            </p>
+                <button
+                  type="submit"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-3 px-4 text-[15px] font-bold text-white transition hover:bg-indigo-700 shadow-sm shadow-indigo-600/30 cursor-pointer"
+                >
+                  <Play className="h-4 w-4" /> {locale === "bn" ? "ধাপ পরিবর্তন সম্পাদন করুন" : "Commit Transition"}
+                </button>
+              </form>
+            ) : (
+              <div className="mt-6 text-center">
+                <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
+                  {locale === "bn"
+                    ? "শুধুমাত্র এজেন্সির কর্মকর্তা কর্মচারীরাই ধাপ পরিবর্তন সম্পাদন করতে পারেন। সোর্সিং এজেন্ট এবং আবেদনকারীদের ক্ষেত্রে শুধুমাত্র রিড-অনলি টাইমলাইন প্রদর্শিত হয়।"
+                    : "Only Agency staff can execute workflow state-transitions. Sourced agents and candidates have read-only progress timelines."}
+                </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 export default WorkflowStepper;
-

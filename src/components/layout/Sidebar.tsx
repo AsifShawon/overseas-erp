@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMockAuth } from "@/context/MockAuthContext";
@@ -28,6 +28,8 @@ import {
 interface SidebarProps {
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
+  mobileOpen?: boolean;
+  setMobileOpen?: (open: boolean) => void;
 }
 
 interface SidebarLink {
@@ -40,8 +42,8 @@ interface SidebarLink {
 const SIDEBAR_LINKS: SidebarLink[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "VIEW_DASHBOARD" },
   { label: "Applicants", href: "/applicants", icon: Users, permission: "VIEW_APPLICANTS" },
-  { label: "Job Orders", href: "/job-orders", icon: Briefcase, permission: "VIEW_DASHBOARD" }, // Admin/Ops/HR
-  { label: "Agents", href: "/agents", icon: UserCheck, permission: "VIEW_COMMISSIONS" }, // Admin/Ops/Accounts
+  { label: "Job Orders", href: "/job-orders", icon: Briefcase, permission: "VIEW_DASHBOARD" },
+  { label: "Agents", href: "/agents", icon: UserCheck, permission: "VIEW_COMMISSIONS" },
   { label: "Documents", href: "/documents", icon: FileText, permission: "UPLOAD_DOCUMENT" },
   { label: "Accounts", href: "/accounts", icon: CreditCard, permission: "VIEW_ACCOUNTS" },
   { label: "Commissions", href: "/commissions", icon: Percent, permission: "VIEW_COMMISSIONS" },
@@ -60,10 +62,17 @@ const PLATFORM_LINKS: SidebarLink[] = [
   { label: "System Notifications", href: "/platform/notifications", icon: Bell },
 ];
 
-export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
+export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: SidebarProps) {
   const pathname = usePathname();
   const { hasAccess, user } = useMockAuth();
   const { t } = useT();
+
+  // Auto close mobile drawer on route transition
+  useEffect(() => {
+    if (mobileOpen && setMobileOpen) {
+      setMobileOpen(false);
+    }
+  }, [pathname]);
 
   // Applicants don't see the staff sidebar (they use their own mobile portal)
   if (user.roleName === "Applicant") return null;
@@ -93,132 +102,144 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
   };
 
   return (
-    <aside
-      className={`fixed top-0 bottom-0 left-0 z-20 flex flex-col border-r border-border-theme bg-surface text-text-muted transition-all duration-300 ${
-        collapsed ? "w-16" : "w-64"
-      }`}
-    >
-      {/* Brand Header */}
-      <div className="flex h-16 items-center justify-between px-4 border-b border-border-theme bg-surface-soft">
-        {!collapsed && (
-          <div className="flex items-center gap-2 font-bold text-text-theme text-base">
-            <img src="/visatek_logo_transparent.png" alt="VisaTek Logo" className="h-6 w-auto object-contain" />
-            <span className="tracking-wide">{t("nav.brandTitle") || "Visa"}<span className="text-primary-theme">{t("nav.brandTitleHighlight") || "Tek"}</span></span>
-          </div>
-        )}
-        {collapsed && (
-          <div className="mx-auto">
-            <img src="/visatek_glove_favicon.ico" alt="VisaTek Icon" className="h-6 w-6 object-contain" />
-          </div>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="rounded-lg p-1 text-text-soft hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme transition-colors"
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </button>
-      </div>
+    <>
+      {/* Backdrop for mobile drawer */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen && setMobileOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-xs lg:hidden"
+        />
+      )}
 
-      {/* Nav Links */}
-      <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto scrollbar-thin scrollbar-thumb-border-strong">
-        {pathname.startsWith("/platform") ? (
-          <>
-            {PLATFORM_LINKS.map((link) => {
-              const isActive = pathname === link.href || (link.href !== "/platform" && pathname.startsWith(link.href));
-              const Icon = link.icon;
-              const navKey = getNavLinkKey(link.label);
-              const localizedLabel = navKey ? t(`nav.${navKey}`) : link.label;
-              const finalLabel = localizedLabel.startsWith("nav.") ? link.label : localizedLabel;
+      <aside
+        className={`fixed top-0 bottom-0 left-0 z-40 flex flex-col border-r border-sidebar-border bg-sidebar-bg text-sidebar-text transition-transform duration-300 lg:transition-all ${
+          collapsed ? "lg:w-16" : "lg:w-64"
+        } w-64 lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Brand Header */}
+        <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border bg-sidebar-bg shrink-0">
+          {(!collapsed || mobileOpen) ? (
+            <div className="flex items-center gap-2 font-bold text-white text-base">
+              <img src="/visatek_logo_transparent.png" alt="VisaTek Logo" className="h-6 w-auto object-contain brightness-0 invert" />
+              <span className="tracking-wide">{t("nav.brandTitle") || "Visa"}<span className="text-brand-red">{t("nav.brandTitleHighlight") || "Tek"}</span></span>
+            </div>
+          ) : (
+            <div className="mx-auto">
+              <img src="/visatek_glove_favicon.ico" alt="VisaTek Icon" className="h-6 w-6 object-contain" />
+            </div>
+          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden lg:block rounded-lg p-1 text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white transition-colors cursor-pointer"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        </div>
 
-              return (
+        {/* Nav Links */}
+        <nav className="flex-1 space-y-1.5 px-3 py-4 overflow-y-auto scrollbar-none">
+          {pathname.startsWith("/platform") ? (
+            <>
+              {PLATFORM_LINKS.map((link) => {
+                const isActive = pathname === link.href || (link.href !== "/platform" && pathname.startsWith(link.href));
+                const Icon = link.icon;
+                const navKey = getNavLinkKey(link.label);
+                const localizedLabel = navKey ? t(`nav.${navKey}`) : link.label;
+                const finalLabel = localizedLabel.startsWith("nav.") ? link.label : localizedLabel;
+
+                return (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    className={`flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-semibold leading-relaxed transition-all duration-200 group ${
+                      isActive
+                        ? "bg-sidebar-active-bg text-sidebar-active-text shadow-sm shadow-sidebar-active-bg/30"
+                        : "text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white"
+                    }`}
+                  >
+                    <Icon className={`h-5.5 w-5.5 shrink-0 ${isActive ? "text-sidebar-active-text" : "text-sidebar-text group-hover:text-white"}`} />
+                    {(!collapsed || mobileOpen) && <span className="truncate">{finalLabel}</span>}
+                  </Link>
+                );
+              })}
+
+              {user.activeCompanyId && (
                 <Link
-                  key={link.label}
-                  href={link.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group ${
-                    isActive
-                      ? "bg-primary-theme text-white shadow-sm shadow-primary-theme/30"
-                      : "text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme"
+                  href="/dashboard"
+                  className="flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-semibold leading-relaxed text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white transition-all duration-200 group mt-4 border-t border-dashed border-sidebar-border pt-4"
+                >
+                  <Globe2 className="h-5.5 w-5.5 shrink-0 text-sidebar-text group-hover:text-white" />
+                  {(!collapsed || mobileOpen) && <span className="truncate">{t("nav.exitPlatform") || "Exit Platform Admin"}</span>}
+                </Link>
+              )}
+            </>
+          ) : (
+            <>
+              {user.isPlatformAdmin && (
+                <Link
+                  href="/platform"
+                  className={`flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-semibold leading-relaxed transition-all duration-200 group ${
+                    pathname.startsWith("/platform")
+                      ? "bg-sidebar-active-bg text-sidebar-active-text shadow-sm shadow-sidebar-active-bg/30"
+                      : "text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white"
                   }`}
                 >
-                  <Icon className={`h-5 w-5 shrink-0 ${isActive ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
-                  {!collapsed && <span className="truncate">{finalLabel}</span>}
+                  <ShieldCheck className={`h-5.5 w-5.5 shrink-0 ${pathname.startsWith("/platform") ? "text-sidebar-active-text" : "text-sidebar-text group-hover:text-white"}`} />
+                  {(!collapsed || mobileOpen) && <span className="truncate">Platform Admin</span>}
                 </Link>
-              );
-            })}
+              )}
+              {SIDEBAR_LINKS.map((link) => {
+                // Check permission guard
+                if (link.permission && !hasAccess(link.permission)) return null;
 
-            {user.activeCompanyId && (
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme transition-all duration-200 group mt-4 border-t border-dashed border-border-theme pt-4"
-              >
-                <Globe2 className="h-5 w-5 shrink-0 text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme" />
-                {!collapsed && <span className="truncate">{t("nav.exitPlatform") || "Exit Platform Admin"}</span>}
-              </Link>
-            )}
-          </>
-        ) : (
-          <>
-            {user.isPlatformAdmin && (
-              <Link
-                href="/platform"
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group ${
-                  pathname.startsWith("/platform")
-                    ? "bg-primary-theme text-white shadow-sm shadow-primary-theme/30"
-                    : "text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme"
-                }`}
-              >
-                <ShieldCheck className={`h-5 w-5 shrink-0 ${pathname.startsWith("/platform") ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
-                {!collapsed && <span className="truncate">Platform Admin</span>}
-              </Link>
-            )}
-            {SIDEBAR_LINKS.map((link) => {
-              // Check permission guard
-              if (link.permission && !hasAccess(link.permission)) return null;
+                // Agent special check: limit some links
+                if (user.roleName === "Agent" && (link.href === "/rbac" || link.href === "/audit-logs" || link.href === "/reports" || link.href === "/job-orders" || link.href === "/settings/users")) {
+                  return null;
+                }
 
-              // Agent special check: limit some links
-              if (user.roleName === "Agent" && (link.href === "/rbac" || link.href === "/audit-logs" || link.href === "/reports" || link.href === "/job-orders" || link.href === "/settings/users")) {
-                return null;
-              }
+                const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href));
+                const Icon = link.icon;
+                const navKey = getNavLinkKey(link.label);
+                const localizedLabel = navKey ? t(`nav.${navKey}`) : link.label;
+                const finalLabel = localizedLabel.startsWith("nav.") ? link.label : localizedLabel;
 
-              const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href));
-              const Icon = link.icon;
-              const navKey = getNavLinkKey(link.label);
-              const localizedLabel = navKey ? t(`nav.${navKey}`) : link.label;
-              const finalLabel = localizedLabel.startsWith("nav.") ? link.label : localizedLabel;
+                return (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    className={`flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-semibold leading-relaxed transition-all duration-200 group ${
+                      isActive
+                        ? "bg-sidebar-active-bg text-sidebar-active-text shadow-sm shadow-sidebar-active-bg/30"
+                        : "text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white"
+                    }`}
+                  >
+                    <Icon className={`h-5.5 w-5.5 shrink-0 ${isActive ? "text-sidebar-active-text" : "text-sidebar-text group-hover:text-white"}`} />
+                    {(!collapsed || mobileOpen) && <span className="truncate">{finalLabel}</span>}
+                  </Link>
+                );
+              })}
+            </>
+          )}
+        </nav>
 
-              return (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group ${
-                    isActive
-                      ? "bg-primary-theme text-white shadow-sm shadow-primary-theme/30"
-                      : "text-text-muted hover:bg-bg-muted hover:text-text-theme dark:hover:bg-surface-elevated dark:hover:text-text-theme"
-                  }`}
-                >
-                  <Icon className={`h-5 w-5 shrink-0 ${isActive ? "text-white" : "text-text-soft group-hover:text-text-theme dark:group-hover:text-text-theme"}`} />
-                  {!collapsed && <span className="truncate">{finalLabel}</span>}
-                </Link>
-              );
-            })}
-          </>
-        )}
-      </nav>
-
-      {/* User Status Bottom Info */}
-      <div className="border-t border-border-theme bg-surface-soft p-4">
-        {!collapsed ? (
-          <div className="flex flex-col gap-0.5">
-            <p className="text-xs font-semibold text-text-theme truncate">{user.fullName}</p>
-            <p className="text-[10px] text-text-muted truncate">{t(`roles.${user.roleName}`) || user.roleName}</p>
-          </div>
-        ) : (
-          <div className="flex justify-center text-xs font-bold text-white rounded bg-primary-theme py-1 uppercase">
-            {(t(`roles.${user.roleName}`) || user.roleName).substring(0, 2)}
-          </div>
-        )}
-      </div>
-    </aside>
+        {/* User Status Bottom Info */}
+        <div className="border-t border-sidebar-border bg-sidebar-bg p-4 shrink-0">
+          {(!collapsed || mobileOpen) ? (
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-bold text-white truncate">{user.fullName}</p>
+              <p className="text-sm font-semibold text-sidebar-text truncate leading-relaxed">
+                {t(`roles.${user.roleName}`) || user.roleName}
+              </p>
+            </div>
+          ) : (
+            <div className="flex justify-center text-sm font-bold text-sidebar-active-text rounded bg-sidebar-active-bg py-1.5 uppercase">
+              {(t(`roles.${user.roleName}`) || user.roleName).substring(0, 2)}
+            </div>
+          )}
+        </div>
+      </aside>
+    </>
   );
 }
-

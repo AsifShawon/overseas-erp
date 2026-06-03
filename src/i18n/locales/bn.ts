@@ -570,6 +570,7 @@ export const bn: TranslationKeys = {
     DEPLOYED: "বিদেশে পাঠানো হয়েছে",
   },
   roles: {
+    "Platform Admin": "প্ল্যাটফর্ম এডমিন (Platform Admin)",
     "Super Admin": "সুপার এডমিন (Super Admin)",
     "Operations Admin": "অপারেশনস এডমিন (Operations Admin)",
     "HR Officer": "এইচআর অফিসার (HR Officer)",
