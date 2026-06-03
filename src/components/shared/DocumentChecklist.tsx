@@ -56,8 +56,8 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
   const [localSuccess, setLocalSuccess] = useState<string | null>(null);
 
   // client-side validation thresholds
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-  const ALLOWED_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const ALLOWED_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,13 +71,13 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
 
     // Client-side file size guard
     if (selectedFile.size > MAX_FILE_SIZE) {
-      setLocalError(locale === "bn" ? "ফাইলটি অনেক বড়। সর্বোচ্চ ফাইল সাইজ ৫ মেগাবাইট (5MB)।" : "File is too large. Max allowed file size is 5MB.");
+      setLocalError(locale === "bn" ? "ফাইলটি অনেক বড়। সর্বোচ্চ ফাইল সাইজ ১০ মেগাবাইট (10MB)।" : "File is too large. Max allowed file size is 10MB.");
       return;
     }
 
     // Client-side MIME-type guard
     if (!ALLOWED_MIME_TYPES.includes(selectedFile.type)) {
-      setLocalError(locale === "bn" ? "অসমর্থিত ফাইল টাইপ। শুধুমাত্র PDF, JPEG, এবং PNG ফাইল আপলোড করা যাবে।" : "Unsupported file type. Only PDF, JPEG, and PNG files are allowed.");
+      setLocalError(locale === "bn" ? "অসমর্থিত ফাইল টাইপ। শুধুমাত্র PDF, JPEG, PNG, এবং WEBP ফাইল আপলোড করা যাবে।" : "Unsupported file type. Only PDF, JPEG, PNG, and WEBP files are allowed.");
       return;
     }
 
@@ -93,8 +93,12 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
         // Clear file input element
         const fileInput = document.getElementById("document-file-input") as HTMLInputElement;
         if (fileInput) fileInput.value = "";
-      } catch (err: any) {
-        setLocalError(err.message || (locale === "bn" ? "ডকুমেন্ট আপলোড করার সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred during document upload."));
+      } catch (err: unknown) {
+        const fallbackMessage =
+          locale === "bn"
+            ? "ডকুমেন্ট আপলোড করার সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।"
+            : "An unexpected error occurred during document upload.";
+        setLocalError(err instanceof Error ? err.message : fallbackMessage);
       } finally {
         setUploading(false);
       }
@@ -139,12 +143,12 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
             {/* 2. File Input */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-400">
-                {locale === "bn" ? "ফাইল নির্বাচন করুন (PDF, JPG, PNG - সর্বোচ্চ ৫ মেগাবাইট)" : "Select File (PDF, JPG, PNG - Max 5MB)"}
+                {locale === "bn" ? "ফাইল নির্বাচন করুন (PDF, JPG, PNG, WEBP - সর্বোচ্চ ১০ মেগাবাইট)" : "Select File (PDF, JPG, PNG, WEBP - Max 10MB)"}
               </label>
               <input
                 id="document-file-input"
                 type="file"
-                accept=".pdf,.png,.jpg,.jpeg"
+                accept=".pdf,.png,.jpg,.jpeg,.webp"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                 disabled={uploading}
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1 px-3 text-xs outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 file:mr-3 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-indigo-50 file:text-indigo-700 dark:file:bg-indigo-950 dark:file:text-indigo-400 cursor-pointer"
@@ -243,4 +247,3 @@ export function DocumentChecklist({ documents, onUpload, onVerify, onDownload }:
     </div>
   );
 }
-

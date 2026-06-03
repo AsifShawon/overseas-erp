@@ -6,6 +6,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { authenticateRequest } from "@/lib/auth";
 import { getUserPermissions } from "@/lib/rbac";
+import {
+  applicantDetailInclude,
+  serializeApplicantDetail,
+} from "@/lib/applicant-detail";
 import { z } from "zod";
 
 // Zod validation schema for updating a candidate (all fields optional)
@@ -55,41 +59,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // Fetch the applicant from database
     const applicant = await prisma.applicant.findUnique({
       where: { id },
-      include: {
-        agent: {
-          select: {
-            id: true,
-            agentCode: true,
-            companyName: true,
-          },
-        },
-        jobOrder: true,
-        workflows: {
-          orderBy: {
-            timestamp: "desc",
-          },
-        },
-        documents: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        invoices: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        receipts: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        ledgerEntries: {
-          orderBy: {
-            timestamp: "asc",
-          },
-        },
-      },
+      include: applicantDetailInclude,
     });
 
     if (!applicant) {
@@ -98,19 +68,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     // Boundary check for Applicant users
     if (roleName === "Applicant") {
-      const isOwnProfile = applicant.userId === userId || applicant.id === id; // Or matching linked profile
       // Check if this user actually owns this applicant profile
       const userProfile = await prisma.user.findUnique({
         where: { id: userId },
         include: { applicantProfile: true },
       });
-      if (userProfile?.applicantProfile?.id !== id && !isOwnProfile) {
+      if (userProfile?.applicantProfile?.id !== id && applicant.userId !== userId) {
         return NextResponse.json(
           { error: "Forbidden. You can only view your own profile." },
           { status: 403 }
         );
       }
-      return NextResponse.json(applicant);
+      return NextResponse.json(serializeApplicantDetail(applicant));
     }
 
     // Boundary check for Agent users
@@ -124,7 +93,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           { status: 403 }
         );
       }
-      return NextResponse.json(applicant);
+      return NextResponse.json(serializeApplicantDetail(applicant));
     }
 
     // Staff check: Must hold VIEW_APPLICANTS permission if not Super/Ops Admin
@@ -137,7 +106,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       );
     }
 
-    return NextResponse.json(applicant);
+    return NextResponse.json(serializeApplicantDetail(applicant));
   } catch (error) {
     console.error("GET /api/applicants/[id] Error:", error);
     return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });
@@ -310,7 +279,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       },
     });
 
-    return NextResponse.json(updatedApplicant);
+    const fullUpdatedApplicant = await prisma.applicant.findUnique({
+      where: { id },
+      include: applicantDetailInclude,
+    });
+
+    return NextResponse.json(serializeApplicantDetail(fullUpdatedApplicant));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });

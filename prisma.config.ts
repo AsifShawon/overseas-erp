@@ -1,14 +1,16 @@
-// prisma.config.ts
-// Prisma 7 configuration file (replaces datasource url in schema.prisma)
-// See: https://pris.ly/d/config-datasource
-
 import "dotenv/config";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
+
+const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+
+if (!url) {
+  throw new Error("DIRECT_URL or DATABASE_URL is required");
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: env("DATABASE_URL"),
+    url,
   },
   migrations: {
     seed: "npx tsx prisma/seed.ts",

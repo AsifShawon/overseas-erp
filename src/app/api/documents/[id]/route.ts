@@ -5,43 +5,65 @@ import { authenticateRequest } from "@/lib/auth";
 import {
   deleteDocumentForUser,
   DocumentServiceError,
-  fetchApplicantDetail,
   updateDocumentForUser,
 } from "@/lib/document-service";
 
-const VerifySchema = z.object({
-  status: z.enum(["VERIFIED", "REJECTED"]),
-  remarks: z.string().optional(),
+const UpdateDocumentSchema = z.object({
+  status: z.enum(["VERIFIED", "REJECTED"]).optional(),
   expiryDate: z.string().nullable().optional(),
+  notes: z.string().optional(),
+  remarks: z.string().optional(),
 });
 
 export const runtime = "nodejs";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string; docId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id, docId } = await params;
+    const { id } = await params;
     const decoded = await authenticateRequest(request);
     if (!decoded) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
     const body = await request.json();
-    const payload = VerifySchema.parse(body);
+    const payload = UpdateDocumentSchema.parse(body);
 
-    await updateDocumentForUser({
+    if (!payload.status) {
+      return NextResponse.json(
+        { error: "Document status is required." },
+        { status: 400 }
+      );
+    }
+
+    const document = await updateDocumentForUser({
       user: decoded,
       request,
-      documentId: docId,
+      documentId: id,
       status: payload.status,
-      notes: payload.remarks,
       expiryDate: payload.expiryDate,
+      notes: payload.notes ?? payload.remarks,
     });
 
-    const applicant = await fetchApplicantDetail(id);
-    return NextResponse.json(applicant);
+    return NextResponse.json({
+      document: {
+        id: document.id,
+        applicantId: document.applicantId,
+        documentType: document.documentType,
+        fileName: document.fileName,
+        status: document.status,
+        expiryDate: document.expiryDate?.toISOString() ?? null,
+        storageProvider: document.storageProvider,
+        mimeType: document.mimeType,
+        fileSize: document.fileSize,
+        createdAt: document.createdAt.toISOString(),
+        updatedAt: document.updatedAt.toISOString(),
+        verifiedById: document.verifiedById,
+        downloadUrl: `/api/documents/${document.id}/download`,
+      },
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -53,7 +75,7 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    console.error("PATCH /api/applicants/[id]/documents/[docId] Error:", error);
+    console.error("PATCH /api/documents/[id] Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },
       { status: 500 }
@@ -63,29 +85,32 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string; docId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id, docId } = await params;
+    const { id } = await params;
     const decoded = await authenticateRequest(request);
     if (!decoded) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    await deleteDocumentForUser({
+    const result = await deleteDocumentForUser({
       user: decoded,
       request,
-      documentId: docId,
+      documentId: id,
     });
 
-    const applicant = await fetchApplicantDetail(id);
-    return NextResponse.json(applicant);
+    return NextResponse.json({
+      success: true,
+      id: result.id,
+      applicantId: result.applicantId,
+    });
   } catch (error) {
     if (error instanceof DocumentServiceError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    console.error("DELETE /api/applicants/[id]/documents/[docId] Error:", error);
+    console.error("DELETE /api/documents/[id] Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },
       { status: 500 }

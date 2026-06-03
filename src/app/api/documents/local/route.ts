@@ -2,30 +2,36 @@ import { NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth";
 import {
-  createDocumentDownloadResponse,
+  createLocalStorageDownloadResponse,
   DocumentServiceError,
 } from "@/lib/document-service";
 
 export const runtime = "nodejs";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string; docId: string }> }
-) {
+export async function GET(request: Request) {
   try {
-    const { docId } = await params;
     const decoded = await authenticateRequest(request);
     if (!decoded) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    return createDocumentDownloadResponse(decoded, docId);
+    const { searchParams } = new URL(request.url);
+    const storagePath = searchParams.get("storagePath");
+
+    if (!storagePath) {
+      return NextResponse.json(
+        { error: "storagePath is required." },
+        { status: 400 }
+      );
+    }
+
+    return createLocalStorageDownloadResponse(decoded, storagePath);
   } catch (error) {
     if (error instanceof DocumentServiceError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    console.error("GET /api/applicants/[id]/documents/[docId]/download Error:", error);
+    console.error("GET /api/documents/local Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },
       { status: 500 }

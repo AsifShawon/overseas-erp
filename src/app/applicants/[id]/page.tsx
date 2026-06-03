@@ -380,7 +380,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   const handleVerifyDocument = async (docId: string, status: "VERIFIED" | "REJECTED", remarks?: string) => {
     if (!accessToken) return;
     try {
-      const res = await fetch(`/api/applicants/${id}/documents/${docId}`, {
+      const res = await fetch(`/api/documents/${docId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -394,8 +394,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
         throw new Error(errData.error || `Verification action failed. HTTP ${res.status}`);
       }
 
-      const updatedData = await res.json();
-      setDbData(updatedData);
+      await loadData();
     } catch (err: any) {
       toast.error((locale === "bn" ? "যাচাইকরণ ত্রুটি: " : "Verification Error: ") + err.message);
     }
@@ -404,12 +403,13 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   const handleUploadDocument = async (docType: string, file: File, expiryDate?: string, remarks?: string) => {
     if (!accessToken) return;
     const formData = new FormData();
+    formData.append("applicantId", id);
     formData.append("documentType", docType);
     formData.append("file", file);
     if (expiryDate) formData.append("expiryDate", expiryDate);
     if (remarks) formData.append("remarks", remarks);
 
-    const res = await fetch(`/api/applicants/${id}/documents`, {
+    const res = await fetch("/api/documents/upload", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -422,14 +422,13 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
       throw new Error(errData.error || `Upload failed. HTTP ${res.status}`);
     }
 
-    const updatedData = await res.json();
-    setDbData(updatedData);
+    await loadData();
   };
 
   const handleDownloadDocument = async (docId: string, fileName: string) => {
     if (!accessToken) return;
     try {
-      const res = await fetch(`/api/applicants/${id}/documents/${docId}/download`, {
+      const res = await fetch(`/api/documents/${docId}/download`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },

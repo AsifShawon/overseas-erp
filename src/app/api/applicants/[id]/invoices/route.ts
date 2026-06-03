@@ -5,6 +5,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { authenticateRequest } from "@/lib/auth";
 import { getUserPermissions } from "@/lib/rbac";
+import {
+  applicantDetailInclude,
+  serializeApplicantDetail,
+} from "@/lib/applicant-detail";
 import { generateInvoiceNumber } from "@/lib/sequence";
 import { z } from "zod";
 
@@ -173,44 +177,10 @@ export async function POST(
     // Fetch updated applicant dossier matching GET details for immediate frontend sync
     const updatedApplicant = await prisma.applicant.findUnique({
       where: { id },
-      include: {
-        agent: {
-          select: {
-            id: true,
-            agentCode: true,
-            companyName: true,
-          },
-        },
-        jobOrder: true,
-        workflows: {
-          orderBy: {
-            timestamp: "desc",
-          },
-        },
-        documents: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        invoices: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        receipts: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        ledgerEntries: {
-          orderBy: {
-            timestamp: "asc",
-          },
-        },
-      },
+      include: applicantDetailInclude,
     });
 
-    return NextResponse.json(updatedApplicant);
+    return NextResponse.json(serializeApplicantDetail(updatedApplicant));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

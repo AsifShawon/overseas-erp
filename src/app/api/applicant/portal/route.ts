@@ -89,7 +89,7 @@ export async function GET(request: Request) {
       createdAt: doc.createdAt.toISOString(),
       updatedAt: doc.updatedAt.toISOString(),
       // Secure access URL requiring JWT authentication check
-      fileUrl: `/api/applicants/${applicant.id}/documents/${doc.id}/download`,
+      fileUrl: `/api/documents/${doc.id}/download`,
     }));
 
     // 6. Map Invoices converting Prisma Decimals into standard float numbers

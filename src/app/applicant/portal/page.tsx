@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useEffectEvent } from "react";
 import { useMockAuth } from "@/context/MockAuthContext";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/context/ToastContext";
@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   MockApplicant,
   MockDocument,
+  MockLedgerEntry,
   MockReceipt,
   MockInvoice,
 } from "@/lib/mockData";
@@ -28,7 +29,7 @@ export default function ApplicantPortalPage() {
   // React state elements for dynamic API dossier rendering
   const [applicant, setApplicant] = useState<MockApplicant | null>(null);
   const [documents, setDocuments] = useState<MockDocument[]>([]);
-  const [ledgers, setLedgers] = useState<any[]>([]);
+  const [ledgers, setLedgers] = useState<MockLedgerEntry[]>([]);
   const [invoice, setInvoice] = useState<MockInvoice | undefined>(undefined);
   const [receipts, setReceipts] = useState<MockReceipt[]>([]);
   
@@ -38,6 +39,39 @@ export default function ApplicantPortalPage() {
   const [selectedReceipt, setSelectedReceipt] = useState<MockReceipt | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<"progress" | "documents" | "ledger">("progress");
 
+  const fetchDossier = useEffectEvent(async () => {
+    if (!accessToken) return;
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await fetch("/api/applicant/portal", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Access Denied. You do not have permissions to view this portal.");
+        }
+        const data = await res.json();
+        throw new Error(data.error || "Failed to retrieve emigration dossier.");
+      }
+
+      const data = await res.json();
+      setApplicant(data);
+      setDocuments(data.documents || []);
+      setLedgers(data.ledgerEntries || []);
+      setInvoice(data.invoices?.[0] || undefined);
+      setReceipts(data.receipts || []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An unexpected connection error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  });
+  
   // 1. Strict Role-Guard Redirection
   useEffect(() => {
     if (user && user.roleName !== "Applicant") {
@@ -47,52 +81,7 @@ export default function ApplicantPortalPage() {
 
   // 2. Fetch live applicant dossier via GET /api/applicant/portal
   useEffect(() => {
-    let active = true;
-
-    const fetchDossier = async () => {
-      if (!accessToken) return;
-      try {
-        setLoading(true);
-        setError(null);
-
-        const res = await fetch("/api/applicant/portal", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        if (!res.ok) {
-          if (res.status === 403) {
-            throw new Error("Access Denied. You do not have permissions to view this portal.");
-          }
-          const data = await res.json();
-          throw new Error(data.error || "Failed to retrieve emigration dossier.");
-        }
-
-        const data = await res.json();
-        if (active) {
-          setApplicant(data);
-          setDocuments(data.documents || []);
-          setLedgers(data.ledgerEntries || []);
-          // Extract primary invoice from invoices list
-          setInvoice(data.invoices?.[0] || undefined);
-          setReceipts(data.receipts || []);
-        }
-      } catch (err: any) {
-        if (active) {
-          setError(err.message || "An unexpected connection error occurred.");
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchDossier();
-    return () => {
-      active = false;
-    };
+    void fetchDossier();
   }, [accessToken]);
 
   // 3. Document Secure Upload handler
@@ -105,12 +94,13 @@ export default function ApplicantPortalPage() {
     if (!applicant || !accessToken) return;
 
     const formData = new FormData();
+    formData.append("applicantId", applicant.id);
     formData.append("documentType", docType);
     formData.append("file", file);
     if (expiryDate) formData.append("expiryDate", expiryDate);
     if (remarks) formData.append("remarks", remarks);
 
-    const res = await fetch(`/api/applicants/${applicant.id}/documents`, {
+    const res = await fetch("/api/documents/upload", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -123,23 +113,14 @@ export default function ApplicantPortalPage() {
       throw new Error(data.error || t("applicantPortal.errorUpload"));
     }
 
-    const updatedApplicant = await res.json();
-    setApplicant(updatedApplicant);
-    if (updatedApplicant.documents) {
-      // Re-map storage URLs to secure downloadable streams
-      const safeDocs = updatedApplicant.documents.map((doc: any) => ({
-        ...doc,
-        fileUrl: `/api/applicants/${updatedApplicant.id}/documents/${doc.id}/download`,
-      }));
-      setDocuments(safeDocs);
-    }
+    await fetchDossier();
   };
 
   // 4. Secure streamed downloads using JWT validation
   const handleDownloadDocument = async (docId: string, fileName: string) => {
     if (!applicant || !accessToken) return;
     try {
-      const res = await fetch(`/api/applicants/${applicant.id}/documents/${docId}/download`, {
+      const res = await fetch(`/api/documents/${docId}/download`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -161,9 +142,9 @@ export default function ApplicantPortalPage() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Secure download failed:", err);
-      toast.error(err.message || "An unexpected error occurred during download.");
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred during download.");
     }
   };
 

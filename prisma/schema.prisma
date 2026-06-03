@@ -6,7 +6,6 @@
 
 datasource db {
   provider = "postgresql"
-  // Connection URL is configured in prisma.config.ts (Prisma 7 requirement)
 }
 
 generator client {
@@ -239,23 +238,29 @@ model WorkflowHistory {
 }
 
 model Document {
-  id           String         @id @default(uuid())
-  applicantId  String
-  documentType DocumentType
-  fileUrl      String         // S3 or secure local storage path
-  fileName     String
-  status       DocumentStatus @default(PENDING_VERIFICATION)
-  expiryDate   DateTime?
-  verifiedById String?        // Staff member who audited this file
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id              String         @id @default(uuid())
+  applicantId     String
+  documentType    DocumentType
+  fileUrl         String         // Backward-compatible storage path field
+  fileName        String
+  status          DocumentStatus @default(PENDING_VERIFICATION)
+  expiryDate      DateTime?
+  storageProvider String         @default("supabase")
+  bucket          String?
+  storagePath     String?        @unique
+  mimeType        String?
+  fileSize        Int?
+  verifiedById    String?        // Staff member who audited this file
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   // Relationships
-  applicant    Applicant      @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  applicant       Applicant      @relation(fields: [applicantId], references: [id], onDelete: Restrict)
 
   @@index([applicantId])
   @@index([documentType])
   @@index([status])
+  @@index([storageProvider])
 }
 
 model Invoice {

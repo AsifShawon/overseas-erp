@@ -3,24 +3,20 @@ import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth";
 import {
   DocumentServiceError,
-  fetchApplicantDetail,
   uploadDocumentForUser,
 } from "@/lib/document-service";
 
 export const runtime = "nodejs";
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: Request) {
   try {
-    const { id } = await params;
     const decoded = await authenticateRequest(request);
     if (!decoded) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
     const formData = await request.formData();
+    const applicantId = formData.get("applicantId") as string | null;
     const documentType = formData.get("documentType") as string | null;
     const file = formData.get("file");
     const expiryDate = formData.get("expiryDate") as string | null;
@@ -33,24 +29,38 @@ export async function POST(
       );
     }
 
-    await uploadDocumentForUser({
+    const document = await uploadDocumentForUser({
       user: decoded,
       request,
-      requestedApplicantId: id,
+      requestedApplicantId: applicantId,
       documentType,
       file,
       expiryDate,
       remarks,
     });
 
-    const applicant = await fetchApplicantDetail(id);
-    return NextResponse.json(applicant);
+    return NextResponse.json({
+      document: {
+        id: document.id,
+        applicantId: document.applicantId,
+        documentType: document.documentType,
+        fileName: document.fileName,
+        status: document.status,
+        expiryDate: document.expiryDate?.toISOString() ?? null,
+        storageProvider: document.storageProvider,
+        mimeType: document.mimeType,
+        fileSize: document.fileSize,
+        createdAt: document.createdAt.toISOString(),
+        updatedAt: document.updatedAt.toISOString(),
+        downloadUrl: `/api/documents/${document.id}/download`,
+      },
+    });
   } catch (error) {
     if (error instanceof DocumentServiceError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    console.error("POST /api/applicants/[id]/documents Error:", error);
+    console.error("POST /api/documents/upload Error:", error);
     return NextResponse.json(
       { error: "An internal server error occurred." },
       { status: 500 }

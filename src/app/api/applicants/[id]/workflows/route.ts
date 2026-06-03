@@ -5,6 +5,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { authenticateRequest } from "@/lib/auth";
 import { getUserPermissions } from "@/lib/rbac";
+import {
+  applicantDetailInclude,
+  serializeApplicantDetail,
+} from "@/lib/applicant-detail";
 import { validateTransition, DOCUMENT_PREREQUISITES } from "@/lib/workflow-rules";
 import { z } from "zod";
 
@@ -196,44 +200,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // Fetch updated applicant with sorted relation models to match GET response format
     const fullUpdatedApplicant = await prisma.applicant.findUnique({
       where: { id },
-      include: {
-        agent: {
-          select: {
-            id: true,
-            agentCode: true,
-            companyName: true,
-          },
-        },
-        jobOrder: true,
-        workflows: {
-          orderBy: {
-            timestamp: "desc",
-          },
-        },
-        documents: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        invoices: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        receipts: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        ledgerEntries: {
-          orderBy: {
-            timestamp: "asc",
-          },
-        },
-      },
+      include: applicantDetailInclude,
     });
 
-    return NextResponse.json(fullUpdatedApplicant);
+    return NextResponse.json(serializeApplicantDetail(fullUpdatedApplicant));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
