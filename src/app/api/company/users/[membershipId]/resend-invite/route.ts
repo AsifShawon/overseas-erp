@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireCompanyContext } from "@/lib/auth";
 import { sendCompanyUserInvitation } from "@/lib/email/email-service";
+import { resolveBaseUrl } from "@/lib/email/config";
 import crypto from "crypto";
 
 export async function POST(
@@ -12,7 +13,7 @@ export async function POST(
   { params }: { params: Promise<{ membershipId: string }> }
 ) {
   try {
-    const { origin } = new URL(request.url);
+    const origin = resolveBaseUrl(request);
     const ctx = await requireCompanyContext(request);
     if (!ctx || !ctx.activeCompanyId) {
       return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });

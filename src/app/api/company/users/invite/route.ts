@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireCompanyContext } from "@/lib/auth";
 import { sendCompanyUserInvitation } from "@/lib/email/email-service";
+import { resolveBaseUrl } from "@/lib/email/config";
 import * as argon2 from "argon2";
 import crypto from "crypto";
 import { z } from "zod";
@@ -23,7 +24,7 @@ const InviteUserSchema = z.object({
  */
 export async function POST(request: Request) {
   try {
-    const { origin } = new URL(request.url);
+    const origin = resolveBaseUrl(request);
     const ctx = await requireCompanyContext(request);
     if (!ctx || !ctx.activeCompanyId) {
       return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });

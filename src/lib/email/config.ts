@@ -14,3 +14,32 @@ export const emailConfig = {
 export function isEmailConfigured(): boolean {
   return !!(emailConfig.host && emailConfig.user && emailConfig.pass && emailConfig.fromEmail);
 }
+
+/**
+ * Resolves the absolute application base URL dynamically from the request headers or URL origin,
+ * with fallbacks for production environment and configuration.
+ */
+export function resolveBaseUrl(request: Request): string {
+  const xForwardedHost = request.headers.get("x-forwarded-host");
+  const host = request.headers.get("host");
+  const xForwardedProto = request.headers.get("x-forwarded-proto") || "https";
+
+  const finalHost = xForwardedHost || host;
+  
+  if (finalHost && !finalHost.includes("localhost") && !finalHost.includes("127.0.0.1")) {
+    return `${xForwardedProto}://${finalHost}`;
+  }
+
+  try {
+    const { origin } = new URL(request.url);
+    if (origin && !origin.includes("localhost") && !origin.includes("127.0.0.1")) {
+      return origin;
+    }
+  } catch (e) {}
+
+  if (process.env.NODE_ENV === "production") {
+    return "https://visatek.fleek.com.bd";
+  }
+
+  return emailConfig.appBaseUrl;
+}

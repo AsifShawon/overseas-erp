@@ -7,6 +7,7 @@ import { requirePlatformAdmin } from "@/lib/auth";
 import * as argon2 from "argon2";
 import crypto from "crypto";
 import { sendCompanyOwnerActivation } from "@/lib/email/email-service";
+import { resolveBaseUrl } from "@/lib/email/config";
 
 async function generateUniqueSlug(tx: any, name: string): Promise<string> {
   let slug = name
@@ -44,7 +45,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { origin } = new URL(request.url);
+    const origin = resolveBaseUrl(request);
     const adminCheck = await requirePlatformAdmin(request);
     if (!adminCheck) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
