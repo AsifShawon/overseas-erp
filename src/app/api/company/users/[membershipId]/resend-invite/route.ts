@@ -12,6 +12,7 @@ export async function POST(
   { params }: { params: Promise<{ membershipId: string }> }
 ) {
   try {
+    const { origin } = new URL(request.url);
     const ctx = await requireCompanyContext(request);
     if (!ctx || !ctx.activeCompanyId) {
       return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
@@ -61,7 +62,7 @@ export async function POST(
 
     let emailSent = false;
     let emailWarning: string | null = null;
-    let activationLink = `/activate-account?token=${rawToken}`;
+    let activationLink = `${origin}/activate-account?token=${rawToken}`;
 
     try {
       const emailRes = await sendCompanyUserInvitation(
@@ -70,7 +71,8 @@ export async function POST(
         membership.company.name,
         rawToken,
         ctx.activeCompanyId,
-        membership.userId
+        membership.userId,
+        origin
       );
       emailSent = emailRes.sent;
       activationLink = emailRes.activationLink || activationLink;

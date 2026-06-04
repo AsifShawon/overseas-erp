@@ -96,9 +96,11 @@ export async function sendCompanyOwnerActivation(
   companyName: string,
   token: string,
   companyId?: string,
-  userId?: string
+  userId?: string,
+  baseUrl?: string
 ): Promise<EmailServiceResult> {
-  const activationLink = `${emailConfig.appBaseUrl}/activate-account?token=${token}`;
+  const base = baseUrl || emailConfig.appBaseUrl;
+  const activationLink = `${base}/activate-account?token=${token}`;
   const { html, text, subject } = getCompanyOwnerActivationEmail({
     recipientName: fullName,
     companyName,
@@ -129,9 +131,11 @@ export async function sendCompanyUserInvitation(
   companyName: string,
   token: string,
   companyId?: string,
-  userId?: string
+  userId?: string,
+  baseUrl?: string
 ): Promise<EmailServiceResult> {
-  const activationLink = `${emailConfig.appBaseUrl}/activate-account?token=${token}`;
+  const base = baseUrl || emailConfig.appBaseUrl;
+  const activationLink = `${base}/activate-account?token=${token}`;
   const { html, text, subject } = getCompanyUserInvitationEmail({
     recipientName: fullName,
     companyName,
@@ -161,9 +165,11 @@ export async function sendPasswordReset(
   fullName: string,
   token: string,
   companyId?: string,
-  userId?: string
+  userId?: string,
+  baseUrl?: string
 ): Promise<EmailServiceResult> {
-  const resetLink = `${emailConfig.appBaseUrl}/activate-account?token=${token}`;
+  const base = baseUrl || emailConfig.appBaseUrl;
+  const resetLink = `${base}/activate-account?token=${token}`;
   const { html, text, subject } = getPasswordResetEmail({
     recipientName: fullName,
     actionUrl: resetLink,

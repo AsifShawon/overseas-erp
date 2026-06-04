@@ -44,6 +44,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { origin } = new URL(request.url);
     const adminCheck = await requirePlatformAdmin(request);
     if (!adminCheck) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
@@ -253,7 +254,8 @@ export async function POST(
             application.companyName,
             rawToken,
             result.company.id,
-            result.ownerUserId
+            result.ownerUserId,
+            origin
           );
           emailSent = emailRes.sent;
           if (!emailRes.sent) {
@@ -268,7 +270,7 @@ export async function POST(
 
     return NextResponse.json({
       company: result.company,
-      activationLink: result.activationLink,
+      activationLink: result.activationLink ? `${origin}${result.activationLink}` : null,
       existingUser: result.existingUser,
       emailSent,
       emailWarning,

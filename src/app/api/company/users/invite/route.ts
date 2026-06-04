@@ -23,6 +23,7 @@ const InviteUserSchema = z.object({
  */
 export async function POST(request: Request) {
   try {
+    const { origin } = new URL(request.url);
     const ctx = await requireCompanyContext(request);
     if (!ctx || !ctx.activeCompanyId) {
       return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
@@ -145,7 +146,8 @@ export async function POST(request: Request) {
           newMembership.company.name,
           rawToken,
           ctx.activeCompanyId,
-          user.id
+          user.id,
+          origin
         );
         emailSent = emailRes.sent;
         activationLink = emailRes.activationLink || null;
@@ -155,7 +157,7 @@ export async function POST(request: Request) {
       } catch (err: any) {
         console.error("Failsafe: failed to send user invitation email:", err);
         emailWarning = err.message || "Failed to transmit invitation email.";
-        activationLink = `/activate-account?token=${rawToken}`;
+        activationLink = `${origin}/activate-account?token=${rawToken}`;
       }
     }
 
