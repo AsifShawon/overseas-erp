@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PermissionGate } from "@/components/ui/PermissionGate";
 import { ReceiptPreview } from "@/components/shared/ReceiptPreview";
 import { useMockAuth } from "@/context/MockAuthContext";
-import { FileSpreadsheet, Plus, Printer, Loader2, AlertCircle } from "lucide-react";
+import { FileSpreadsheet, Plus, Printer, Loader2, AlertCircle, FileText } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { useT } from "@/i18n/useT";
 import { formatDate, formatCurrency } from "@/i18n/format";
@@ -68,6 +68,36 @@ export default function ReceiptsInvoicesPage() {
   const [previewReceipt, setPreviewReceipt] = useState<any | undefined>(undefined);
   const [previewApplicant, setPreviewApplicant] = useState<any | undefined>(undefined);
   const [previewInvoice, setPreviewInvoice] = useState<any | undefined>(undefined);
+  const [downloadingStatementId, setDownloadingStatementId] = useState<string | null>(null);
+
+  const handleDownloadStatement = async (applicantId: string, applicantName: string) => {
+    if (!accessToken) return;
+    setDownloadingStatementId(applicantId);
+    try {
+      const res = await fetch(`/api/applicants/${applicantId}/statement/pdf`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (!res.ok) {
+        throw new Error(locale === "bn" ? "পিডিএফ স্টেটমেন্ট তৈরি করতে ব্যর্থ হয়েছে।" : "Failed to generate PDF statement.");
+      }
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", `statement_${applicantName.replace(/\s+/g, "_")}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success(locale === "bn" ? "পিডিএফ স্টেটমেন্ট ডাউনলোড সফল হয়েছে।" : "PDF statement downloaded successfully.");
+    } catch (err: any) {
+      toast.error(err.message || (locale === "bn" ? "পিডিএফ ডাউনলোড করার সময় একটি ত্রুটি ঘটেছে।" : "An error occurred during PDF download."));
+    } finally {
+      setDownloadingStatementId(null);
+    }
+  };
 
   const handleExport = async () => {
     if (!accessToken) return;
@@ -207,6 +237,27 @@ export default function ReceiptsInvoicesPage() {
       accessor: (inv: FlattenedInvoice) =>
         inv.outstanding === 0 ? <StatusBadge status="PAID" /> : <StatusBadge status="DUE" />,
     },
+    {
+      header: locale === "bn" ? "অ্যাকশন" : "Actions",
+      accessor: (inv: FlattenedInvoice) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDownloadStatement(inv.applicantId, inv.applicantName);
+          }}
+          disabled={downloadingStatementId === inv.applicantId}
+          className="flex items-center gap-1.5 rounded bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 cursor-pointer disabled:opacity-50"
+        >
+          {downloadingStatementId === inv.applicantId ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <FileText className="h-3 w-3 shrink-0" />
+          )}
+          {locale === "bn" ? "স্টেটমেন্ট পিডিএফ" : "Statement PDF"}
+        </button>
+      ),
+      cellClassName: "text-right",
+    },
   ];
 
   const getLocalizedMethod = (method: string) => {
@@ -267,14 +318,34 @@ export default function ReceiptsInvoicesPage() {
       cellClassName: "text-right",
     },
     {
-      header: locale === "bn" ? "অ্যাকশন রসিদ" : "Action Vouchers",
+      header: locale === "bn" ? "অ্যাকশন" : "Actions",
       accessor: (rec: FlattenedReceipt) => (
-        <button
-          onClick={() => handleOpenReceiptPreview(rec)}
-          className="flex items-center gap-1 rounded bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/20 cursor-pointer"
-        >
-          <Printer className="h-3 w-3 shrink-0" /> {t("invoicesReceipts.printVoucher")}
-        </button>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenReceiptPreview(rec);
+            }}
+            className="flex items-center gap-1 rounded bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/20 cursor-pointer"
+          >
+            <Printer className="h-3 w-3 shrink-0" /> {t("invoicesReceipts.printVoucher")}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownloadStatement(rec.applicantId, rec.applicantName);
+            }}
+            disabled={downloadingStatementId === rec.applicantId}
+            className="flex items-center gap-1.5 rounded bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 cursor-pointer disabled:opacity-50"
+          >
+            {downloadingStatementId === rec.applicantId ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <FileText className="h-3 w-3 shrink-0" />
+            )}
+            {locale === "bn" ? "স্টেটমেন্ট পিডিএফ" : "Statement PDF"}
+          </button>
+        </div>
       ),
       cellClassName: "text-right",
     },
@@ -292,12 +363,6 @@ export default function ReceiptsInvoicesPage() {
           ]}
           actions={
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => router.push("/applicants")}
-                className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-500 cursor-pointer"
-              >
-                <Plus className="h-4 w-4" /> {locale === "bn" ? "নগদ পেমেন্ট রিসিভ করুন" : "Record Counter Receipt"}
-              </button>
               <button
                 onClick={handleExport}
                 disabled={isExporting}

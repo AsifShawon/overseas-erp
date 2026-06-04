@@ -7,12 +7,14 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Loader2, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
+import { useMockAuth } from "@/context/MockAuthContext";
 
 function ActivateAccountContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const toast = useToast();
+  const { establishSession } = useMockAuth();
 
   const [loading, setLoading] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
@@ -68,8 +70,13 @@ function ActivateAccountContent() {
       return;
     }
 
-    if (password.length < 12) {
-      setError("Password must be at least 12 characters long.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password) || !/[!@#$%^&*(),.?":{}|<>_+\-\[\]\/\\~`|';]/.test(password)) {
+      setError("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g., #, @, !, etc.).");
       return;
     }
 
@@ -93,11 +100,21 @@ function ActivateAccountContent() {
 
       if (res.ok) {
         setSuccess(true);
-        toast.success("Your account is activated. Please log in.");
-        // Redirect to login after 2 seconds
+        toast.success("Your account is activated.");
+        
+        // Log in directly by establishing session
+        establishSession(data.accessToken, data.user);
+        
+        // Redirect directly to dashboard or portal after 1.5 seconds
         setTimeout(() => {
-          router.push("/login?activated=true");
-        }, 2000);
+          if (data.user.roleName === "Applicant") {
+            router.push("/applicant/portal");
+          } else if (data.user.isPlatformAdmin && !data.user.activeCompanyId) {
+            router.push("/platform");
+          } else {
+            router.push("/dashboard");
+          }
+        }, 1500);
       } else {
         setError(data.error || "Failed to activate account.");
         setIsSubmitting(false);
@@ -203,7 +220,7 @@ function ActivateAccountContent() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min. 12 characters"
+              placeholder="Min. 8 chars with A-Z, a-z, 0-9, special char"
               disabled={isSubmitting}
               className="w-full rounded-xl border border-border-theme bg-bg py-2.5 pl-10 pr-4 text-xs outline-none transition-all focus:border-primary-theme focus:bg-surface focus:ring-1 focus:ring-primary-theme text-text-theme disabled:opacity-50"
             />

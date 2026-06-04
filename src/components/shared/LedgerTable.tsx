@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { MockLedgerEntry, MockInvoice } from "@/lib/mockData";
 import { StatusBadge } from "../ui/StatusBadge";
 import { useMockAuth } from "@/context/MockAuthContext";
-import { Landmark, Printer, CreditCard, Receipt as ReceiptIcon, FilePlus, X, Download } from "lucide-react";
+import { Landmark, Printer, CreditCard, Receipt as ReceiptIcon, FilePlus, X, Download, FileText, Loader2 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { useT } from "@/i18n/useT";
 import { formatDate, formatCurrency } from "@/i18n/format";
@@ -19,6 +19,7 @@ interface LedgerTableProps {
   applicantName?: string;
   passportNumber?: string;
   trade?: string;
+  applicantId?: string;
 }
 
 export function LedgerTable({
@@ -30,12 +31,14 @@ export function LedgerTable({
   applicantName,
   passportNumber,
   trade,
+  applicantId,
 }: LedgerTableProps) {
-  const { user } = useMockAuth();
+  const { user, accessToken } = useMockAuth();
   const toast = useToast();
   const { t, locale } = useT();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"PAYMENT" | "INVOICE">("PAYMENT");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Form States
   const [amount, setAmount] = useState("");
@@ -121,6 +124,35 @@ export function LedgerTable({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success(locale === "bn" ? "স্টেটমেন্ট সিএসভি ফাইল ডাউনলোড করা হয়েছে।" : "Statement CSV downloaded successfully.");
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!applicantId || !accessToken) return;
+    setDownloadingPdf(true);
+    try {
+      const res = await fetch(`/api/applicants/${applicantId}/statement/pdf`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (!res.ok) {
+        throw new Error(locale === "bn" ? "পিডিএফ স্টেটমেন্ট তৈরি করতে ব্যর্থ হয়েছে।" : "Failed to generate PDF statement.");
+      }
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", `statement_${applicantName ? applicantName.replace(/\s+/g, "_") : "ledger"}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success(locale === "bn" ? "পিডিএফ স্টেটমেন্ট ডাউনলোড সফল হয়েছে।" : "PDF statement downloaded successfully.");
+    } catch (err: any) {
+      toast.error(err.message || (locale === "bn" ? "পিডিএফ ডাউনলোড করার সময় একটি ত্রুটি ঘটেছে।" : "An error occurred during PDF download."));
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   const handlePrintPDF = () => {
@@ -378,12 +410,20 @@ export function LedgerTable({
             {locale === "bn" ? "ডাবল-এন্ট্রি লেজার লগ" : "Double-Entry Ledger Log"}
           </h3>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrintPDF}
-              className="flex items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2.5 text-xs md:text-sm font-bold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900/30 dark:bg-indigo-950/20 dark:text-indigo-400 cursor-pointer transition"
-            >
-              <Printer className="h-4 w-4" /> {locale === "bn" ? "স্টেটমেন্ট প্রিন্ট করুন" : "Print Statement"}
-            </button>
+            {applicantId && (
+              <button
+                onClick={handleDownloadPDF}
+                disabled={downloadingPdf}
+                className="flex items-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-xs md:text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-400 cursor-pointer transition disabled:opacity-50"
+              >
+                {downloadingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                {locale === "bn" ? "স্টেটমেন্ট পিডিএফ ডাউনলোড" : "Download PDF Statement"}
+              </button>
+            )}
             <button
               onClick={exportToCSV}
               className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-xs md:text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 cursor-pointer transition"

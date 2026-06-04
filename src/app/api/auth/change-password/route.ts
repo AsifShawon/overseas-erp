@@ -10,8 +10,13 @@ import { sendPasswordChangedAlert } from "@/lib/email/email-service";
 
 const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required."),
-  newPassword: z.string().min(12, "New password must be at least 12 characters long."),
-  confirmPassword: z.string().min(12, "Confirm password must be at least 12 characters long."),
+  newPassword: z.string()
+    .min(8, "New password must be at least 8 characters long.")
+    .regex(/[a-z]/, "New password must contain at least one lowercase letter.")
+    .regex(/[A-Z]/, "New password must contain at least one uppercase letter.")
+    .regex(/\d/, "New password must contain at least one number.")
+    .regex(/[!@#$%^&*(),.?":{}|<>_+\-\[\]\/\\~`|';]/, "New password must contain at least one special character (e.g., #, @, !, etc.)."),
+  confirmPassword: z.string().min(8, "Confirm password must be at least 8 characters long."),
 });
 
 export async function POST(request: Request) {

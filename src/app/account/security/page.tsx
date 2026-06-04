@@ -34,8 +34,15 @@ export default function AccountSecurityPage() {
       setErrorMsg(t("security.currentPasswordRequired"));
       return;
     }
-    if (newPassword.length < 12) {
-      setErrorMsg(locale === "bn" ? "নতুন পাসওয়ার্ড কমপক্ষে ১২ অক্ষরের হতে হবে।" : "New password must be at least 12 characters long.");
+    if (newPassword.length < 8) {
+      setErrorMsg(locale === "bn" ? "নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।" : "New password must be at least 8 characters long.");
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword) || !/[!@#$%^&*(),.?":{}|<>_+\-\[\]\/\\~`|';]/.test(newPassword)) {
+      setErrorMsg(locale === "bn"
+        ? "পাসওয়ার্ডে কমপক্ষে একটি বড় হাতের অক্ষর, একটি ছোট হাতের অক্ষর, একটি সংখ্যা এবং একটি বিশেষ অক্ষর (যেমন #, @, !, ইত্যাদি) থাকতে হবে।"
+        : "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g., #, @, !, etc.)."
+      );
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -180,7 +187,11 @@ export default function AccountSecurityPage() {
                   {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-[10px] text-text-soft">{locale === "bn" ? "পাসওয়ার্ড কমপক্ষে ১২ অক্ষরের হতে হবে।" : "Password must be at least 12 characters long."}</p>
+              <p className="text-[10px] text-text-soft">
+                {locale === "bn"
+                  ? "পাসওয়ার্ড অবশ্যই কমপক্ষে ৮ অক্ষরের এবং বড়/ছোট হাতের অক্ষর, সংখ্যা ও বিশেষ চিহ্নের মিশ্রণ হতে হবে (যেমন #, @, !, ইত্যাদি)।"
+                  : "Password must be at least 8 characters with uppercase, lowercase, numbers, and special characters (e.g. #, @, !, etc.)."}
+              </p>
             </div>
 
             {/* Confirm New Password Field */}

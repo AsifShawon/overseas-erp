@@ -2,7 +2,9 @@
 // Public endpoints for Company Owner account activation
 
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { signAccessToken, signRefreshToken, getRefreshTokenCookieOptions, resolveUserSessionPayload } from "@/lib/auth";
 import * as argon2 from "argon2";
 import crypto from "crypto";
 
@@ -69,11 +71,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Passwords do not match." }, { status: 400 });
     }
 
-    if (password.length < 12) {
-      return NextResponse.json({ error: "Password must be at least 12 characters long." }, { status: 400 });
+    if (password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters long." }, { status: 400 });
+    }
+
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password) || !/[!@#$%^&*(),.?":{}|<>_+\-\[\]\/\\~`|';]/.test(password)) {
+      return NextResponse.json({ error: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g., #, @, !, etc.)." }, { status: 400 });
     }
 
     const tokenHash = hashToken(token);
+    let userId = "";
 
     // Execute in transaction to ensure atomicity
     await prisma.$transaction(async (tx) => {
@@ -89,6 +96,8 @@ export async function POST(request: Request) {
       ) {
         throw new Error("INVALID_TOKEN");
       }
+
+      userId = activationToken.userId;
 
       // Hash password using the existing argon2 implementation
       const passwordHash = await argon2.hash(password);
@@ -124,10 +133,80 @@ export async function POST(request: Request) {
       });
     });
 
+    // Login directly
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        role: true,
+        agentProfile: true,
+        applicantProfile: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User account not found." }, { status: 404 });
+    }
+
+    const sessionPayload = await resolveUserSessionPayload(user.id);
+    if (!sessionPayload) {
+      return NextResponse.json(
+        { error: "No active company workspace is available for this account." },
+        { status: 401 }
+      );
+    }
+
+    // Create Access & Refresh Tokens
+    const accessToken = await signAccessToken(sessionPayload);
+
+    const refreshToken = await signRefreshToken({
+      userId: user.id,
+    });
+
+    // Store Refresh Token in HttpOnly cookie
+    const cookieStore = await cookies();
+    const cookieOpts = getRefreshTokenCookieOptions();
+    cookieStore.set(cookieOpts.name, refreshToken, {
+      expires: cookieOpts.expires,
+      httpOnly: cookieOpts.httpOnly,
+      secure: cookieOpts.secure,
+      sameSite: cookieOpts.sameSite,
+      path: cookieOpts.path,
+    });
+
+    // Record an audit log for successful activation login
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        roleName: sessionPayload.roleName,
+        actionType: "LOGIN_SUCCESS",
+        tableName: "User",
+        recordId: user.id,
+        companyId: sessionPayload.activeCompanyId,
+        ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
+      },
+    });
+
     return NextResponse.json({
       success: true,
-      message: "Account successfully activated. Please log in.",
+      message: "Account successfully activated.",
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        isPlatformAdmin: sessionPayload.isPlatformAdmin,
+        activeCompanyId: sessionPayload.activeCompanyId,
+        activeCompanyName: sessionPayload.activeCompanyName,
+        membershipId: sessionPayload.membershipId,
+        roleName: sessionPayload.roleName,
+        agentCode: user.agentProfile?.agentCode || null,
+        applicantId: user.applicantProfile?.id || null,
+        permissions: sessionPayload.permissions,
+        mustChangePassword: user.mustChangePassword,
+        companyStatus: sessionPayload.companyStatus,
+      },
     });
+
   } catch (error: any) {
     if (error.message === "INVALID_TOKEN") {
       return NextResponse.json({ error: "Invalid or expired activation token." }, { status: 400 });

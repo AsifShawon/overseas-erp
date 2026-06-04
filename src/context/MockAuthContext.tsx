@@ -43,6 +43,8 @@ interface AuthContextType {
   switchRole: (userId: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  establishSession: (accessToken: string, user: AuthenticatedUser) => void;
+  updateUser: (fields: Partial<AuthenticatedUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,7 +56,11 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
 
   const router = useRouter();
   const pathname = usePathname();
-  const isAuthRoute = pathname === "/login" || pathname === "/" || pathname?.startsWith("/apply");
+  const isAuthRoute =
+    pathname === "/login" ||
+    pathname === "/" ||
+    pathname === "/activate-account" ||
+    pathname?.startsWith("/apply");
 
   // Silent refresh handler to authenticate via HttpOnly cookie
   const handleRefresh = async (): Promise<boolean> => {
@@ -166,7 +172,7 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
       // Hard navigation so the full React tree (including MockAuthProvider) is
       // re-mounted fresh. router.push keeps the provider alive, causing a race
       // where the homepage's auth-check effect fires before state settles.
-      window.location.href = "/";
+      window.location.href = "/login";
     }
   };
 
@@ -217,6 +223,15 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const establishSession = (token: string, usr: AuthenticatedUser) => {
+    setAccessToken(token);
+    setCurrentUser(usr);
+  };
+
+  const updateUser = (fields: Partial<AuthenticatedUser>) => {
+    setCurrentUser(prev => prev ? { ...prev, ...fields } : null);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -229,6 +244,8 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
         switchRole,
         login,
         logout,
+        establishSession,
+        updateUser,
       }}
     >
       {children}

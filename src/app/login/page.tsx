@@ -5,10 +5,12 @@
 
 import React, { useState, useRef } from "react";
 import { useMockAuth } from "@/context/MockAuthContext";
+import Link from "next/link";
 import {
   Globe2,
   ShieldAlert,
   ArrowRight,
+  ArrowLeft,
   UserCheck,
   Lock,
   Mail,
@@ -384,7 +386,7 @@ export default function LoginPage() {
 
             <div className="relative z-10 space-y-7">
               {/* Logo */}
-              <div className="flex items-center gap-3">
+              <Link href="/" className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <img
                   src="/visatek_logo_transparent.png"
                   alt="VisaTek Logo"
@@ -393,7 +395,7 @@ export default function LoginPage() {
                 <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white/10 text-white/90 font-mono">
                   ERP
                 </span>
-              </div>
+              </Link>
 
               {/* Tagline */}
               <div className="space-y-3 pt-2">
@@ -454,6 +456,17 @@ export default function LoginPage() {
             {/* Scrollable inner — on large screens this panel scrolls independently */}
             <div className="flex-1 overflow-y-auto p-7 lg:p-10 space-y-6 scrollbar-thin">
               <div className="max-w-xl mx-auto space-y-6">
+
+                 {/* Back to Home Page Link */}
+                 <div className="flex justify-start">
+                   <Link
+                     href="/"
+                     className="inline-flex items-center gap-1.5 rounded-xl border border-border-theme bg-surface hover:bg-bg px-4 py-2 text-xs font-semibold text-text-theme transition-colors shadow-sm cursor-pointer"
+                   >
+                     <ArrowLeft className="h-3.5 w-3.5" />
+                     {locale === "bn" ? "হোম পেজে ফিরে যান" : "Back to Home Page"}
+                   </Link>
+                 </div>
 
                 {/* Header */}
                 <div className="space-y-1">

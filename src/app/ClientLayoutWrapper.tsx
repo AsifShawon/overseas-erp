@@ -13,13 +13,20 @@ export function ClientLayoutWrapper({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   // Route paths that do NOT use the AppShell frame (e.g. login)
-  const isAuthRoute = pathname === "/login" || pathname === "/" || pathname?.startsWith("/apply");
+  const isAuthRoute =
+    pathname === "/login" ||
+    pathname === "/" ||
+    pathname === "/activate-account" ||
+    pathname?.startsWith("/apply");
 
   const renderContent = () => {
     if (isAuthRoute) {
       // Homepage (/), apply pages (/apply/*) manage their own full-page layout.
       // Only /login uses the centered vertically-aligned layout.
-      const isFullPageRoute = pathname === "/" || pathname?.startsWith("/apply");
+      const isFullPageRoute =
+        pathname === "/" ||
+        pathname === "/activate-account" ||
+        pathname?.startsWith("/apply");
       return (
         <MockAuthProvider>
           <div className={`min-h-screen bg-bg text-text-theme transition-colors duration-200${isFullPageRoute ? "" : " flex flex-col justify-center"}`}>

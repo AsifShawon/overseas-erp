@@ -356,16 +356,21 @@ export default function AgentsPage() {
       locale === "bn" ? (a.isActive ? "সক্রিয় সরবরাহ" : "স্থগিত") : (a.isActive ? "Active Supply" : "Suspended")
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(","), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(","))].join("\n");
+    // Convert to CSV using a safe Blob URL
+    const csvText = [
+      headers.join(","),
+      ...rows.map(e => e.map(val => `"${String(val ?? '').replace(/"/g, '""')}"`).join(","))
+    ].join("\r\n");
 
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob(["\uFEFF" + csvText], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `sourcing_agents_registry_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
     toast.success(locale === "bn" ? "সোর্সিং পার্টনারদের তালিকা সফলভাবে এক্সপোর্ট করা হয়েছে!" : "Sourcing partners registry exported successfully!");
   };
@@ -413,20 +418,6 @@ export default function AgentsPage() {
     { 
       header: t("agents.tableHeaderPhone"), 
       accessor: (a: any) => <span className="text-text-theme font-mono font-semibold">{a.phone || "N/A"}</span> 
-    },
-    {
-      header: t("agents.tableHeaderTier"),
-      accessor: (a: any) => (
-        <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold ${
-          a.tier === "A" 
-            ? "bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-950/20 dark:border-amber-900/30" 
-            : a.tier === "B" 
-              ? "bg-indigo-50 text-indigo-700 border border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/30" 
-              : "bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-900/30 dark:border-slate-800/40 dark:text-slate-400"
-        }`}>
-          <Award className="h-3 w-3 shrink-0" /> {locale === "bn" ? `ক্যাটাগরি ${a.tier} অংশীদার` : `Tier ${a.tier} Partner`}
-        </span>
-      ),
     },
     {
       header: t("common.status"),
@@ -542,30 +533,7 @@ export default function AgentsPage() {
           </div>
         )}
 
-        {/* Dynamic Filter bar */}
-        <div className="flex flex-col gap-4 rounded-xl border border-border-theme bg-surface p-5 shadow-sm sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2 text-text-soft text-xs font-bold mr-2">
-            <span>{locale === "bn" ? "অংশীদার ফিল্টার করুন:" : "Filter Partners:"}</span>
-          </div>
-          <div className="flex gap-2">
-            {["ALL", "A", "B", "C"].map((tier) => (
-              <button
-                key={tier}
-                onClick={() => setTierFilter(tier)}
-                className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition-colors cursor-pointer ${
-                  tierFilter === tier
-                    ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950"
-                    : "bg-surface text-text-soft border-border-theme hover:bg-bg-muted"
-                }`}
-              >
-                {tier === "ALL" 
-                  ? (locale === "bn" ? "সব অংশীদার" : "All Partners") 
-                  : (locale === "bn" ? `ক্যাটাগরি ${tier}` : `Tier ${tier}`)
-                }
-              </button>
-            ))}
-          </div>
-        </div>
+
 
         {/* Live Database Data Table Rendering */}
         {loading ? (

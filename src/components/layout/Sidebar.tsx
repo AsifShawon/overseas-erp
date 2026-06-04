@@ -119,22 +119,21 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
         }`}
       >
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border bg-sidebar-bg shrink-0">
+        <div className="relative flex h-16 items-center justify-between px-4 border-b border-sidebar-border bg-sidebar-bg shrink-0">
           {(!collapsed || mobileOpen) ? (
-            <div className="flex items-center gap-2 font-bold text-white text-base">
-              <img src="/visatek_logo_transparent.png" alt="VisaTek Logo" className="h-6 w-auto object-contain brightness-0 invert" />
-              <span className="tracking-wide">{t("nav.brandTitle") || "Visa"}<span className="text-brand-red">{t("nav.brandTitleHighlight") || "Tek"}</span></span>
+            <div className="flex items-center">
+              <img src="/visatek_logo_transparent.png" alt="VisaTek Logo" className="h-8 w-auto object-contain" />
             </div>
           ) : (
-            <div className="mx-auto">
+            <div className="mx-auto flex items-center justify-center">
               <img src="/visatek_glove_favicon.ico" alt="VisaTek Icon" className="h-6 w-6 object-contain" />
             </div>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:block rounded-lg p-1 text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white transition-colors cursor-pointer"
+            className="absolute -right-3 top-1/2 -translate-y-1/2 hidden lg:flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-bg text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white shadow-md transition-colors cursor-pointer z-50"
           >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
           </button>
         </div>
 
@@ -153,7 +152,11 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
                   <Link
                     key={link.label}
                     href={link.href}
-                    className={`flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-semibold leading-relaxed transition-all duration-200 group ${
+                    className={`flex items-center rounded-xl transition-all duration-200 group ${
+                      collapsed && !mobileOpen
+                        ? "justify-center p-2.5 mx-auto w-10 h-10"
+                        : "gap-3.5 px-3.5 py-3 text-[15px] font-semibold leading-relaxed"
+                    } ${
                       isActive
                         ? "bg-sidebar-active-bg text-sidebar-active-text shadow-sm shadow-sidebar-active-bg/30"
                         : "text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white"
@@ -168,7 +171,11 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               {user.activeCompanyId && (
                 <Link
                   href="/dashboard"
-                  className="flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-semibold leading-relaxed text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white transition-all duration-200 group mt-4 border-t border-dashed border-sidebar-border pt-4"
+                  className={`flex items-center rounded-xl transition-all duration-200 group mt-4 border-t border-dashed border-sidebar-border pt-4 ${
+                    collapsed && !mobileOpen
+                      ? "justify-center p-2.5 mx-auto w-10 h-10"
+                      : "gap-3.5 px-3.5 py-3 text-[15px] font-semibold leading-relaxed"
+                  } text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white`}
                 >
                   <Globe2 className="h-5.5 w-5.5 shrink-0 text-sidebar-text group-hover:text-white" />
                   {(!collapsed || mobileOpen) && <span className="truncate">{t("nav.exitPlatform") || "Exit Platform Admin"}</span>}
@@ -180,7 +187,11 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               {user.isPlatformAdmin && (
                 <Link
                   href="/platform"
-                  className={`flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-semibold leading-relaxed transition-all duration-200 group ${
+                  className={`flex items-center rounded-xl transition-all duration-200 group ${
+                    collapsed && !mobileOpen
+                      ? "justify-center p-2.5 mx-auto w-10 h-10"
+                      : "gap-3.5 px-3.5 py-3 text-[15px] font-semibold leading-relaxed"
+                  } ${
                     pathname.startsWith("/platform")
                       ? "bg-sidebar-active-bg text-sidebar-active-text shadow-sm shadow-sidebar-active-bg/30"
                       : "text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white"
@@ -209,7 +220,11 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
                   <Link
                     key={link.label}
                     href={link.href}
-                    className={`flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-semibold leading-relaxed transition-all duration-200 group ${
+                    className={`flex items-center rounded-xl transition-all duration-200 group ${
+                      collapsed && !mobileOpen
+                        ? "justify-center p-2.5 mx-auto w-10 h-10"
+                        : "gap-3.5 px-3.5 py-3 text-[15px] font-semibold leading-relaxed"
+                    } ${
                       isActive
                         ? "bg-sidebar-active-bg text-sidebar-active-text shadow-sm shadow-sidebar-active-bg/30"
                         : "text-sidebar-text hover:bg-sidebar-hover-bg hover:text-white"
@@ -225,7 +240,9 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
         </nav>
 
         {/* User Status Bottom Info */}
-        <div className="border-t border-sidebar-border bg-sidebar-bg p-4 shrink-0">
+        <div className={`border-t border-sidebar-border bg-sidebar-bg shrink-0 ${
+          collapsed && !mobileOpen ? "p-3" : "p-4"
+        }`}>
           {(!collapsed || mobileOpen) ? (
             <div className="flex flex-col gap-1">
               <p className="text-sm font-bold text-white truncate">{user.fullName}</p>
@@ -234,7 +251,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
               </p>
             </div>
           ) : (
-            <div className="flex justify-center text-sm font-bold text-sidebar-active-text rounded bg-sidebar-active-bg py-1.5 uppercase">
+            <div className="flex mx-auto items-center justify-center w-10 h-10 text-sm font-bold text-sidebar-active-text rounded-xl bg-sidebar-active-bg uppercase">
               {(t(`roles.${user.roleName}`) || user.roleName).substring(0, 2)}
             </div>
           )}

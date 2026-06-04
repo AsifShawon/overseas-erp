@@ -769,6 +769,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
               applicantName={applicant.fullName}
               passportNumber={applicant.passportNumber}
               trade={applicant.trade}
+              applicantId={applicant.id}
             />
           )}
         </div>

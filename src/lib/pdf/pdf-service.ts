@@ -2,8 +2,7 @@
 // Server-side PDF generation service using @react-pdf/renderer.
 
 import React from "react";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { renderToBuffer } = require("@react-pdf/renderer");
+import { renderToBuffer } from "@react-pdf/renderer";
 
 /**
  * Renders a React PDF document to a Buffer.
@@ -21,7 +20,7 @@ export async function renderPdfToBuffer(
  * Formats a decimal number as BDT currency string.
  */
 export function formatBDT(amount: number): string {
-  return `৳${amount.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `TK ${amount.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**

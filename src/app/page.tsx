@@ -102,14 +102,14 @@ const HOW_IT_WORKS = [
   {
     step: "04",
     title: "Start Managing Operations",
-    desc: "Log in and immediately start managing applicants, agents, job orders, payments, and documents.",
+    desc: "Log in and immediately start managing applicants, agents, job orders / openings, payments, and documents.",
   },
 ];
 
 // ─── Roles ───────────────────────────────────────────────────────────────────
 const ROLES = [
   { title: "Company Owner / Admin", desc: "Full platform access, user management, and financial oversight." },
-  { title: "HR / Recruiting Officer", desc: "Applicant intake, screening, interview scheduling, and job order mapping." },
+  { title: "HR / Recruiting Officer", desc: "Applicant intake, screening, interview scheduling, and job order / opening mapping." },
   { title: "Documentation Officer", desc: "Passport, medical, police clearance, and visa document verification." },
   { title: "Visa Officer", desc: "Embassy packet assembly, visa sticker logging, and consulate slot tracking." },
   { title: "Accounts Officer", desc: "Invoice creation, payment recording, ledger management, and commission payouts." },

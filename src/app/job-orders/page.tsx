@@ -234,16 +234,16 @@ export default function JobOrdersPage() {
 
       const resData = await res.json();
       if (!res.ok) {
-        throw new Error(resData.error || (locale === "bn" ? "জব অর্ডার নিবন্ধন করতে ব্যর্থ হয়েছে।" : "Failed to register job order."));
+        throw new Error(resData.error || (locale === "bn" ? "জব অর্ডার / ওপেনিং নিবন্ধন করতে ব্যর্থ হয়েছে।" : "Failed to register job order / opening."));
       }
 
-      toast.success(locale === "bn" ? "বিদেশি জব অর্ডার সফলভাবে নিবন্ধিত হয়েছে!" : "Foreign job order registered successfully!");
+      toast.success(locale === "bn" ? "বিদেশি জব অর্ডার / ওপেনিং সফলভাবে নিবন্ধিত হয়েছে!" : "Foreign job order / opening registered successfully!");
       setIsCreateModalOpen(false);
       setFormData(initialFormState);
       fetchJobOrders();
     } catch (err: any) {
       setFormError(err.message || (locale === "bn" ? "তৈরি করার সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred during creation."));
-      toast.error(err.message || (locale === "bn" ? "জব অর্ডার নিবন্ধন করতে ব্যর্থ হয়েছে।" : "Failed to register job order."));
+      toast.error(err.message || (locale === "bn" ? "জব অর্ডার / ওপেনিং নিবন্ধন করতে ব্যর্থ হয়েছে।" : "Failed to register job order / opening."));
     } finally {
       setIsSubmitting(false);
     }
@@ -334,16 +334,16 @@ export default function JobOrdersPage() {
 
       const resData = await res.json();
       if (!res.ok) {
-        throw new Error(resData.error || (locale === "bn" ? "জব অর্ডার আপডেট করতে ব্যর্থ হয়েছে।" : "Failed to update job order."));
+        throw new Error(resData.error || (locale === "bn" ? "জব অর্ডার / ওপেনিং আপডেট করতে ব্যর্থ হয়েছে।" : "Failed to update job order / opening."));
       }
 
-      toast.success(locale === "bn" ? "জব ডিমান্ড অর্ডার সফলভাবে সংশোধন করা হয়েছে!" : "Job demand order modified successfully!");
+      toast.success(locale === "bn" ? "জব অর্ডার / ওপেনিং সফলভাবে সংশোধন করা হয়েছে!" : "Job order / opening modified successfully!");
       setIsEditModalOpen(false);
       setSelectedOrder(null);
       fetchJobOrders();
     } catch (err: any) {
       setFormError(err.message || (locale === "bn" ? "সংশোধনের সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।" : "An unexpected error occurred during modification."));
-      toast.error(err.message || (locale === "bn" ? "জব অর্ডার আপডেট করতে ব্যর্থ হয়েছে।" : "Failed to update job order."));
+      toast.error(err.message || (locale === "bn" ? "জব অর্ডার / ওপেনিং আপডেট করতে ব্যর্থ হয়েছে।" : "Failed to update job order / opening."));
     } finally {
       setIsSubmitting(false);
     }
@@ -403,7 +403,8 @@ export default function JobOrdersPage() {
 
   // Client-side filtering logic
   const filteredOrders = mappedOrders.filter((jo) => {
-    if (statusFilter !== "ALL" && jo.status !== statusFilter) return false;
+    if (statusFilter === "OPEN" && (jo.status !== "OPEN" || jo.allocatedQuota >= jo.totalQuota)) return false;
+    if (statusFilter !== "ALL" && statusFilter !== "OPEN" && jo.status !== statusFilter) return false;
     return true;
   });
 

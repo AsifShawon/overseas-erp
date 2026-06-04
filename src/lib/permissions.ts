@@ -91,7 +91,7 @@ export const SYSTEM_ROLES: Record<string, Role> = {
   HR_OFFICER: {
     id: "role-hr-officer",
     name: "HR Officer",
-    description: "Handles applicant screening, interviews, pre-selection, and job order mapping.",
+    description: "Handles applicant screening, interviews, pre-selection, and job order / opening mapping.",
     permissions: [
       "VIEW_DASHBOARD",
       "VIEW_APPLICANTS",

@@ -317,6 +317,7 @@ export default function ApplicantPortalPage() {
               applicantName={applicant.fullName}
               passportNumber={applicant.passportNumber}
               trade={applicant.trade}
+              applicantId={applicant.id}
             />
 
             {/* Quick print receipt section */}

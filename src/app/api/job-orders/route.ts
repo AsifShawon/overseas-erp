@@ -167,7 +167,11 @@ export async function GET(request: Request) {
             allocatedQuota: true,
           },
         });
-        const openOrders = await tx.jobOrder.count({ where: { companyId: activeCompanyId, status: "OPEN" } });
+        const openOrdersList = await tx.jobOrder.findMany({
+          where: { companyId: activeCompanyId, status: "OPEN" },
+          select: { totalQuota: true, allocatedQuota: true },
+        });
+        const openOrders = openOrdersList.filter(jo => jo.allocatedQuota < jo.totalQuota).length;
         const closedOrders = await tx.jobOrder.count({ where: { companyId: activeCompanyId, status: "CLOSED" } });
         const completedOrders = await tx.jobOrder.count({ where: { companyId: activeCompanyId, status: "COMPLETED" } });
         return {

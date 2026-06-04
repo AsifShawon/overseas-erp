@@ -9,7 +9,7 @@ import { Eye, EyeOff, Lock, ShieldAlert, CheckCircle, Loader2, Globe2 } from "lu
 import { usePathname, useRouter } from "next/navigation";
 
 function ForcePasswordReset() {
-  const { accessToken, logout } = useMockAuth();
+  const { accessToken, logout, updateUser } = useMockAuth();
   const toast = useToast();
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -34,8 +34,12 @@ function ForcePasswordReset() {
       setErrorMsg("Current password is required.");
       return;
     }
-    if (newPassword.length < 12) {
-      setErrorMsg("New password must be at least 12 characters long.");
+    if (newPassword.length < 8) {
+      setErrorMsg("New password must be at least 8 characters long.");
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword) || !/[!@#$%^&*(),.?":{}|<>_+\-\[\]\/\\~`|';]/.test(newPassword)) {
+      setErrorMsg("New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g., #, @, !, etc.).");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -69,7 +73,7 @@ function ForcePasswordReset() {
         throw new Error(data.error || "Failed to change temporary password.");
       }
 
-      setSuccessMsg("Password updated successfully! Logging you out in 3 seconds...");
+      setSuccessMsg("Password updated successfully! Redirecting you to the dashboard...");
       toast.success("Password changed successfully.");
 
       // Clear inputs
@@ -77,10 +81,10 @@ function ForcePasswordReset() {
       setNewPassword("");
       setConfirmPassword("");
 
-      // Force logout after 3 seconds
+      // Update state to remove force reset view and show dashboard directly
       setTimeout(() => {
-        logout();
-      }, 3000);
+        updateUser({ mustChangePassword: false });
+      }, 1500);
 
     } catch (err: any) {
       const msg = err.message || "An unexpected error occurred.";
@@ -172,7 +176,7 @@ function ForcePasswordReset() {
                 {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            <p className="text-[10px] text-text-soft">Password must be at least 12 characters long.</p>
+            <p className="text-[10px] text-text-soft">Password must be at least 8 characters with uppercase, lowercase, numbers, and special characters (e.g. #, @, !, etc.).</p>
           </div>
 
           {/* Confirm New Password */}
