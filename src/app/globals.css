@@ -344,3 +344,32 @@
 .app-subtext {
   color: var(--text-soft);
 }
+
+/* Login page — quick-login popover entrance animation */
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.login-popover-enter {
+  animation: popoverIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Shake animation for auth errors */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-4px); }
+  40%       { transform: translateX(4px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease;
+}
