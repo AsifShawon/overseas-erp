@@ -57,6 +57,16 @@ const PERMISSIONS = [
   { name: "SUSPEND_COMPANY_USER",        module: "Company Management" },
   { name: "RESET_COMPANY_USER_PASSWORD", module: "Company Management" },
   { name: "VIEW_COMPANY_ROLES",          module: "Company Management" },
+
+  // Branch Management Permissions
+  { name: "VIEW_BRANCHES",               module: "Branch Management" },
+  { name: "CREATE_BRANCH",               module: "Branch Management" },
+  { name: "UPDATE_BRANCH",               module: "Branch Management" },
+  { name: "SUSPEND_BRANCH",              module: "Branch Management" },
+  { name: "VIEW_BRANCH_USERS",           module: "Branch Management" },
+  { name: "ASSIGN_BRANCH_USERS",          module: "Branch Management" },
+  { name: "VIEW_ALL_BRANCH_DATA",        module: "Branch Management" },
+  { name: "VIEW_OWN_BRANCH_DATA",        module: "Branch Management" },
 ] as const;
 
 type PermissionName = (typeof PERMISSIONS)[number]["name"];
@@ -73,6 +83,8 @@ const ROLE_PERMISSIONS: Record<string, PermissionName[]> = {
     "MANAGE_JOB_ORDERS",
     "VIEW_COMPANY_USERS", "INVITE_COMPANY_USER", "UPDATE_COMPANY_USER",
     "SUSPEND_COMPANY_USER", "RESET_COMPANY_USER_PASSWORD", "VIEW_COMPANY_ROLES",
+    "VIEW_BRANCHES", "CREATE_BRANCH", "UPDATE_BRANCH", "SUSPEND_BRANCH",
+    "VIEW_BRANCH_USERS", "ASSIGN_BRANCH_USERS", "VIEW_ALL_BRANCH_DATA", "VIEW_OWN_BRANCH_DATA",
   ],
   "Operations Admin": [
     "VIEW_DASHBOARD", "VIEW_APPLICANTS", "CREATE_APPLICANT", "UPDATE_APPLICANT",
@@ -82,22 +94,32 @@ const ROLE_PERMISSIONS: Record<string, PermissionName[]> = {
     "MANAGE_JOB_ORDERS",
     "VIEW_COMPANY_USERS", "INVITE_COMPANY_USER", "UPDATE_COMPANY_USER",
     "SUSPEND_COMPANY_USER", "RESET_COMPANY_USER_PASSWORD", "VIEW_COMPANY_ROLES",
+    "VIEW_BRANCHES", "CREATE_BRANCH", "UPDATE_BRANCH", "SUSPEND_BRANCH",
+    "VIEW_BRANCH_USERS", "ASSIGN_BRANCH_USERS", "VIEW_ALL_BRANCH_DATA", "VIEW_OWN_BRANCH_DATA",
   ],
   "HR Officer": [
     "VIEW_DASHBOARD", "VIEW_APPLICANTS", "CREATE_APPLICANT", "UPDATE_APPLICANT",
     "TRANSITION_WORKFLOW", "UPLOAD_DOCUMENT", "VIEW_NOTIFICATIONS",
+    "VIEW_OWN_BRANCH_DATA",
   ],
   "Documentation Officer": [
     "VIEW_DASHBOARD", "VIEW_APPLICANTS", "TRANSITION_WORKFLOW",
     "UPLOAD_DOCUMENT", "VERIFY_DOCUMENT", "VIEW_NOTIFICATIONS",
+    "VIEW_OWN_BRANCH_DATA",
   ],
   "Visa Officer": [
     "VIEW_DASHBOARD", "VIEW_APPLICANTS", "TRANSITION_WORKFLOW",
     "UPLOAD_DOCUMENT", "VIEW_NOTIFICATIONS",
+    "VIEW_OWN_BRANCH_DATA",
   ],
   "Accounts Officer": [
     "VIEW_DASHBOARD", "VIEW_APPLICANTS", "VIEW_ACCOUNTS", "VIEW_COMMISSIONS",
     "RECORD_PAYMENT", "VIEW_REPORTS", "VIEW_NOTIFICATIONS",
+    "VIEW_OWN_BRANCH_DATA",
+  ],
+  "Branch Manager": [
+    "VIEW_DASHBOARD", "VIEW_APPLICANTS", "VIEW_NOTIFICATIONS",
+    "VIEW_OWN_BRANCH_DATA", "VIEW_BRANCH_USERS", "ASSIGN_BRANCH_USERS",
   ],
   "Agent": [
     "VIEW_DASHBOARD", "VIEW_APPLICANTS", "CREATE_APPLICANT", "UPDATE_APPLICANT",
@@ -115,6 +137,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
   "Documentation Officer":  "Manages compliance checklists, medical centers, training, and passport files.",
   "Visa Officer":           "Assembles embassy packets, visa sticker loggings, and consulate slots.",
   "Accounts Officer":       "Controls candidate invoices, payments, general ledger, and agent commissions.",
+  "Branch Manager":         "Branch supervisor. Scoped to view own branch data and manage branch users.",
   "Agent":                  "External recruitment partner. Sourced cohort access limits apply.",
   "Applicant":              "Placed candidate. Scoped to personal progress portal only.",
 };

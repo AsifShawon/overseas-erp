@@ -71,6 +71,11 @@ enum CommissionStatus {
   CANCELLED
 }
 
+enum BranchStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 // ==========================================
 // MODELS – DYNAMIC RBAC SCHEMA
 // ==========================================
@@ -83,9 +88,10 @@ model Role {
   updatedAt   DateTime @updatedAt
 
   // Relationships
-  users       User[]
-  permissions RolePermission[]
-  memberships UserMembership[]
+  users             User[]
+  permissions       RolePermission[]
+  memberships       UserMembership[]
+  branchMemberships BranchMembership[]
 }
 
 model Permission {
@@ -135,6 +141,7 @@ model User {
   auditLogs                   AuditLog[]
   reviewedCompanyApplications CompanyApplication[]     @relation("ReviewedApplications")
   memberships                 UserMembership[]
+  branchMemberships           BranchMembership[]
   activationTokens            AccountActivationToken[]
   emailLogs                   EmailLog[]
   webPushSubscriptions        WebPushSubscription[]
@@ -154,17 +161,20 @@ model Agent {
   phone       String?
   isActive    Boolean  @default(true)
   companyId   String?
+  branchId    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relationships
   user        User         @relation("UserToAgent", fields: [userId], references: [id], onDelete: Cascade)
   company     Company?     @relation(fields: [companyId], references: [id])
+  branch      Branch?      @relation(fields: [branchId], references: [id])
   applicants  Applicant[]
   commissions Commission[]
 
   @@index([agentCode])
   @@index([companyId])
+  @@index([companyId, branchId])
 }
 
 model Applicant {
@@ -192,6 +202,7 @@ model Applicant {
   trade        String // Job category e.g. Electrician, Welder
   currentStage WorkflowStage @default(APPLIED)
   companyId    String?
+  branchId     String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -200,6 +211,7 @@ model Applicant {
   agent         Agent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
   jobOrder      JobOrder?         @relation(fields: [jobOrderId], references: [id], onDelete: SetNull)
   company       Company?          @relation(fields: [companyId], references: [id])
+  branch        Branch?           @relation(fields: [branchId], references: [id])
   workflows     WorkflowHistory[]
   documents     Document[]
   invoices      Invoice[]
@@ -215,6 +227,8 @@ model Applicant {
   @@index([companyId])
   @@index([companyId, currentStage])
   @@index([companyId, agentId])
+  @@index([companyId, branchId])
+  @@index([companyId, branchId, currentStage])
 }
 
 model JobOrder {
@@ -229,11 +243,13 @@ model JobOrder {
   commissionAmount Decimal  @db.Decimal(10, 2) // Default agent commission payout rate
   status           String   @default("OPEN") // OPEN, CLOSED, COMPLETED
   companyId        String?
+  branchId         String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   // Relationships
   company     Company?     @relation(fields: [companyId], references: [id])
+  branch      Branch?      @relation(fields: [branchId], references: [id])
   applicants  Applicant[]
   commissions Commission[]
 
@@ -241,6 +257,8 @@ model JobOrder {
   @@index([status])
   @@index([companyId])
   @@index([companyId, status])
+  @@index([companyId, branchId])
+  @@index([companyId, branchId, status])
 }
 
 model WorkflowHistory {
@@ -299,17 +317,21 @@ model Invoice {
   dueDate     DateTime
   description String
   companyId   String?
+  branchId    String?
   createdAt   DateTime @default(now())
 
   // Relationships
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
   company   Company?  @relation(fields: [companyId], references: [id])
+  branch    Branch?   @relation(fields: [branchId], references: [id])
   receipts  Receipt[]
 
   @@index([invoiceNo])
   @@index([applicantId])
   @@index([companyId])
   @@index([companyId, applicantId])
+  @@index([companyId, branchId])
+  @@index([companyId, branchId, applicantId])
 }
 
 model Receipt {
@@ -322,18 +344,22 @@ model Receipt {
   referenceNo   String? // Bank transfer hash or cheque number
   receivedById  String // ID of Accounts Officer recording this payment
   companyId     String?
+  branchId      String?
   createdAt     DateTime      @default(now())
 
   // Relationships
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
   invoice   Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   company   Company?  @relation(fields: [companyId], references: [id])
+  branch    Branch?   @relation(fields: [branchId], references: [id])
 
   @@index([receiptNo])
   @@index([applicantId])
   @@index([companyId])
   @@index([companyId, applicantId])
   @@index([companyId, invoiceId])
+  @@index([companyId, branchId])
+  @@index([companyId, branchId, applicantId])
 }
 
 model LedgerEntry {
@@ -345,14 +371,17 @@ model LedgerEntry {
   credit          Decimal               @default(0.00) @db.Decimal(10, 2) // Money paid (decreases balance)
   runningBalance  Decimal               @db.Decimal(10, 2)
   companyId       String?
+  branchId        String?
   timestamp       DateTime              @default(now())
 
   // Relationships
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
   company   Company?  @relation(fields: [companyId], references: [id])
+  branch    Branch?   @relation(fields: [branchId], references: [id])
 
   @@index([applicantId])
   @@index([companyId])
+  @@index([companyId, branchId])
 }
 
 model Commission {
@@ -365,6 +394,7 @@ model Commission {
   payoutRef   String? // Bank transfer reference when paid
   payoutDate  DateTime?
   companyId   String?
+  branchId    String?
   createdAt   DateTime         @default(now())
 
   // Relationships
@@ -372,6 +402,7 @@ model Commission {
   applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Restrict)
   jobOrder  JobOrder  @relation(fields: [jobOrderId], references: [id], onDelete: Restrict)
   company   Company?  @relation(fields: [companyId], references: [id])
+  branch    Branch?   @relation(fields: [branchId], references: [id])
 
   @@unique([agentId, applicantId]) // Commission occurs only once per placed candidate
   @@index([agentId])
@@ -380,6 +411,7 @@ model Commission {
   @@index([companyId, agentId])
   @@index([companyId, applicantId])
   @@index([companyId, status])
+  @@index([companyId, branchId])
 }
 
 model Notification {
@@ -399,11 +431,13 @@ model Notification {
   actionUrl    String?
   dueAt        DateTime?
   companyId    String?
+  branchId     String?
   createdAt    DateTime  @default(now())
 
   // Relationships
   user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   company    Company?               @relation(fields: [companyId], references: [id])
+  branch     Branch?                @relation(fields: [branchId], references: [id])
   deliveries NotificationDelivery[]
 
   @@index([userId])
@@ -414,6 +448,7 @@ model Notification {
   @@index([companyId, isRead])
   @@index([dueAt])
   @@index([createdAt])
+  @@index([companyId, branchId])
 }
 
 model NotificationDelivery {
@@ -479,6 +514,7 @@ model NotificationPreference {
 model Task {
   id             String    @id @default(cuid())
   companyId      String
+  branchId       String?
   applicantId    String?
   assignedToId   String?
   assignedRoleId String?
@@ -494,6 +530,7 @@ model Task {
 
   // Relationships
   company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch    Branch?    @relation(fields: [branchId], references: [id])
   applicant Applicant? @relation(fields: [applicantId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
@@ -503,6 +540,8 @@ model Task {
   @@index([dueAt])
   @@index([companyId, status])
   @@index([companyId, assignedToId])
+  @@index([companyId, branchId])
+  @@index([companyId, branchId, status])
 }
 
 model ReminderLog {
@@ -529,17 +568,20 @@ model AuditLog {
   delta      Json? // Detailed payload differences (JSON snapshot)
   ipAddress  String?
   companyId  String?
+  branchId   String?
   timestamp  DateTime @default(now())
 
   // Relationships
   user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   company Company? @relation(fields: [companyId], references: [id])
+  branch  Branch?  @relation(fields: [branchId], references: [id])
 
   @@index([timestamp])
   @@index([userId])
   @@index([actionType])
   @@index([companyId])
   @@index([companyId, timestamp])
+  @@index([companyId, branchId])
 }
 
 // ==========================================
@@ -650,6 +692,8 @@ model Company {
   webPushSubscriptions    WebPushSubscription[]
   notificationPreferences NotificationPreference[]
   tasks                   Task[]
+  branches                Branch[]
+  branchMemberships       BranchMembership[]
 
   @@index([status])
   @@index([ownerEmail])
@@ -758,4 +802,66 @@ model EmailLog {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ==========================================
+// BRANCHING FOUNDATION MODELS
+// ==========================================
+
+model Branch {
+  id           String       @id @default(cuid())
+  companyId    String
+  name         String
+  code         String
+  city         String?
+  address      String?
+  phone        String?
+  email        String?
+  isHeadOffice Boolean      @default(false)
+  status       BranchStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  memberships BranchMembership[]
+
+  // Relations to other models
+  applicants    Applicant[]
+  agents        Agent[]
+  jobOrders     JobOrder[]
+  invoices      Invoice[]
+  receipts      Receipt[]
+  ledgerEntries LedgerEntry[]
+  commissions   Commission[]
+  tasks         Task[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, status])
+}
+
+model BranchMembership {
+  id              String           @id @default(cuid())
+  userId          String
+  companyId       String
+  branchId        String
+  roleId          String
+  status          MembershipStatus @default(ACTIVE)
+  isBranchManager Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  role    Role    @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, branchId, roleId])
+  @@index([userId])
+  @@index([companyId])
+  @@index([branchId])
+  @@index([companyId, branchId])
+  @@index([companyId, status])
 }
