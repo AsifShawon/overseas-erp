@@ -68,6 +68,7 @@ export const bn: TranslationKeys = {
     notifications: "নোটিফিকেশন",
     auditLogs: "অডিট লগ",
     companyUsers: "কোম্পানি ইউজার",
+    branches: "শাখা সমূহ",
     rbacSettings: "রোল ও পারমিশন",
     brandTitle: "Visa",
     brandTitleHighlight: "Tek",

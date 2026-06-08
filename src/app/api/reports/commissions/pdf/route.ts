@@ -4,13 +4,14 @@
 import { NextResponse } from "next/server";
 import React from "react";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 import { renderPdfToBuffer } from "@/lib/pdf/pdf-service";
 import { CommissionReportPdfDocument } from "@/lib/pdf/templates/commission-report-pdf";
 
 export async function GET(request: Request) {
   try {
-    const { activeCompanyId, roleName, userId, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, roleName, userId, permissions } = branchScope;
 
     const isAgent    = roleName === "Agent";
     const isAuthorized =
@@ -25,7 +26,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const where: any = { companyId: activeCompanyId };
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
+    const where: any = { ...baseWhere };
 
     // Agent can only see their own commissions
     if (isAgent) {
@@ -91,8 +93,8 @@ export async function GET(request: Request) {
       },
     });
   } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
+      return NextResponse.json({ error: err.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: err.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/reports/commissions/pdf Error:", err);
     return NextResponse.json({ error: "Failed to generate PDF" }, { status: 500 });

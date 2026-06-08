@@ -33,6 +33,19 @@ export async function GET(request: Request) {
             isActive: true,
             createdAt: true,
             passwordChangedAt: true,
+            branchMemberships: {
+              where: { companyId: ctx.activeCompanyId },
+              include: {
+                branch: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    isHeadOffice: true,
+                  }
+                }
+              }
+            }
           },
         },
         role: {

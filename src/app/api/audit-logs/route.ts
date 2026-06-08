@@ -3,14 +3,14 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 
 export async function GET(request: Request) {
   try {
-    // 1. Authenticate Request and resolve company context
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
-    // 2. Enforce RBAC
+    // Enforce RBAC
     const isSuperAdmin = roleName === "Super Admin";
     let isAuthorized = isSuperAdmin;
 
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // 3. Parse query params
+    // Parse query params
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
     const actionType = searchParams.get("actionType") || undefined;
@@ -34,9 +34,10 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10));
 
-    // 4. Construct DB filtering
+    // Construct DB filtering
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
     const where: any = {
-      companyId: activeCompanyId, // FORCE TENANT ISOLATION
+      ...baseWhere,
     };
 
     if (actionType) {
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
 
     const skip = (page - 1) * pageSize;
 
-    // 5. Query counts and paginated logs
+    // Query counts and paginated logs
     const [total, data, totalLogs] = await Promise.all([
       prisma.auditLog.count({ where }),
       prisma.auditLog.findMany({
@@ -85,12 +86,18 @@ export async function GET(request: Request) {
               email: true,
             },
           },
+          branch: {
+            select: {
+              name: true,
+              code: true,
+            },
+          },
         },
       }),
-      prisma.auditLog.count({ where: { companyId: activeCompanyId } }),
+      prisma.auditLog.count({ where: baseWhere }),
     ]);
 
-    // 6. Return response matching requested shape
+    // Return response matching requested shape
     return NextResponse.json({
       data,
       meta: {
@@ -106,8 +113,8 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/audit-logs Error:", error);
     return NextResponse.json(

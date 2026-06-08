@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { signAccessToken, signRefreshToken, getRefreshTokenCookieOptions, resolveUserSessionPayload } from "@/lib/auth";
+import { getAccessibleBranches } from "@/lib/branch-scope";
 import * as argon2 from "argon2";
 
 export async function POST(request: Request) {
@@ -81,6 +82,10 @@ export async function POST(request: Request) {
       },
     });
 
+    const branches = sessionPayload.activeCompanyId
+      ? await getAccessibleBranches(user.id, sessionPayload.activeCompanyId, sessionPayload.permissions)
+      : [];
+
     // 8. Return response
     return NextResponse.json({
       accessToken,
@@ -98,6 +103,7 @@ export async function POST(request: Request) {
         permissions: sessionPayload.permissions,
         mustChangePassword: user.mustChangePassword,
         companyStatus: sessionPayload.companyStatus,
+        branches,
       },
     });
   } catch (error) {

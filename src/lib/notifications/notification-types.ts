@@ -106,6 +106,7 @@ export const EMAIL_NOTIFICATION_TYPES: NotificationTypeValue[] = [
 export interface CreateNotificationInput {
   userId: string;
   companyId?: string | null;
+  branchId?: string | null;
   title: string;
   message: string;
   type?: NotificationTypeValue;

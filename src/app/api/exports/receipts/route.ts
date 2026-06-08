@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
     // Block Agent and Applicant roles
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -34,14 +35,15 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
 
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
     const whereClause: any = {
-      companyId: activeCompanyId,
+      ...baseWhere,
     };
 
     if (search) {
       const matchingApplicants = await prisma.applicant.findMany({
         where: {
-          companyId: activeCompanyId,
+          ...baseWhere,
           OR: [
             { fullName: { contains: search, mode: "insensitive" } },
             { passportNumber: { contains: search, mode: "insensitive" } },
@@ -53,7 +55,7 @@ export async function GET(request: Request) {
 
       const matchingInvoices = await prisma.invoice.findMany({
         where: {
-          companyId: activeCompanyId,
+          ...baseWhere,
           invoiceNo: { contains: search, mode: "insensitive" },
         },
         select: { id: true },
@@ -84,6 +86,12 @@ export async function GET(request: Request) {
             invoiceNo: true,
           },
         },
+        branch: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
       },
     });
 
@@ -100,6 +108,8 @@ export async function GET(request: Request) {
       "Applicant Name",
       "Passport Number",
       "Invoice No",
+      "Branch Name",
+      "Branch Code",
       "Amount Paid",
       "Payment Method",
       "Reference No",
@@ -112,6 +122,8 @@ export async function GET(request: Request) {
       rec.applicant?.fullName || "Unknown Candidate",
       rec.applicant?.passportNumber || "N/A",
       rec.invoice?.invoiceNo || "N/A",
+      rec.branch?.name || "N/A",
+      rec.branch?.code || "N/A",
       Number(rec.amountPaid).toFixed(2),
       rec.paymentMethod,
       rec.referenceNo || "Cash Counter Desk",
@@ -122,11 +134,8 @@ export async function GET(request: Request) {
     const csvText = buildCsv(headers, rows);
     return csvResponse(`receipts_export_${Date.now()}.csv`, csvText);
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized access or inactive company workspace." },
-        { status: 401 }
-      );
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/exports/receipts Error:", error);
     return NextResponse.json(

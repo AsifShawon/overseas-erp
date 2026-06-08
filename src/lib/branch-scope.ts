@@ -4,6 +4,8 @@ import { prisma } from "./db";
 export interface BranchScope {
   userId: string;
   activeCompanyId: string;
+  roleName: string;
+  roleId: string;
   permissions: string[];
   isAllBranches: boolean;
   branchIds: string[];
@@ -11,6 +13,7 @@ export interface BranchScope {
 
 /**
  * Resolves the branch access scope for the current logged-in user.
+ * Supports parsing selected branch filter from request query parameter or header.
  */
 export async function getUserBranchScope(request: Request): Promise<BranchScope | null> {
   const ctx = await requireCompanyContext(request);
@@ -21,26 +24,73 @@ export async function getUserBranchScope(request: Request): Promise<BranchScope 
   const isAllBranches = ctx.permissions.includes("VIEW_ALL_BRANCH_DATA");
 
   let branchIds: string[] = [];
-  if (!isAllBranches) {
-    const memberships = await prisma.branchMembership.findMany({
+  const memberships = await prisma.branchMembership.findMany({
+    where: {
+      userId: ctx.userId,
+      companyId: ctx.activeCompanyId,
+      status: "ACTIVE",
+      branch: {
+        status: "ACTIVE",
+      },
+    },
+    select: {
+      branchId: true,
+    },
+  });
+  branchIds = memberships.map((m) => m.branchId);
+
+  // Parse selected branch filter from query or header
+  let selectedBranchId: string | null = null;
+  try {
+    const url = new URL(request.url);
+    selectedBranchId = url.searchParams.get("branchId") || url.searchParams.get("activeBranchId");
+  } catch (e) {
+    // Ignore URL parse errors
+  }
+
+  if (!selectedBranchId) {
+    selectedBranchId = request.headers.get("X-Branch-Id") || request.headers.get("x-branch-id");
+  }
+
+  if (selectedBranchId) {
+    const branch = await prisma.branch.findFirst({
       where: {
-        userId: ctx.userId,
+        id: selectedBranchId,
         companyId: ctx.activeCompanyId,
         status: "ACTIVE",
-        branch: {
-          status: "ACTIVE",
-        },
-      },
-      select: {
-        branchId: true,
       },
     });
-    branchIds = memberships.map((m) => m.branchId);
+
+    if (branch) {
+      if (isAllBranches || branchIds.includes(selectedBranchId)) {
+        return {
+          userId: ctx.userId,
+          activeCompanyId: ctx.activeCompanyId,
+          roleName: ctx.roleName,
+          roleId: ctx.roleId,
+          permissions: ctx.permissions,
+          isAllBranches: false,
+          branchIds: [selectedBranchId],
+        };
+      } else {
+        return {
+          userId: ctx.userId,
+          activeCompanyId: ctx.activeCompanyId,
+          roleName: ctx.roleName,
+          roleId: ctx.roleId,
+          permissions: ctx.permissions,
+          isAllBranches: false,
+          branchIds: ["INACCESSIBLE_BRANCH"],
+        };
+      }
+    }
   }
 
   return {
     userId: ctx.userId,
     activeCompanyId: ctx.activeCompanyId,
+    roleName: ctx.roleName,
+    roleId: ctx.roleId,
     permissions: ctx.permissions,
     isAllBranches,
     branchIds,
@@ -164,8 +214,43 @@ export async function validateWriteBranch(
   });
 
   if (!branch) {
-    throw new Error("Invalid or suspended branch for this company.");
+    throw new Error("FORBIDDEN");
   }
 
   return branchId;
+}
+
+/**
+ * Resolves the active branch entries accessible to a specific user.
+ */
+export async function getAccessibleBranches(
+  userId: string,
+  activeCompanyId: string,
+  permissions: string[]
+) {
+  const isAllBranches = permissions.includes("VIEW_ALL_BRANCH_DATA");
+  if (isAllBranches) {
+    return await prisma.branch.findMany({
+      where: {
+        companyId: activeCompanyId,
+        status: "ACTIVE",
+      },
+      select: { id: true, name: true, code: true, isHeadOffice: true },
+    });
+  } else {
+    const branchMemberships = await prisma.branchMembership.findMany({
+      where: {
+        userId,
+        companyId: activeCompanyId,
+        status: "ACTIVE",
+        branch: { status: "ACTIVE" },
+      },
+      select: {
+        branch: {
+          select: { id: true, name: true, code: true, isHeadOffice: true },
+        },
+      },
+    });
+    return branchMemberships.map((bm) => bm.branch);
+  }
 }

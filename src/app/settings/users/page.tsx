@@ -58,8 +58,9 @@ export default function CompanyUsersPage() {
   const router = useRouter();
   const toast = useToast();
 
-  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [memberships, setMemberships] = useState<any[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -69,9 +70,11 @@ export default function CompanyUsersPage() {
   const [roleFilter, setRoleFilter] = useState("ALL");
 
   // Edit Modal State
-  const [editingMembership, setEditingMembership] = useState<Membership | null>(null);
+  const [editingMembership, setEditingMembership] = useState<any | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<"ACTIVE" | "SUSPENDED" | "INVITED">("ACTIVE");
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+  const [isAllBranches, setIsAllBranches] = useState(false);
 
   // Manual Invite Link Modal
   const [inviteResult, setInviteResult] = useState<{
@@ -91,24 +94,29 @@ export default function CompanyUsersPage() {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const [usersRes, rolesRes] = await Promise.all([
+      const [usersRes, rolesRes, branchesRes] = await Promise.all([
         fetch("/api/company/users", {
           headers: { Authorization: `Bearer ${accessToken}` },
         }),
         fetch("/api/company/roles", {
           headers: { Authorization: `Bearer ${accessToken}` },
         }),
+        fetch("/api/company/branches", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
       ]);
 
-      if (!usersRes.ok || !rolesRes.ok) {
-        throw new Error("Failed to load users or roles.");
+      if (!usersRes.ok || !rolesRes.ok || !branchesRes.ok) {
+        throw new Error("Failed to load users, roles, or branches.");
       }
 
       const usersData = await usersRes.json();
       const rolesData = await rolesRes.json();
+      const branchesData = await branchesRes.json();
 
       setMemberships(usersData);
       setRoles(rolesData);
+      setBranches(branchesData);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to load company workspace data.");
@@ -156,15 +164,33 @@ export default function CompanyUsersPage() {
     return activeOwners.length <= 1 && activeOwners.some((o) => o.id === membership.id);
   };
 
-  const handleEditClick = (membership: Membership) => {
+  const handleEditClick = (membership: any) => {
     setEditingMembership(membership);
     setSelectedRoleId(membership.roleId);
     setSelectedStatus(membership.status);
+
+    const targetRole = roles.find(r => r.id === membership.roleId);
+    const isAll = targetRole?.name === "Super Admin" || targetRole?.name === "Operations Admin";
+    setIsAllBranches(isAll);
+    if (isAll) {
+      setSelectedBranchIds([]);
+    } else {
+      const bIds = membership.user?.branchMemberships?.map((bm: any) => bm.branchId) || [];
+      setSelectedBranchIds(bIds);
+    }
   };
 
   const handleUpdateMembership = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingMembership || !accessToken) return;
+
+    const targetRole = roles.find(r => r.id === selectedRoleId);
+    const isCompanyAdminRole = targetRole?.name === "Super Admin" || targetRole?.name === "Operations Admin";
+
+    if (!isCompanyAdminRole && !isAllBranches && selectedBranchIds.length === 0) {
+      toast.error("Please select at least one branch assignment.");
+      return;
+    }
 
     setActionLoading(true);
     try {
@@ -177,6 +203,8 @@ export default function CompanyUsersPage() {
         body: JSON.stringify({
           roleId: selectedRoleId,
           status: selectedStatus,
+          branchIds: isCompanyAdminRole || isAllBranches ? undefined : selectedBranchIds,
+          isAllBranches: isCompanyAdminRole || isAllBranches,
         }),
       });
 
@@ -278,6 +306,9 @@ export default function CompanyUsersPage() {
       setActionLoading(false);
     }
   };
+
+  const selectedRole = roles.find(r => r.id === selectedRoleId);
+  const isCompanyAdminRole = selectedRole?.name === "Super Admin" || selectedRole?.name === "Operations Admin";
 
   return (
     <div className="space-y-6">
@@ -404,10 +435,27 @@ export default function CompanyUsersPage() {
                           "—"
                         )}
                       </td>
-                      <td className="p-4">
-                        <span className="font-semibold text-text-theme">
+                      <td className="p-4 space-y-1">
+                        <span className="font-semibold text-text-theme block">
                           {m.role.name}
                         </span>
+                        <div className="flex flex-wrap gap-1">
+                          {m.role.name === "Super Admin" || m.role.name === "Operations Admin" ? (
+                            <span className="rounded bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 text-[9px] font-bold text-indigo-600 dark:text-indigo-400">
+                              All Branches
+                            </span>
+                          ) : m.user.branchMemberships && m.user.branchMemberships.length > 0 ? (
+                            m.user.branchMemberships.map((bm: any) => (
+                              <span key={bm.id} className="rounded bg-slate-500/10 border border-slate-500/20 px-1.5 py-0.5 text-[9px] font-medium text-text-theme">
+                                {bm.branch?.name || "Unknown"} {bm.isBranchManager ? "(Manager)" : ""}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="rounded bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 text-[9px] font-bold text-rose-600 dark:text-rose-400">
+                              No Branch
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4">
                         {m.status === "ACTIVE" && (
@@ -551,6 +599,94 @@ export default function CompanyUsersPage() {
                   <div className="flex items-start gap-1 text-[10px] text-amber-600 dark:text-amber-400 mt-1">
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     <span>This user is the last active company owner. You cannot suspend this membership.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Branch Assignment Section */}
+              <div className="space-y-3 p-4 rounded-xl border border-border-theme bg-bg/50">
+                <h3 className="text-xs font-bold text-text-theme">
+                  Branch Assignment
+                </h3>
+
+                {isCompanyAdminRole ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="modalIsAllBranches"
+                        checked={true}
+                        disabled
+                        className="rounded border-border-theme text-primary-theme focus:ring-primary-theme"
+                      />
+                      <label htmlFor="modalIsAllBranches" className="text-xs font-semibold text-text-theme">
+                        All Branches Access (Default for {selectedRole?.name})
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-text-soft">
+                      Administrative roles are granted access to all branches automatically.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="modalIsAllBranchesCheckbox"
+                        checked={isAllBranches}
+                        onChange={(e) => {
+                          setIsAllBranches(e.target.checked);
+                          if (e.target.checked) {
+                            setSelectedBranchIds([]);
+                          } else {
+                            const ho = branches.find((b: any) => b.isHeadOffice);
+                            setSelectedBranchIds(ho ? [ho.id] : (branches[0] ? [branches[0].id] : []));
+                          }
+                        }}
+                        className="rounded border-border-theme text-primary-theme focus:ring-primary-theme h-4 w-4"
+                      />
+                      <label htmlFor="modalIsAllBranchesCheckbox" className="text-xs font-semibold text-text-theme cursor-pointer">
+                        Grant access to all branches
+                      </label>
+                    </div>
+
+                    {!isAllBranches && (
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-semibold text-text-soft block">
+                          Select Assigned Branches <span className="text-danger-theme">*</span>
+                        </label>
+                        <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                          {branches.map((b) => (
+                            <label
+                              key={b.id}
+                              className="flex items-center gap-2 p-2 rounded-lg border border-border-theme bg-surface hover:bg-surface-soft cursor-pointer text-xs transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedBranchIds.includes(b.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedBranchIds([...selectedBranchIds, b.id]);
+                                  } else {
+                                    setSelectedBranchIds(selectedBranchIds.filter((id) => id !== b.id));
+                                  }
+                                }}
+                                className="rounded border-border-theme text-primary-theme focus:ring-primary-theme h-4 w-4"
+                              />
+                              <div className="space-y-0.5 animate-none">
+                                <span className="font-semibold text-text-theme">{b.name}</span>
+                                <span className="block text-[10px] text-text-soft">{b.code}</span>
+                              </div>
+                              {b.isHeadOffice && (
+                                <span className="ml-auto text-[9px] px-1.5 py-0.5 bg-indigo-500/10 text-indigo-500 rounded border border-indigo-500/20 font-bold shrink-0">
+                                  HO
+                                </span>
+                              )}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

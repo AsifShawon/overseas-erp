@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { getUserBranchScope, buildBranchWhere, validateWriteBranch } from "@/lib/branch-scope";
 import { generateAgentCode } from "@/lib/sequence";
 import * as argon2 from "argon2";
 import { z } from "zod";
@@ -20,6 +21,7 @@ const CreateAgentSchema = z.object({
   tier: z.enum(["A", "B", "C"]),
   agentCode: z.string().optional().nullable(),
   accessMode: z.enum(["INVITE_LINK", "TEMP_PASSWORD"]),
+  branchId: z.string().optional().nullable(),
 });
 
 /**
@@ -29,6 +31,14 @@ const CreateAgentSchema = z.object({
 export async function GET(request: Request) {
   try {
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
+
+    if (branchScope.branchIds.includes("INACCESSIBLE_BRANCH")) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch scope." }, { status: 403 });
+    }
 
     // Boundary Check: Applicants are strictly forbidden
     if (roleName === "Applicant") {
@@ -65,16 +75,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("active") === "true";
 
-    const where: any = {
-      companyId: activeCompanyId, // FORCE TENANT ISOLATION
-    };
-    if (activeOnly) {
-      where.isActive = true;
-    }
-
-    if (enforcedUserId) {
-      where.userId = enforcedUserId;
-    }
+    const where: any = buildBranchWhere(activeCompanyId, branchScope, {
+      ...(activeOnly ? { isActive: true } : {}),
+      ...(enforcedUserId ? { userId: enforcedUserId } : {}),
+    });
 
     const agents = await prisma.agent.findMany({
       where,
@@ -122,6 +126,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
 
     // RBAC validation
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
@@ -136,6 +144,26 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const validatedData = CreateAgentSchema.parse(body);
+
+    // Resolve and Validate branchId
+    let targetBranchId = validatedData.branchId;
+    if (targetBranchId) {
+      await validateWriteBranch(targetBranchId, activeCompanyId, branchScope);
+    } else {
+      if (branchScope.isAllBranches) {
+        const hoBranch = await prisma.branch.findFirst({
+          where: { companyId: activeCompanyId, isHeadOffice: true, status: "ACTIVE" },
+        });
+        if (!hoBranch) {
+          return NextResponse.json({ error: "Head Office branch not found. Please specify a branchId." }, { status: 400 });
+        }
+        targetBranchId = hoBranch.id;
+      } else if (branchScope.branchIds.length === 1) {
+        targetBranchId = branchScope.branchIds[0];
+      } else {
+        return NextResponse.json({ error: "Multiple branches assigned. branchId is required in payload." }, { status: 400 });
+      }
+    }
 
     const finalEmail = validatedData.email.trim().toLowerCase();
 
@@ -224,6 +252,18 @@ export async function POST(request: Request) {
         },
       });
 
+      // Provision BranchMembership under activeCompanyId and targetBranchId for agent role
+      await tx.branchMembership.create({
+        data: {
+          userId: newUser.id,
+          companyId: activeCompanyId,
+          branchId: targetBranchId as string,
+          roleId: agentRole.id,
+          status: "ACTIVE",
+          isBranchManager: false,
+        },
+      });
+
       // Resolve final unique agent code
       let finalAgentCode = validatedData.agentCode?.trim();
       if (!finalAgentCode) {
@@ -241,6 +281,7 @@ export async function POST(request: Request) {
           phone: validatedData.phone || null,
           isActive: true,
           companyId: activeCompanyId, // SET TENANT ID
+          branchId: targetBranchId,   // SET BRANCH ID
         },
       });
 

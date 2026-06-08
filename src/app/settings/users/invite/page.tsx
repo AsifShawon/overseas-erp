@@ -33,6 +33,7 @@ export default function InviteUserPage() {
   const toast = useToast();
 
   const [roles, setRoles] = useState<Role[]>([]);
+  const [branches, setBranches] = useState<Array<{ id: string; name: string; code: string; city?: string | null; isHeadOffice: boolean; status: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,6 +43,8 @@ export default function InviteUserPage() {
   const [phone, setPhone] = useState("");
   const [roleId, setRoleId] = useState("");
   const [note, setNote] = useState("");
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+  const [isAllBranches, setIsAllBranches] = useState(false);
 
   // Post-Submit Manual Link Result
   const [inviteResult, setInviteResult] = useState<{
@@ -61,29 +64,47 @@ export default function InviteUserPage() {
   useEffect(() => {
     if (!accessToken || !authUser || !hasAccess("INVITE_COMPANY_USER")) return;
 
-    const fetchRoles = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/company/roles", {
+        // Fetch roles
+        const rolesRes = await fetch("/api/company/roles", {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
-        if (!res.ok) throw new Error("Failed to load available roles.");
-        const data = await res.json();
-        setRoles(data);
-        if (data.length > 0) {
-          // Pre-select first non-Owner role if possible, e.g. HR or documenting
-          const defaultRole = data.find((r: any) => r.name !== "Super Admin") || data[0];
+        if (!rolesRes.ok) throw new Error("Failed to load available roles.");
+        const rolesData = await rolesRes.json();
+        setRoles(rolesData);
+        if (rolesData.length > 0) {
+          const defaultRole = rolesData.find((r: any) => r.name !== "Super Admin") || rolesData[0];
           setRoleId(defaultRole.id);
         }
+
+        // Fetch branches
+        const branchesRes = await fetch("/api/company/branches", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (branchesRes.ok) {
+          const branchesData = await branchesRes.json();
+          setBranches(branchesData);
+          const ho = branchesData.find((b: any) => b.isHeadOffice && b.status === "ACTIVE");
+          if (ho) {
+            setSelectedBranchIds([ho.id]);
+          } else if (branchesData.length > 0) {
+            setSelectedBranchIds([branchesData[0].id]);
+          }
+        }
       } catch (err: any) {
-        toast.error(err.message || "Failed to load roles.");
+        toast.error(err.message || "Failed to load roles/branches.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRoles();
+    fetchData();
   }, [accessToken, authUser]);
+
+  const selectedRole = roles.find(r => r.id === roleId);
+  const isCompanyAdminRole = selectedRole?.name === "Super Admin" || selectedRole?.name === "Operations Admin";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +112,11 @@ export default function InviteUserPage() {
 
     if (!fullName || !email || !roleId) {
       toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    if (!isCompanyAdminRole && !isAllBranches && selectedBranchIds.length === 0) {
+      toast.error("Please select at least one branch assignment.");
       return;
     }
 
@@ -110,6 +136,8 @@ export default function InviteUserPage() {
           phone: phone || undefined,
           roleId,
           note: note || undefined,
+          branchIds: isCompanyAdminRole || isAllBranches ? undefined : selectedBranchIds,
+          isAllBranches: isCompanyAdminRole || isAllBranches,
         }),
       });
 
@@ -123,7 +151,6 @@ export default function InviteUserPage() {
         toast.success(`Invitation email successfully sent to ${email}!`);
         router.push("/settings/users");
       } else {
-        // SMTP failed or was skipped, show the link for manual sharing
         setInviteResult({
           link: data.activationLink || "",
           warning: data.emailWarning || "SMTP delivery offline. Copy link below.",
@@ -270,6 +297,94 @@ export default function InviteUserPage() {
               onChange={(e) => setNote(e.target.value)}
               className="w-full h-24 rounded-xl border border-border-theme bg-bg p-3 text-xs outline-none focus:border-primary-theme text-text-theme resize-none"
             />
+          </div>
+
+          {/* Branch Assignment Section */}
+          <div className="space-y-3 p-4 rounded-xl border border-border-theme bg-bg/50">
+            <h3 className="text-xs font-bold text-text-theme flex items-center gap-1.5">
+              Branch Assignment
+            </h3>
+            
+            {isCompanyAdminRole ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isAllBranches"
+                    checked={true}
+                    disabled
+                    className="rounded border-border-theme text-primary-theme focus:ring-primary-theme"
+                  />
+                  <label htmlFor="isAllBranches" className="text-xs font-semibold text-text-theme">
+                    All Branches Access (Default for {selectedRole?.name})
+                  </label>
+                </div>
+                <p className="text-[10px] text-text-soft">
+                  Administrative roles are granted access to all branches automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isAllBranchesCheckbox"
+                    checked={isAllBranches}
+                    onChange={(e) => {
+                      setIsAllBranches(e.target.checked);
+                      if (e.target.checked) {
+                        setSelectedBranchIds([]);
+                      } else {
+                        const ho = branches.find((b: any) => b.isHeadOffice);
+                        setSelectedBranchIds(ho ? [ho.id] : (branches[0] ? [branches[0].id] : []));
+                      }
+                    }}
+                    className="rounded border-border-theme text-primary-theme focus:ring-primary-theme h-4 w-4"
+                  />
+                  <label htmlFor="isAllBranchesCheckbox" className="text-xs font-semibold text-text-theme cursor-pointer">
+                    Grant access to all branches
+                  </label>
+                </div>
+
+                {!isAllBranches && (
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-semibold text-text-soft">
+                      Select Assigned Branches <span className="text-danger-theme">*</span>
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {branches.map((b) => (
+                        <label
+                          key={b.id}
+                          className="flex items-center gap-2 p-2 rounded-lg border border-border-theme bg-surface hover:bg-surface-soft cursor-pointer text-xs transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedBranchIds.includes(b.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedBranchIds([...selectedBranchIds, b.id]);
+                              } else {
+                                setSelectedBranchIds(selectedBranchIds.filter((id) => id !== b.id));
+                              }
+                            }}
+                            className="rounded border-border-theme text-primary-theme focus:ring-primary-theme h-4 w-4"
+                          />
+                          <div className="space-y-0.5 animate-none">
+                            <span className="font-semibold text-text-theme">{b.name}</span>
+                            <span className="block text-[10px] text-text-soft">{b.code} - {b.city || "No City"}</span>
+                          </div>
+                          {b.isHeadOffice && (
+                            <span className="ml-auto text-[9px] px-1.5 py-0.5 bg-indigo-500/10 text-indigo-500 rounded border border-indigo-500/20 font-bold shrink-0">
+                              HO
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Explanation Callout */}

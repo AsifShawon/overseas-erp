@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { getUserBranchScope, validateWriteBranch } from "@/lib/branch-scope";
 import { z } from "zod";
 
 // Zod validation schema for updating a Job Order
@@ -15,6 +16,7 @@ const UpdateJobOrderSchema = z.object({
   totalQuota: z.number().int().positive("Quota must be a positive integer").optional(),
   commissionAmount: z.number().nonnegative("Commission amount must be a non-negative number").optional(),
   status: z.enum(["OPEN", "CLOSED", "COMPLETED"]).optional(),
+  branchId: z.string().optional().nullable(),
 });
 
 /**
@@ -25,6 +27,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
+
+    if (branchScope.branchIds.includes("INACCESSIBLE_BRANCH")) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch scope." }, { status: 403 });
+    }
 
     // RBAC validation
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
@@ -32,7 +42,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     if (!isSuperOrOps && !hasManage) {
       return NextResponse.json(
-        { error: "Forbidden. Insufficient administrative privileges to update job demands." },
+        { error: "Forbidden. Insufficient administrative permissions to update job demands." },
         { status: 403 }
       );
     }
@@ -46,8 +56,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Job order contract not found." }, { status: 404 });
     }
 
+    // Branch isolation scoping boundary check
+    if (!branchScope.isAllBranches && (!jobOrder.branchId || !branchScope.branchIds.includes(jobOrder.branchId))) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch scope." }, { status: 403 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const validatedData = UpdateJobOrderSchema.parse(body);
+
+    // Validate target branchId if updated
+    if (validatedData.branchId) {
+      await validateWriteBranch(validatedData.branchId, activeCompanyId, branchScope);
+    }
 
     // Business Constraint: Do not allow totalQuota to fall below currently allocatedQuota
     if (validatedData.totalQuota !== undefined && validatedData.totalQuota < jobOrder.allocatedQuota) {
@@ -70,6 +90,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         totalQuota: validatedData.totalQuota,
         commissionAmount: validatedData.commissionAmount,
         status: validatedData.status,
+        branchId: validatedData.branchId,
       },
     });
 

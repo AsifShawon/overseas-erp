@@ -1,30 +1,39 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 
 export async function GET(request: Request) {
   try {
-    // 1. Authenticate Request and resolve company context
-    const { activeCompanyId, userId } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId } = branchScope;
 
-    // 2. Parse query parameters
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get("unreadOnly") === "true";
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10));
 
-    // 3. Build query filters
-    const where: any = {
-      userId,
-      companyId: activeCompanyId, // FORCE TENANT ISOLATION
-    };
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
+    const where: any = {};
+
+    if (branchScope.isAllBranches) {
+      where.companyId = activeCompanyId;
+      if (baseWhere.branchId) {
+        where.branchId = baseWhere.branchId;
+      }
+    } else {
+      where.companyId = activeCompanyId;
+      where.OR = [
+        { userId: userId },
+        { branchId: baseWhere.branchId || { in: branchScope.branchIds } }
+      ];
+    }
+
     if (unreadOnly) {
       where.isRead = false;
     }
 
     const skip = (page - 1) * pageSize;
 
-    // 4. Query counts and paginated notification list
     const [total, data, unread] = await Promise.all([
       prisma.notification.count({ where }),
       prisma.notification.findMany({
@@ -34,11 +43,10 @@ export async function GET(request: Request) {
         take: pageSize,
       }),
       prisma.notification.count({
-        where: { userId, companyId: activeCompanyId, isRead: false },
+        where: { ...where, isRead: false },
       }),
     ]);
 
-    // 5. Return JSON payload matching requested shape
     return NextResponse.json({
       data,
       meta: {
@@ -54,8 +62,8 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/notifications Error:", error);
     return NextResponse.json(
@@ -67,10 +75,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    // 1. Authenticate Request and resolve company context
-    const { activeCompanyId, userId } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId } = branchScope;
 
-    // 2. Dev-only simulation guard
     if (process.env.NODE_ENV === "production") {
       return NextResponse.json(
         { error: "Simulation alerts are locked in production environments." },
@@ -78,21 +85,33 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Create simulated notification row in the database
+    let branchId = request.headers.get("X-Branch-Id") || undefined;
+    if (!branchId) {
+      if (branchScope.branchIds.length === 1) {
+        branchId = branchScope.branchIds[0];
+      } else {
+        const hoBranch = await prisma.branch.findFirst({
+          where: { companyId: activeCompanyId, isHeadOffice: true },
+        });
+        branchId = hoBranch?.id || undefined;
+      }
+    }
+
     const newNot = await prisma.notification.create({
       data: {
         userId,
         title: "Consulate Clearance Completed",
         message: `System audited candidate passport dossier. Emigration certificate issued successfully at ${new Date().toLocaleTimeString()}.`,
         isRead: false,
-        companyId: activeCompanyId, // SET TENANT ID
+        companyId: activeCompanyId,
+        branchId,
       },
     });
 
     return NextResponse.json(newNot);
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("POST /api/notifications Error:", error);
     return NextResponse.json(

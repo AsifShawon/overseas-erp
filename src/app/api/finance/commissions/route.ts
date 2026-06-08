@@ -3,11 +3,12 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 
 export async function GET(request: Request) {
   try {
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
     // Applicant user roles cannot view commission register logs
     if (roleName === "Applicant") {
@@ -62,8 +63,9 @@ export async function GET(request: Request) {
     }
 
     // Build the query where clause
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
     const whereClause: any = {
-      companyId: activeCompanyId, // FORCE TENANT ISOLATION
+      ...baseWhere,
     };
 
     // Apply agent cohort constraints
@@ -91,7 +93,7 @@ export async function GET(request: Request) {
 
     // Build independent stats where clause (ignoring status/search for overall totals)
     const statsWhere: any = {
-      companyId: activeCompanyId, // FORCE TENANT ISOLATION
+      ...baseWhere,
     };
     if (agentIdScope) {
       statsWhere.agentId = agentIdScope;
@@ -197,8 +199,8 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/finance/commissions Error:", error);
     return NextResponse.json(

@@ -157,22 +157,46 @@ To prepare for CRM integration, we plan a `Lead` capture pipeline. Leads act as 
 
 ## 7. Safe Implementation Phases
 
-- **Phase 1 (Current)**: Foundation Setup.
+- **Phase 1 (Completed)**: Foundation Setup.
   - Implement tables (`Branch`, `BranchMembership`).
   - Add optional `branchId` to core tables.
   - Backfill all existing records to the default "Head Office" (`HO`) for each company.
   - Seed branch permissions and define scoping helpers.
-- **Phase 2**: UI and API Integration.
-  - Create Branch settings pages (CRUD for branches, branch membership list).
-  - Update API endpoints to consume scoping helpers.
-  - Adapt dashboard totals to filter by active branch context.
-- **Phase 3**: CRM Module & Lead Pipeline.
+- **Phase 2 (Completed)**: UI and API Integration.
+  - Created Branch settings pages (CRUD for branches, branch membership list).
+  - Updated API endpoints to consume scoping helpers.
+  - Adapted dashboard totals to filter by active branch context.
+  - Integrated branch selector UI in Topbar.
+  - Updated PDF/CSV exports to support branch scoping and columns.
+- **Phase 3 (Next)**: CRM Module & Lead Pipeline.
   - Add `Lead` table and API.
   - Build Lead management board, notes logging, and conversion wizard.
 
 ---
 
-## 8. Known Risks & Mitigation
+## 8. Implemented Branch Routes & APIs
+
+### API Routes
+1. `GET /api/company/branches` - List company branches. Enforces `VIEW_BRANCHES`.
+2. `POST /api/company/branches` - Create a branch. Enforces `CREATE_BRANCH`.
+3. `GET /api/company/branches/[id]` - Retrieve branch details. Enforces `VIEW_BRANCHES`.
+4. `PATCH /api/company/branches/[id]` - Update branch details. Enforces `UPDATE_BRANCH`.
+5. `POST /api/company/branches/[id]/suspend` - Suspend a branch. Enforces `SUSPEND_BRANCH`.
+6. `POST /api/company/branches/[id]/reactivate` - Reactivate a branch. Enforces `SUSPEND_BRANCH` or `UPDATE_BRANCH`.
+7. `GET /api/company/branches/[id]/users` - List branch memberships. Enforces `VIEW_BRANCH_USERS`.
+8. `POST /api/company/branches/[id]/users` - Map user to branch. Enforces `ASSIGN_BRANCH_USERS`.
+9. `PATCH /api/company/branches/[id]/users/[branchMembershipId]` - Update role/manager status. Enforces `ASSIGN_BRANCH_USERS`.
+10. `DELETE /api/company/branches/[id]/users/[branchMembershipId]` - Remove user from branch. Enforces `ASSIGN_BRANCH_USERS`.
+
+### UI Routes
+- `/settings/branches` - Branch management list view.
+- `/settings/branches/new` - Create branch form.
+- `/settings/branches/[id]` - Branch details dashboard and member assignments view.
+- `/settings/users/invite` - Updated to support branch mapping on user creation.
+
+---
+
+## 9. Known Risks & Mitigation
 
 - **Risk**: API leakage during transition where old endpoints fail to filter by `branchId`.
   - *Mitigation*: The database schema adds `branchId` as optional first. In Phase 2, we audit each API route and apply the `buildBranchWhere` helper consistently.

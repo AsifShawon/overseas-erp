@@ -1,9 +1,6 @@
-// src/app/api/notifications/[id]/route.ts
-// PATCH /api/notifications/[id] - Mark a specific notification as read, enforcing ownership boundaries
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext } from "@/lib/branch-scope";
 
 export async function PATCH(
   request: Request,
@@ -11,18 +8,24 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const { activeCompanyId, userId } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId } = branchScope;
 
-    // 2. Fetch the notification to check existence and active company ownership
     const notification = await prisma.notification.findFirst({
-      where: { id, userId, companyId: activeCompanyId },
+      where: { id, companyId: activeCompanyId },
     });
 
     if (!notification) {
       return NextResponse.json({ error: "Notification not found." }, { status: 404 });
     }
 
-    // 4. Update and mark as read
+    const isOwner = notification.userId === userId;
+    const isBranchAccess = notification.branchId && !branchScope.isAllBranches && branchScope.branchIds.includes(notification.branchId);
+
+    if (!isOwner && !branchScope.isAllBranches && !isBranchAccess) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible notification." }, { status: 403 });
+    }
+
     const updatedNotification = await prisma.notification.update({
       where: { id },
       data: { isRead: true },
@@ -30,8 +33,8 @@ export async function PATCH(
 
     return NextResponse.json(updatedNotification);
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("PATCH /api/notifications/[id] Error:", error);
     return NextResponse.json(

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { getUserBranchScope, validateWriteBranch } from "@/lib/branch-scope";
 import {
   applicantDetailInclude,
   serializeApplicantDetail,
@@ -34,6 +35,7 @@ const UpdateApplicantSchema = z.object({
   trade: z.string().min(1, "Trade category cannot be empty").optional(),
   agentId: z.string().optional().nullable(),
   jobOrderId: z.string().optional().nullable(),
+  branchId: z.string().optional().nullable(),
   isArchived: z.boolean().optional(),
 });
 
@@ -45,6 +47,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
 
     // Fetch the applicant from database within active company
     const applicant = await prisma.applicant.findFirst({
@@ -54,6 +60,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     if (!applicant) {
       return NextResponse.json({ error: "Applicant record not found." }, { status: 404 });
+    }
+
+    // Branch isolation scoping boundary check
+    if (!branchScope.isAllBranches && (!applicant.branchId || !branchScope.branchIds.includes(applicant.branchId))) {
+      return NextResponse.json(
+        { error: "Forbidden. Sourcing boundaries restrict access to this file." },
+        { status: 403 }
+      );
     }
 
     // Boundary check for Applicant users
@@ -113,6 +127,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
 
     // Boundary Check: Applicants are forbidden from mutating records
     if (roleName === "Applicant") {
@@ -140,6 +158,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Applicant record not found." }, { status: 404 });
     }
 
+    // Branch isolation scoping boundary check
+    if (!branchScope.isAllBranches && (!previousApplicant.branchId || !branchScope.branchIds.includes(previousApplicant.branchId))) {
+      return NextResponse.json(
+        { error: "Forbidden. Sourcing boundaries restrict access to this file." },
+        { status: 403 }
+      );
+    }
+
     // Boundary Check: Agents are strictly scoped to their own applicants
     let enforcedAgentId: string | undefined = undefined;
     if (roleName === "Agent") {
@@ -157,6 +183,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const body = await request.json();
     const validatedData = UpdateApplicantSchema.parse(body);
+
+    // Validate target branchId if updated
+    if (validatedData.branchId) {
+      await validateWriteBranch(validatedData.branchId, activeCompanyId, branchScope);
+    }
 
     // Agents cannot reassign applicant to another agent
     if (enforcedAgentId) {
@@ -179,7 +210,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
-    // Verify jobOrderId belongs to activeCompanyId
+    // Verify jobOrderId belongs to activeCompanyId and accessible branch
     if (validatedData.jobOrderId) {
       const jobOrder = await prisma.jobOrder.findFirst({
         where: { id: validatedData.jobOrderId, companyId: activeCompanyId },
@@ -187,15 +218,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (!jobOrder) {
         return NextResponse.json({ error: "The specified Job Order does not exist in this company." }, { status: 400 });
       }
+      if (jobOrder.branchId) {
+        const isJobBranchAccessible = branchScope.isAllBranches || branchScope.branchIds.includes(jobOrder.branchId);
+        if (!isJobBranchAccessible) {
+          return NextResponse.json({ error: "The selected Job Order belongs to an inaccessible branch." }, { status: 403 });
+        }
+      }
     }
 
-    // Verify agentId belongs to activeCompanyId
+    // Verify agentId belongs to activeCompanyId and accessible branch
     if (validatedData.agentId) {
       const agent = await prisma.agent.findFirst({
         where: { id: validatedData.agentId, companyId: activeCompanyId },
       });
       if (!agent) {
         return NextResponse.json({ error: "The specified Agent does not exist in this company." }, { status: 400 });
+      }
+      if (agent.branchId) {
+        const isAgentBranchAccessible = branchScope.isAllBranches || branchScope.branchIds.includes(agent.branchId);
+        if (!isAgentBranchAccessible) {
+          return NextResponse.json({ error: "The selected Agent belongs to an inaccessible branch." }, { status: 403 });
+        }
       }
     }
 

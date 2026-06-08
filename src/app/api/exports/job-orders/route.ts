@@ -1,14 +1,12 @@
-// src/app/api/exports/job-orders/route.ts
-// GET /api/exports/job-orders - Securely compile and download corporate Job Orders registry as CSV
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
     // Boundary Check: Applicants and Agents strictly prohibited from bulk exports
     if (roleName === "Applicant" || roleName === "Agent") {
@@ -40,8 +38,9 @@ export async function GET(request: Request) {
     const country = searchParams.get("country") || "";
     const trade = searchParams.get("trade") || "";
 
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
     const where: any = {
-      companyId: activeCompanyId,
+      ...baseWhere,
     };
 
     if (status && status !== "ALL") {
@@ -68,6 +67,14 @@ export async function GET(request: Request) {
     // Query all records matching the filters (no pagination limits for full export)
     const jobOrders = await prisma.jobOrder.findMany({
       where,
+      include: {
+        branch: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -78,6 +85,8 @@ export async function GET(request: Request) {
       "Employer Name",
       "Country",
       "Trade",
+      "Branch Name",
+      "Branch Code",
       "Salary",
       "Total Quota",
       "Allocated Quota",
@@ -94,6 +103,8 @@ export async function GET(request: Request) {
         jo.employerName,
         jo.country,
         jo.trade,
+        jo.branch?.name || "N/A",
+        jo.branch?.code || "N/A",
         `${Number(jo.salary).toFixed(2)}`,
         `${jo.totalQuota}`,
         `${jo.allocatedQuota}`,
@@ -108,11 +119,8 @@ export async function GET(request: Request) {
     return csvResponse(`job_orders_export_${Date.now()}.csv`, csvText);
 
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized access or inactive company workspace." },
-        { status: 401 }
-      );
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/exports/job-orders Error:", error);
     return NextResponse.json(

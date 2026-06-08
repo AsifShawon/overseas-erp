@@ -14,10 +14,13 @@ interface TopbarProps {
 }
 
 export function Topbar({ onMenuClick }: TopbarProps) {
-  const { user, allUsers, switchRole, logout } = useMockAuth();
+  const { user, allUsers, switchRole, logout, activeBranchId, setActiveBranchId } = useMockAuth();
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { t, locale } = useT();
+
+  const activeBranch = user.branches?.find((b: any) => b.id === activeBranchId);
+  const canSwitch = user.permissions?.includes("VIEW_ALL_BRANCH_DATA") || (user.branches && user.branches.length > 1);
 
   // Compute unread notifications for this mock user
   const unreadNotifications = MOCK_NOTIFICATIONS.filter(
@@ -69,6 +72,35 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
       {/* Action Badges & Demo Switcher */}
       <div className="flex flex-wrap items-center gap-3 md:gap-4 justify-end">
+        {/* Branch Selector */}
+        {user.activeCompanyId && user.branches && user.branches.length > 0 && (
+          <div className="flex items-center gap-1.5 rounded-xl border border-border-theme bg-surface-soft px-3 py-2 text-[13px] md:text-sm font-semibold text-text-theme shadow-sm">
+            <span className="text-text-soft whitespace-nowrap">{locale === "bn" ? "বর্তমান শাখা:" : "Branch:"}</span>
+            {canSwitch ? (
+              <select
+                value={activeBranchId || "all"}
+                onChange={(e) => setActiveBranchId(e.target.value === "all" ? "all" : e.target.value)}
+                className="border-none bg-transparent font-bold text-text-theme outline-none cursor-pointer text-[13px] md:text-sm"
+              >
+                {user.permissions?.includes("VIEW_ALL_BRANCH_DATA") && (
+                  <option value="all" className="text-text-theme bg-surface">
+                    {locale === "bn" ? "সব শাখা" : "All Branches"}
+                  </option>
+                )}
+                {user.branches.map((b: any) => (
+                  <option key={b.id} value={b.id} className="text-text-theme bg-surface">
+                    {b.name} ({b.code})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="font-bold text-primary-theme">
+                {activeBranch?.name || user.branches[0]?.name || "Head Office"}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Mock Demo Role Switcher Warning Card */}
         <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-950/40 dark:bg-amber-950/20 px-3.5 py-2 text-[13px] md:text-sm font-semibold text-amber-800 dark:text-amber-400">
           <span className="relative flex h-2 w-2 shrink-0">

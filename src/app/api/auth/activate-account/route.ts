@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { signAccessToken, signRefreshToken, getRefreshTokenCookieOptions, resolveUserSessionPayload } from "@/lib/auth";
+import { getAccessibleBranches } from "@/lib/branch-scope";
 import * as argon2 from "argon2";
 import crypto from "crypto";
 
@@ -186,6 +187,10 @@ export async function POST(request: Request) {
       },
     });
 
+    const branches = sessionPayload.activeCompanyId
+      ? await getAccessibleBranches(user.id, sessionPayload.activeCompanyId, sessionPayload.permissions)
+      : [];
+
     return NextResponse.json({
       success: true,
       message: "Account successfully activated.",
@@ -204,6 +209,7 @@ export async function POST(request: Request) {
         permissions: sessionPayload.permissions,
         mustChangePassword: user.mustChangePassword,
         companyStatus: sessionPayload.companyStatus,
+        branches,
       },
     });
 

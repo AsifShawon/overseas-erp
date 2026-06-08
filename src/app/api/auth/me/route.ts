@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyAccessToken, resolveUserSessionPayload } from "@/lib/auth";
+import { getAccessibleBranches } from "@/lib/branch-scope";
 
 export async function GET(request: Request) {
   try {
@@ -47,6 +48,10 @@ export async function GET(request: Request) {
       );
     }
 
+    const branches = sessionPayload.activeCompanyId
+      ? await getAccessibleBranches(user.id, sessionPayload.activeCompanyId, sessionPayload.permissions)
+      : [];
+
     // 5. Return user info
     return NextResponse.json({
       user: {
@@ -63,6 +68,7 @@ export async function GET(request: Request) {
         permissions: sessionPayload.permissions,
         mustChangePassword: user.mustChangePassword,
         companyStatus: sessionPayload.companyStatus,
+        branches,
       },
     });
   } catch (error) {

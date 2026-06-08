@@ -4,10 +4,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { getUserBranchScope, buildBranchWhere } from "@/lib/branch-scope";
 
 export async function GET(request: Request) {
   try {
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
+
+    if (branchScope.branchIds.includes("INACCESSIBLE_BRANCH")) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch scope." }, { status: 403 });
+    }
 
     // Boundary Check: Explicitly block Agent and Applicant user roles from corporate financial records
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -43,40 +52,35 @@ export async function GET(request: Request) {
     const take = pageSize;
 
     // Build filters dynamically
-    const whereClause: any = {
-      companyId: activeCompanyId, // FORCE TENANT ISOLATION
-    };
+    const whereClause: any = buildBranchWhere(activeCompanyId, branchScope);
 
     if (search) {
       // 1. Find applicant IDs where fullName or passportNumber matches search (case insensitive) within active company
       const matchingApplicants = await prisma.applicant.findMany({
-        where: {
-          companyId: activeCompanyId,
+        where: buildBranchWhere(activeCompanyId, branchScope, {
           OR: [
             { fullName: { contains: search, mode: "insensitive" } },
             { passportNumber: { contains: search, mode: "insensitive" } },
           ],
-        },
+        }),
         select: { id: true },
       });
       const applicantIds = matchingApplicants.map((a) => a.id);
 
       // 2. Find matching Invoices by invoiceNo within active company
       const matchingInvoices = await prisma.invoice.findMany({
-        where: {
-          companyId: activeCompanyId,
+        where: buildBranchWhere(activeCompanyId, branchScope, {
           invoiceNo: { contains: search, mode: "insensitive" },
-        },
+        }),
         select: { id: true },
       });
       const invoiceIds = matchingInvoices.map((i) => i.id);
 
       // 3. Find matching Receipts by receiptNo within active company
       const matchingReceipts = await prisma.receipt.findMany({
-        where: {
-          companyId: activeCompanyId,
+        where: buildBranchWhere(activeCompanyId, branchScope, {
           receiptNo: { contains: search, mode: "insensitive" },
-        },
+        }),
         select: { id: true },
       });
       const receiptIds = matchingReceipts.map((r) => r.id);
@@ -93,27 +97,27 @@ export async function GET(request: Request) {
       whereClause.transactionType = transactionType;
     }
 
-    // Calculate dynamic stats scoped to activeCompanyId
+    // Calculate dynamic stats scoped to activeCompanyId and active branch
     const billedAgg = await prisma.invoice.aggregate({
-      where: { companyId: activeCompanyId },
+      where: buildBranchWhere(activeCompanyId, branchScope),
       _sum: { amount: true },
     });
     const totalBilled = Number(billedAgg._sum.amount || 0);
 
     const collectedAgg = await prisma.receipt.aggregate({
-      where: { companyId: activeCompanyId },
+      where: buildBranchWhere(activeCompanyId, branchScope),
       _sum: { amountPaid: true },
     });
     const totalCollected = Number(collectedAgg._sum.amountPaid || 0);
 
     const outstandingAgg = await prisma.invoice.aggregate({
-      where: { companyId: activeCompanyId },
+      where: buildBranchWhere(activeCompanyId, branchScope),
       _sum: { outstanding: true },
     });
     const totalOutstanding = Number(outstandingAgg._sum.outstanding || 0);
 
     const commissionAgg = await prisma.commission.aggregate({
-      where: { status: "ACCRUED", companyId: activeCompanyId },
+      where: buildBranchWhere(activeCompanyId, branchScope, { status: "ACCRUED" }),
       _sum: { amount: true },
     });
     const totalCommissionsAccrued = Number(commissionAgg._sum.amount || 0);

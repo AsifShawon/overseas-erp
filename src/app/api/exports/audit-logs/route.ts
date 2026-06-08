@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
     // Enforce RBAC
     const isSuperAdmin = roleName === "Super Admin";
@@ -30,8 +31,9 @@ export async function GET(request: Request) {
     const operatorRole = searchParams.get("roleName") || undefined;
 
     // Construct DB filtering
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
     const where: any = {
-      companyId: activeCompanyId,
+      ...baseWhere,
     };
 
     if (actionType) {
@@ -74,6 +76,12 @@ export async function GET(request: Request) {
             email: true,
           },
         },
+        branch: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
       },
     });
 
@@ -84,6 +92,8 @@ export async function GET(request: Request) {
       "Action Type",
       "Table Name",
       "Record ID",
+      "Branch Name",
+      "Branch Code",
       "IP Address",
       "Delta JSON",
     ];
@@ -92,7 +102,7 @@ export async function GET(request: Request) {
       const userName = log.user?.fullName || log.userId || "System Engine";
       const userRole = log.roleName || "System";
       const ipAddr = log.ipAddress || "System Engine";
-      
+
       return [
         log.timestamp.toISOString(),
         userName,
@@ -100,6 +110,8 @@ export async function GET(request: Request) {
         log.actionType,
         log.tableName,
         log.recordId || "N/A",
+        log.branch?.name || "N/A",
+        log.branch?.code || "N/A",
         ipAddr,
         log.delta, // escapeCsvValue will stringify and safely quote this JSON object
       ];
@@ -108,11 +120,8 @@ export async function GET(request: Request) {
     const csvText = buildCsv(headers, rows);
     return csvResponse(`audit_logs_export_${Date.now()}.csv`, csvText);
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized access or inactive company workspace." },
-        { status: 401 }
-      );
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/exports/audit-logs Error:", error);
     return NextResponse.json(

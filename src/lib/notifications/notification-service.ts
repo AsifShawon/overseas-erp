@@ -34,6 +34,7 @@ export async function createNotification(
       data: {
         userId:       input.userId,
         companyId:    input.companyId ?? null,
+        branchId:     input.branchId  ?? null,
         title:        input.title,
         message:      input.message,
         type:         input.type         ?? NotificationType.GENERAL,

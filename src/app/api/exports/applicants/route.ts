@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
-import { getUserPermissions } from "@/lib/rbac";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
     // Boundary Check: Applicants cannot export lists
     if (roleName === "Applicant") {
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       });
       if (!agent) {
         return csvResponse("applicants_export.csv", buildCsv(
-          ["Applicant Name", "Passport Number", "Phone", "Email", "Trade", "Nationality", "Current Stage", "Agent Code", "Job Order Number", "Archived", "Created At"],
+          ["Applicant Name", "Passport Number", "Phone", "Email", "Trade", "Nationality", "Current Stage", "Agent Code", "Job Order Number", "Branch Name", "Branch Code", "Archived", "Created At"],
           []
         ));
       }
@@ -51,8 +51,9 @@ export async function GET(request: Request) {
     const archived = archivedStr === "true";
 
     // Build Prisma query filters
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
     const where: any = {
-      companyId: activeCompanyId,
+      ...baseWhere,
       isArchived: archived,
     };
 
@@ -110,6 +111,12 @@ export async function GET(request: Request) {
             orderNumber: true,
           },
         },
+        branch: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -127,6 +134,8 @@ export async function GET(request: Request) {
       "Current Stage",
       "Agent Code",
       "Job Order Number",
+      "Branch Name",
+      "Branch Code",
       "Archived",
       "Created At",
     ];
@@ -141,6 +150,8 @@ export async function GET(request: Request) {
       app.currentStage,
       app.agent?.agentCode || "Walk-In",
       app.jobOrder?.orderNumber || "Unassigned",
+      app.branch?.name || "N/A",
+      app.branch?.code || "N/A",
       app.isArchived ? "Yes" : "No",
       app.createdAt.toISOString().split("T")[0],
     ]);
@@ -148,11 +159,8 @@ export async function GET(request: Request) {
     const csvText = buildCsv(headers, rows);
     return csvResponse(`applicants_export_${Date.now()}.csv`, csvText);
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized access or inactive company workspace." },
-        { status: 401 }
-      );
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/exports/applicants Error:", error);
     return NextResponse.json(

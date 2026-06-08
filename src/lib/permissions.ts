@@ -22,7 +22,15 @@ export type PermissionCode =
   | "INVITE_COMPANY_USER"
   | "UPDATE_COMPANY_USER"
   | "SUSPEND_COMPANY_USER"
-  | "VIEW_COMPANY_ROLES";
+  | "VIEW_COMPANY_ROLES"
+  | "VIEW_BRANCHES"
+  | "CREATE_BRANCH"
+  | "UPDATE_BRANCH"
+  | "SUSPEND_BRANCH"
+  | "VIEW_BRANCH_USERS"
+  | "ASSIGN_BRANCH_USERS"
+  | "VIEW_ALL_BRANCH_DATA"
+  | "VIEW_OWN_BRANCH_DATA";
 
 export interface Role {
   id: string;

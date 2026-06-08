@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
     // Block Agent and Applicant roles
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -35,14 +36,15 @@ export async function GET(request: Request) {
     const search = url.searchParams.get("search") || "";
     const transactionType = url.searchParams.get("transactionType") || "";
 
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
     const whereClause: any = {
-      companyId: activeCompanyId,
+      ...baseWhere,
     };
 
     if (search) {
       const matchingApplicants = await prisma.applicant.findMany({
         where: {
-          companyId: activeCompanyId,
+          ...baseWhere,
           OR: [
             { fullName: { contains: search, mode: "insensitive" } },
             { passportNumber: { contains: search, mode: "insensitive" } },
@@ -54,7 +56,7 @@ export async function GET(request: Request) {
 
       const matchingInvoices = await prisma.invoice.findMany({
         where: {
-          companyId: activeCompanyId,
+          ...baseWhere,
           invoiceNo: { contains: search, mode: "insensitive" },
         },
         select: { id: true },
@@ -63,7 +65,7 @@ export async function GET(request: Request) {
 
       const matchingReceipts = await prisma.receipt.findMany({
         where: {
-          companyId: activeCompanyId,
+          ...baseWhere,
           receiptNo: { contains: search, mode: "insensitive" },
         },
         select: { id: true },
@@ -93,6 +95,12 @@ export async function GET(request: Request) {
             passportNumber: true,
           },
         },
+        branch: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
       },
     });
 
@@ -100,11 +108,11 @@ export async function GET(request: Request) {
     const referenceIds = ledgerEntries.map((e) => e.referenceId);
 
     const invoices = await prisma.invoice.findMany({
-      where: { id: { in: referenceIds }, companyId: activeCompanyId },
+      where: { id: { in: referenceIds }, ...baseWhere },
     });
 
     const receipts = await prisma.receipt.findMany({
-      where: { id: { in: referenceIds }, companyId: activeCompanyId },
+      where: { id: { in: referenceIds }, ...baseWhere },
       include: {
         invoice: {
           select: {
@@ -121,6 +129,8 @@ export async function GET(request: Request) {
       "Timestamp",
       "Applicant Name",
       "Passport Number",
+      "Branch Name",
+      "Branch Code",
       "Transaction Type",
       "Reference No",
       "Description",
@@ -151,6 +161,8 @@ export async function GET(request: Request) {
         entry.timestamp.toISOString(),
         entry.applicant?.fullName || "Unknown Candidate",
         entry.applicant?.passportNumber || "N/A",
+        entry.branch?.name || "N/A",
+        entry.branch?.code || "N/A",
         entry.transactionType,
         referenceNo,
         description,
@@ -163,11 +175,8 @@ export async function GET(request: Request) {
     const csvText = buildCsv(headers, rows);
     return csvResponse(`ledger_export_${Date.now()}.csv`, csvText);
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized access or inactive company workspace." },
-        { status: 401 }
-      );
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/exports/ledger Error:", error);
     return NextResponse.json(

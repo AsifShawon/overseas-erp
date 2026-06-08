@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { verifyRefreshToken, signAccessToken, signRefreshToken, getRefreshTokenCookieOptions, resolveUserSessionPayload } from "@/lib/auth";
+import { getAccessibleBranches } from "@/lib/branch-scope";
 
 export async function POST(request: Request) {
   try {
@@ -66,6 +67,10 @@ export async function POST(request: Request) {
       path: cookieOpts.path,
     });
 
+    const branches = sessionPayload.activeCompanyId
+      ? await getAccessibleBranches(user.id, sessionPayload.activeCompanyId, sessionPayload.permissions)
+      : [];
+
     // 7. Return new access token & user details
     return NextResponse.json({
       accessToken: newAccessToken,
@@ -83,6 +88,7 @@ export async function POST(request: Request) {
         permissions: sessionPayload.permissions,
         mustChangePassword: user.mustChangePassword,
         companyStatus: sessionPayload.companyStatus,
+        branches,
       },
     });
   } catch (error) {

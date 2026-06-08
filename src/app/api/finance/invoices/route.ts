@@ -4,10 +4,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { getUserBranchScope, buildBranchWhere } from "@/lib/branch-scope";
 
 export async function GET(request: Request) {
   try {
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
+
+    if (branchScope.branchIds.includes("INACCESSIBLE_BRANCH")) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch scope." }, { status: 403 });
+    }
 
     // Boundary Check: Explicitly block Agent and Applicant user roles
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -42,19 +51,16 @@ export async function GET(request: Request) {
     const take = pageSize;
 
     // Build filters dynamically
-    const whereClause: any = {
-      companyId: activeCompanyId, // FORCE TENANT ISOLATION
-    };
+    const whereClause: any = buildBranchWhere(activeCompanyId, branchScope);
 
     if (search) {
       const matchingApplicants = await prisma.applicant.findMany({
-        where: {
-          companyId: activeCompanyId,
+        where: buildBranchWhere(activeCompanyId, branchScope, {
           OR: [
             { fullName: { contains: search, mode: "insensitive" } },
             { passportNumber: { contains: search, mode: "insensitive" } },
           ],
-        },
+        }),
         select: { id: true },
       });
       const applicantIds = matchingApplicants.map((a) => a.id);

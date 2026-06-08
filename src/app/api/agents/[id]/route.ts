@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { getUserBranchScope, validateWriteBranch } from "@/lib/branch-scope";
 import { z } from "zod";
 
 // Zod validation schema for updating an agent
@@ -13,6 +14,7 @@ const UpdateAgentSchema = z.object({
   tier: z.enum(["A", "B", "C"]).optional(),
   phone: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
+  branchId: z.string().optional().nullable(),
 });
 
 /**
@@ -23,6 +25,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
+
+    if (branchScope.branchIds.includes("INACCESSIBLE_BRANCH")) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch scope." }, { status: 403 });
+    }
 
     // RBAC validation
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
@@ -47,8 +57,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Agent record not found." }, { status: 404 });
     }
 
+    // Branch isolation scoping boundary check
+    if (!branchScope.isAllBranches && (!agent.branchId || !branchScope.branchIds.includes(agent.branchId))) {
+      return NextResponse.json({ error: "Forbidden. Sourcing boundaries restrict access to this partner." }, { status: 403 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const validatedData = UpdateAgentSchema.parse(body);
+
+    // Validate target branchId if updated
+    if (validatedData.branchId) {
+      await validateWriteBranch(validatedData.branchId, activeCompanyId, branchScope);
+    }
 
     // Apply updates atomically inside transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -59,11 +79,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (validatedData.tier !== undefined) agentUpdateData.tier = validatedData.tier;
       if (validatedData.phone !== undefined) agentUpdateData.phone = validatedData.phone;
       if (validatedData.isActive !== undefined) agentUpdateData.isActive = validatedData.isActive;
+      if (validatedData.branchId !== undefined) agentUpdateData.branchId = validatedData.branchId;
 
       const updatedAgent = await tx.agent.update({
         where: { id },
         data: agentUpdateData,
       });
+
+      // Sync BranchMembership if branchId changes
+      if (validatedData.branchId !== undefined && validatedData.branchId !== agent.branchId) {
+        await tx.branchMembership.deleteMany({
+          where: { userId: agent.userId, companyId: activeCompanyId }
+        });
+        if (validatedData.branchId) {
+          await tx.branchMembership.create({
+            data: {
+              userId: agent.userId,
+              companyId: activeCompanyId,
+              branchId: validatedData.branchId,
+              roleId: agent.user.roleId,
+              status: validatedData.isActive !== undefined ? (validatedData.isActive ? "ACTIVE" : "SUSPENDED") : (agent.user.isActive ? "ACTIVE" : "SUSPENDED"),
+              isBranchManager: false,
+            }
+          });
+        }
+      }
 
       // 2. Sync changes with linked User account if phone or isActive is updated
       const userUpdateData: any = {};

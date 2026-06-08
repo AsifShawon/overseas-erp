@@ -3,14 +3,14 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 
 export async function GET(request: Request) {
   try {
-    // 1. Authenticate and resolve company context
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
-    // 2. Bound Applicant access completely
+    // Bound Applicant access completely
     if (roleName === "Applicant") {
       return NextResponse.json(
         { error: "Forbidden. Applicant role does not have access to management dashboards." },
@@ -25,7 +25,8 @@ export async function GET(request: Request) {
     const isOperationsRequest = type === "operations";
     const hasViewReports = permissions.includes("VIEW_REPORTS");
 
-    // 3. Return payload customized for the authenticated user's role
+    // Construct DB filtering
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
 
     // -------------------------------------------------------------
     // SUPER ADMIN / OPERATIONS ADMIN / AUTHORIZED OPERATIONS REPORT COHORT
@@ -64,26 +65,26 @@ export async function GET(request: Request) {
         totalVisaDecided,
         totalVisaApproved,
       ] = await Promise.all([
-        prisma.applicant.count({ where: { isArchived: false, companyId: activeCompanyId } }),
-        prisma.applicant.count({ where: { isArchived: true, companyId: activeCompanyId } }),
-        prisma.agent.count({ where: { companyId: activeCompanyId } }),
-        prisma.agent.count({ where: { isActive: true, companyId: activeCompanyId } }),
-        prisma.jobOrder.count({ where: { companyId: activeCompanyId } }),
-        prisma.jobOrder.findMany({ where: { status: "OPEN", companyId: activeCompanyId }, select: { totalQuota: true, allocatedQuota: true } }),
-        prisma.jobOrder.aggregate({ where: { companyId: activeCompanyId }, _sum: { totalQuota: true } }),
-        prisma.jobOrder.aggregate({ where: { companyId: activeCompanyId }, _sum: { allocatedQuota: true } }),
-        prisma.invoice.aggregate({ where: { companyId: activeCompanyId }, _sum: { amount: true } }),
-        prisma.receipt.aggregate({ where: { companyId: activeCompanyId }, _sum: { amountPaid: true } }),
-        prisma.invoice.aggregate({ where: { companyId: activeCompanyId }, _sum: { outstanding: true } }),
-        prisma.commission.aggregate({ where: { status: "ACCRUED", companyId: activeCompanyId }, _sum: { amount: true } }),
-        prisma.commission.aggregate({ where: { status: "PAID", companyId: activeCompanyId }, _sum: { amount: true } }),
+        prisma.applicant.count({ where: { isArchived: false, ...baseWhere } }),
+        prisma.applicant.count({ where: { isArchived: true, ...baseWhere } }),
+        prisma.agent.count({ where: baseWhere }),
+        prisma.agent.count({ where: { isActive: true, ...baseWhere } }),
+        prisma.jobOrder.count({ where: baseWhere }),
+        prisma.jobOrder.findMany({ where: { status: "OPEN", ...baseWhere }, select: { totalQuota: true, allocatedQuota: true } }),
+        prisma.jobOrder.aggregate({ where: baseWhere, _sum: { totalQuota: true } }),
+        prisma.jobOrder.aggregate({ where: baseWhere, _sum: { allocatedQuota: true } }),
+        prisma.invoice.aggregate({ where: baseWhere, _sum: { amount: true } }),
+        prisma.receipt.aggregate({ where: baseWhere, _sum: { amountPaid: true } }),
+        prisma.invoice.aggregate({ where: baseWhere, _sum: { outstanding: true } }),
+        prisma.commission.aggregate({ where: { status: "ACCRUED", ...baseWhere }, _sum: { amount: true } }),
+        prisma.commission.aggregate({ where: { status: "PAID", ...baseWhere }, _sum: { amount: true } }),
         prisma.applicant.groupBy({
           by: ["currentStage"],
-          where: { isArchived: false, companyId: activeCompanyId },
+          where: { isArchived: false, ...baseWhere },
           _count: { id: true },
         }),
         prisma.auditLog.findMany({
-          where: { companyId: activeCompanyId },
+          where: baseWhere,
           orderBy: { timestamp: "desc" },
           take: 10,
           include: {
@@ -96,15 +97,15 @@ export async function GET(request: Request) {
           },
         }),
         prisma.notification.findMany({
-          where: { companyId: activeCompanyId },
+          where: baseWhere,
           orderBy: { createdAt: "desc" },
           take: 10,
         }),
         prisma.applicant.findMany({
           where: {
             isArchived: false,
-            companyId: activeCompanyId,
             passportExpiry: { lte: sixMonthsFromNow },
+            ...baseWhere,
           },
           select: {
             id: true,
@@ -116,14 +117,21 @@ export async function GET(request: Request) {
           take: 5,
         }),
         prisma.document.count({
-          where: { status: "PENDING_VERIFICATION", companyId: activeCompanyId },
+          where: {
+            status: "PENDING_VERIFICATION",
+            companyId: activeCompanyId,
+            applicant: baseWhere.branchId ? { branchId: baseWhere.branchId } : undefined
+          },
         }),
         prisma.jobOrder.findMany({
-          where: { companyId: activeCompanyId },
+          where: baseWhere,
           orderBy: { createdAt: "desc" },
         }),
         prisma.workflowHistory.findMany({
-          where: { companyId: activeCompanyId },
+          where: {
+            companyId: activeCompanyId,
+            applicant: baseWhere.branchId ? { branchId: baseWhere.branchId } : undefined
+          },
           include: {
             applicant: {
               select: {
@@ -134,7 +142,7 @@ export async function GET(request: Request) {
           orderBy: { timestamp: "asc" },
         }),
         prisma.agent.findMany({
-          where: { companyId: activeCompanyId },
+          where: baseWhere,
           include: {
             user: {
               select: {
@@ -143,10 +151,11 @@ export async function GET(request: Request) {
               },
             },
             applicants: {
-              where: { isArchived: false },
+              where: { isArchived: false, ...(baseWhere.branchId ? { branchId: baseWhere.branchId } : {}) },
               select: { id: true },
             },
             commissions: {
+              where: baseWhere.branchId ? { branchId: baseWhere.branchId } : undefined,
               select: {
                 amount: true,
                 status: true,
@@ -156,18 +165,18 @@ export async function GET(request: Request) {
         }),
         prisma.jobOrder.groupBy({
           by: ["country"],
-          where: { companyId: activeCompanyId },
+          where: baseWhere,
           _sum: { allocatedQuota: true },
         }),
         prisma.applicant.count({
           where: {
-            companyId: activeCompanyId,
+            ...baseWhere,
             currentStage: { in: ["VISA_STAMPED", "TICKETED", "DEPLOYED", "VISA_REJECTED"] }
           }
         }),
         prisma.applicant.count({
           where: {
-            companyId: activeCompanyId,
+            ...baseWhere,
             currentStage: { in: ["VISA_STAMPED", "TICKETED", "DEPLOYED"] }
           }
         }),
@@ -387,14 +396,14 @@ export async function GET(request: Request) {
     // -------------------------------------------------------------
     if (roleName === "HR Officer") {
       const [appliedCount, interviewedCount, selectedCount, recruitmentQueueRaw, openJobOrdersRaw, totalQuotaAgg, allocatedQuotaAgg, totalPlacedCount] = await Promise.all([
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "APPLIED", companyId: activeCompanyId } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "INTERVIEWED", companyId: activeCompanyId } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "SELECTED", companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "APPLIED", ...baseWhere } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "INTERVIEWED", ...baseWhere } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "SELECTED", ...baseWhere } }),
         prisma.applicant.findMany({
           where: {
             isArchived: false,
-            companyId: activeCompanyId,
             currentStage: { in: ["APPLIED", "INTERVIEWED"] },
+            ...baseWhere,
           },
           select: {
             id: true,
@@ -406,10 +415,10 @@ export async function GET(request: Request) {
           },
           orderBy: { createdAt: "desc" },
         }),
-        prisma.jobOrder.findMany({ where: { status: "OPEN", companyId: activeCompanyId }, select: { totalQuota: true, allocatedQuota: true } }),
-        prisma.jobOrder.aggregate({ where: { companyId: activeCompanyId }, _sum: { totalQuota: true } }),
-        prisma.jobOrder.aggregate({ where: { companyId: activeCompanyId }, _sum: { allocatedQuota: true } }),
-        prisma.applicant.count({ where: { companyId: activeCompanyId } }),
+        prisma.jobOrder.findMany({ where: { status: "OPEN", ...baseWhere }, select: { totalQuota: true, allocatedQuota: true } }),
+        prisma.jobOrder.aggregate({ where: baseWhere, _sum: { totalQuota: true } }),
+        prisma.jobOrder.aggregate({ where: baseWhere, _sum: { allocatedQuota: true } }),
+        prisma.applicant.count({ where: baseWhere }),
       ]);
 
       const openJobOrders = openJobOrdersRaw.filter((jo) => jo.allocatedQuota < jo.totalQuota).length;
@@ -446,17 +455,29 @@ export async function GET(request: Request) {
         medicalFitCount,
         pendingDocumentApplicantsRaw,
       ] = await Promise.all([
-        prisma.document.count({ where: { status: "PENDING_VERIFICATION", companyId: activeCompanyId } }),
-        prisma.document.count({ where: { status: "VERIFIED", companyId: activeCompanyId } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "MEDICAL_WAITING", companyId: activeCompanyId } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "MEDICAL_FIT", companyId: activeCompanyId } }),
+        prisma.document.count({
+          where: {
+            status: "PENDING_VERIFICATION",
+            companyId: activeCompanyId,
+            applicant: baseWhere.branchId ? { branchId: baseWhere.branchId } : undefined
+          }
+        }),
+        prisma.document.count({
+          where: {
+            status: "VERIFIED",
+            companyId: activeCompanyId,
+            applicant: baseWhere.branchId ? { branchId: baseWhere.branchId } : undefined
+          }
+        }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "MEDICAL_WAITING", ...baseWhere } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "MEDICAL_FIT", ...baseWhere } }),
         prisma.applicant.findMany({
           where: {
             isArchived: false,
-            companyId: activeCompanyId,
             documents: {
               some: { status: "PENDING_VERIFICATION", companyId: activeCompanyId },
             },
+            ...baseWhere,
           },
           select: {
             id: true,
@@ -510,21 +531,21 @@ export async function GET(request: Request) {
         clearedForVisaCount,
         visaQueueRaw,
       ] = await Promise.all([
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_SUBMITTED", companyId: activeCompanyId } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_STAMPED", companyId: activeCompanyId } }),
-        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_REJECTED", companyId: activeCompanyId } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_SUBMITTED", ...baseWhere } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_STAMPED", ...baseWhere } }),
+        prisma.applicant.count({ where: { isArchived: false, currentStage: "VISA_REJECTED", ...baseWhere } }),
         prisma.applicant.count({
           where: {
             isArchived: false,
-            companyId: activeCompanyId,
             currentStage: { in: ["MEDICAL_FIT", "TRAINING_COMPLETED"] },
+            ...baseWhere,
           },
         }),
         prisma.applicant.findMany({
           where: {
             isArchived: false,
-            companyId: activeCompanyId,
             currentStage: { in: ["VISA_SUBMITTED", "VISA_STAMPED", "VISA_REJECTED"] },
+            ...baseWhere,
           },
           select: {
             id: true,
@@ -573,18 +594,18 @@ export async function GET(request: Request) {
         accruedCommAgg,
         paidCommAgg,
       ] = await Promise.all([
-        prisma.invoice.aggregate({ where: { companyId: activeCompanyId }, _sum: { amount: true } }),
-        prisma.receipt.aggregate({ where: { companyId: activeCompanyId }, _sum: { amountPaid: true } }),
-        prisma.invoice.aggregate({ where: { companyId: activeCompanyId }, _sum: { outstanding: true } }),
+        prisma.invoice.aggregate({ where: baseWhere, _sum: { amount: true } }),
+        prisma.receipt.aggregate({ where: baseWhere, _sum: { amountPaid: true } }),
+        prisma.invoice.aggregate({ where: baseWhere, _sum: { outstanding: true } }),
         prisma.invoice.count({
           where: {
-            companyId: activeCompanyId,
             outstanding: { gt: 0 },
             dueDate: { lt: new Date() },
+            ...baseWhere,
           },
         }),
         prisma.invoice.findMany({
-          where: { companyId: activeCompanyId },
+          where: baseWhere,
           orderBy: { createdAt: "desc" },
           include: {
             applicant: {
@@ -594,8 +615,8 @@ export async function GET(request: Request) {
             },
           },
         }),
-        prisma.commission.aggregate({ where: { status: "ACCRUED", companyId: activeCompanyId }, _sum: { amount: true } }),
-        prisma.commission.aggregate({ where: { status: "PAID", companyId: activeCompanyId }, _sum: { amount: true } }),
+        prisma.commission.aggregate({ where: { status: "ACCRUED", ...baseWhere }, _sum: { amount: true } }),
+        prisma.commission.aggregate({ where: { status: "PAID", ...baseWhere }, _sum: { amount: true } }),
       ]);
 
       const totalInvoiced = Number(totalInvoicedAgg._sum.amount || 0);
@@ -627,7 +648,7 @@ export async function GET(request: Request) {
     }
 
     // -------------------------------------------------------------
-    // sourcing agent cohort
+    // SOURCING AGENT COHORT
     // -------------------------------------------------------------
     if (roleName === "Agent") {
       const agent = await prisma.agent.findFirst({
@@ -655,13 +676,13 @@ export async function GET(request: Request) {
         paidCommAgg,
         ownApplicantsRaw,
       ] = await Promise.all([
-        prisma.applicant.count({ where: { agentId, companyId: activeCompanyId } }),
-        prisma.applicant.count({ where: { agentId, isArchived: false, companyId: activeCompanyId } }),
-        prisma.applicant.count({ where: { agentId, currentStage: "DEPLOYED", companyId: activeCompanyId } }),
-        prisma.commission.aggregate({ where: { agentId, status: "ACCRUED", companyId: activeCompanyId }, _sum: { amount: true } }),
-        prisma.commission.aggregate({ where: { agentId, status: "PAID", companyId: activeCompanyId }, _sum: { amount: true } }),
+        prisma.applicant.count({ where: { agentId, ...baseWhere } }),
+        prisma.applicant.count({ where: { agentId, isArchived: false, ...baseWhere } }),
+        prisma.applicant.count({ where: { agentId, currentStage: "DEPLOYED", ...baseWhere } }),
+        prisma.commission.aggregate({ where: { agentId, status: "ACCRUED", ...baseWhere }, _sum: { amount: true } }),
+        prisma.commission.aggregate({ where: { agentId, status: "PAID", ...baseWhere }, _sum: { amount: true } }),
         prisma.applicant.findMany({
-          where: { agentId, companyId: activeCompanyId },
+          where: { agentId, ...baseWhere },
           select: {
             id: true,
             fullName: true,
@@ -699,8 +720,8 @@ export async function GET(request: Request) {
     // fallback
     return NextResponse.json({ error: "Role not recognized." }, { status: 400 });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/reports/dashboard Error:", error);
     return NextResponse.json(

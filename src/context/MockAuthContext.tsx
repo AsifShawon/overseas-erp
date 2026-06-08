@@ -31,6 +31,7 @@ interface AuthenticatedUser extends MockUser {
   activeCompanyName?: string | null;
   membershipId?: string | null;
   companyStatus?: string | null;
+  branches?: Array<{ id: string; name: string; code: string; isHeadOffice: boolean }>;
 }
 
 interface AuthContextType {
@@ -45,6 +46,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   establishSession: (accessToken: string, user: AuthenticatedUser) => void;
   updateUser: (fields: Partial<AuthenticatedUser>) => void;
+  activeBranchId: string | null;
+  setActiveBranchId: (id: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,6 +56,79 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeBranchId, setActiveBranchIdState] = useState<string | null>(null);
+
+  const setActiveBranchId = (id: string | null) => {
+    setActiveBranchIdState(id);
+    if (typeof window !== "undefined") {
+      if (id) {
+        localStorage.setItem("activeBranchId", id);
+      } else {
+        localStorage.removeItem("activeBranchId");
+      }
+    }
+  };
+
+  const selectDefaultBranch = (userObj: AuthenticatedUser | null) => {
+    if (!userObj || !userObj.branches || userObj.branches.length === 0) {
+      setActiveBranchIdState(null);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("activeBranchId");
+      }
+      return;
+    }
+
+    const saved = typeof window !== "undefined" ? localStorage.getItem("activeBranchId") : null;
+    const exists = saved ? (saved === "all" || userObj.branches.some(b => b.id === saved)) : false;
+    if (exists) {
+      setActiveBranchIdState(saved);
+    } else {
+      const ho = userObj.branches.find(b => b.isHeadOffice);
+      const defaultId = ho ? ho.id : userObj.branches[0].id;
+      setActiveBranchIdState(defaultId);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("activeBranchId", defaultId);
+      }
+    }
+  };
+
+  useEffect(() => {
+    selectDefaultBranch(currentUser);
+  }, [currentUser]);
+
+  // Intercept fetch to add branch scoping header
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const originalFetch = window.fetch;
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const branchId = localStorage.getItem("activeBranchId");
+      if (branchId && branchId !== "all" && input) {
+        let urlStr = "";
+        if (typeof input === "string") {
+          urlStr = input;
+        } else if (input instanceof URL) {
+          urlStr = input.toString();
+        } else if (input instanceof Request) {
+          urlStr = input.url;
+        }
+
+        if (urlStr.includes("/api/") && !urlStr.includes("/api/auth/")) {
+          if (input instanceof Request) {
+            input.headers.set("X-Branch-Id", branchId);
+          } else {
+            init = init || {};
+            const headers = new Headers(init.headers);
+            headers.set("X-Branch-Id", branchId);
+            init.headers = headers;
+          }
+        }
+      }
+      return originalFetch(input, init);
+    };
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -246,6 +322,8 @@ export function MockAuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         establishSession,
         updateUser,
+        activeBranchId,
+        setActiveBranchId,
       }}
     >
       {children}

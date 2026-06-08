@@ -66,6 +66,7 @@ export const en = {
     notifications: "Notifications",
     auditLogs: "Audit Logs",
     companyUsers: "Company Users",
+    branches: "Branches",
     rbacSettings: "RBAC Settings",
     brandTitle: "Visa",
     brandTitleHighlight: "Tek",

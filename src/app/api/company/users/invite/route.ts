@@ -16,6 +16,8 @@ const InviteUserSchema = z.object({
   phone: z.string().optional(),
   roleId: z.string().uuid("Invalid role ID."),
   note: z.string().optional(),
+  branchIds: z.array(z.string()).optional(),
+  isAllBranches: z.boolean().optional(),
 });
 
 /**
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const validatedData = InviteUserSchema.parse(body);
 
-    const { fullName, email, phone, roleId } = validatedData;
+    const { fullName, email, phone, roleId, branchIds, isAllBranches } = validatedData;
     const targetEmail = email.toLowerCase().trim();
 
     // 1. Validate the selected role
@@ -119,6 +121,45 @@ export async function POST(request: Request) {
         company: true,
       },
     });
+
+    // Resolve branches to assign
+    const roleHasAllBranches = role.name === "Super Admin" || role.name === "Operations Admin";
+    let targetBranches: string[] = [];
+
+    if (isAllBranches || roleHasAllBranches) {
+      const activeBranches = await prisma.branch.findMany({
+        where: { companyId: ctx.activeCompanyId, status: "ACTIVE" }
+      });
+      targetBranches = activeBranches.map(b => b.id);
+    } else {
+      targetBranches = branchIds || [];
+      if (targetBranches.length === 0) {
+        const hoBranch = await prisma.branch.findFirst({
+          where: { companyId: ctx.activeCompanyId, isHeadOffice: true }
+        });
+        if (hoBranch) {
+          targetBranches = [hoBranch.id];
+        }
+      }
+    }
+
+    if (!roleHasAllBranches && targetBranches.length === 0) {
+      return NextResponse.json({ error: "At least one branch assignment is required." }, { status: 400 });
+    }
+
+    // Create BranchMembership records
+    for (const bId of targetBranches) {
+      await prisma.branchMembership.create({
+        data: {
+          userId: user.id,
+          companyId: ctx.activeCompanyId,
+          branchId: bId,
+          roleId: role.id,
+          status: membershipStatus,
+          isBranchManager: roleHasAllBranches
+        }
+      });
+    }
 
     // 5. Generate activation token if new user
     let activationLink: string | null = null;

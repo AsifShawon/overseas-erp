@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { getUserBranchScope, buildBranchWhere, validateWriteBranch } from "@/lib/branch-scope";
 import { z } from "zod";
 
 // Zod validation schema for creating a new Job Order
@@ -18,6 +19,7 @@ const CreateJobOrderSchema = z.object({
   commissionAmount: z.number().nonnegative("Commission amount per candidate must be a non-negative number"),
   orderNumber: z.string().optional().nullable(),
   status: z.enum(["OPEN", "CLOSED", "COMPLETED"]).optional().default("OPEN"),
+  branchId: z.string().optional().nullable(),
 });
 
 // Helper to resolve ISO-like Country Codes
@@ -81,6 +83,14 @@ async function generateJobOrderNumber(country: string, activeCompanyId: string, 
 export async function GET(request: Request) {
   try {
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
+
+    if (branchScope.branchIds.includes("INACCESSIBLE_BRANCH")) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch scope." }, { status: 403 });
+    }
 
     // Boundary Check: Placed candidates (Applicants) strictly forbidden
     if (roleName === "Applicant") {
@@ -121,9 +131,7 @@ export async function GET(request: Request) {
     const pageSize = Math.max(1, parseInt(searchParams.get("pageSize") || "100")); // large default for dashboard lists
     const skip = (page - 1) * pageSize;
 
-    const where: any = {
-      companyId: activeCompanyId, // FORCE TENANT ISOLATION
-    };
+    const where: any = buildBranchWhere(activeCompanyId, branchScope);
 
     if (enforcedOpenOnly) {
       where.status = "OPEN";
@@ -161,19 +169,19 @@ export async function GET(request: Request) {
       }),
       prisma.$transaction(async (tx) => {
         const aggregates = await tx.jobOrder.aggregate({
-          where: { companyId: activeCompanyId },
+          where: buildBranchWhere(activeCompanyId, branchScope),
           _sum: {
             totalQuota: true,
             allocatedQuota: true,
           },
         });
         const openOrdersList = await tx.jobOrder.findMany({
-          where: { companyId: activeCompanyId, status: "OPEN" },
+          where: buildBranchWhere(activeCompanyId, branchScope, { status: "OPEN" }),
           select: { totalQuota: true, allocatedQuota: true },
         });
         const openOrders = openOrdersList.filter(jo => jo.allocatedQuota < jo.totalQuota).length;
-        const closedOrders = await tx.jobOrder.count({ where: { companyId: activeCompanyId, status: "CLOSED" } });
-        const completedOrders = await tx.jobOrder.count({ where: { companyId: activeCompanyId, status: "COMPLETED" } });
+        const closedOrders = await tx.jobOrder.count({ where: buildBranchWhere(activeCompanyId, branchScope, { status: "CLOSED" }) });
+        const completedOrders = await tx.jobOrder.count({ where: buildBranchWhere(activeCompanyId, branchScope, { status: "COMPLETED" }) });
         return {
           totalQuota: aggregates._sum.totalQuota || 0,
           allocatedQuota: aggregates._sum.allocatedQuota || 0,
@@ -241,6 +249,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
 
     // RBAC permission check
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
@@ -255,6 +267,26 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const validatedData = CreateJobOrderSchema.parse(body);
+
+    // Resolve and Validate branchId
+    let targetBranchId = validatedData.branchId;
+    if (targetBranchId) {
+      await validateWriteBranch(targetBranchId, activeCompanyId, branchScope);
+    } else {
+      if (branchScope.isAllBranches) {
+        const hoBranch = await prisma.branch.findFirst({
+          where: { companyId: activeCompanyId, isHeadOffice: true, status: "ACTIVE" },
+        });
+        if (!hoBranch) {
+          return NextResponse.json({ error: "Head Office branch not found. Please specify a branchId." }, { status: 400 });
+        }
+        targetBranchId = hoBranch.id;
+      } else if (branchScope.branchIds.length === 1) {
+        targetBranchId = branchScope.branchIds[0];
+      } else {
+        return NextResponse.json({ error: "Multiple branches assigned. branchId is required in payload." }, { status: 400 });
+      }
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       // Resolve sequential order number
@@ -283,6 +315,7 @@ export async function POST(request: Request) {
           commissionAmount: validatedData.commissionAmount,
           status: validatedData.status || "OPEN",
           companyId: activeCompanyId, // SET TENANT ID
+          branchId: targetBranchId,   // SET BRANCH ID
         },
       });
 
@@ -311,6 +344,7 @@ export async function POST(request: Request) {
             message: `Vacancies for ${jobOrder.trade} (${jobOrder.totalQuota} slots) at ${jobOrder.employerName} have been registered under ref: ${jobOrder.orderNumber}.`,
             isRead: false,
             companyId: activeCompanyId,
+            branchId: targetBranchId,
           })),
         });
       }

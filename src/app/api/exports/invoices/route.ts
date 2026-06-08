@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
     // Block Agent and Applicant roles
     if (roleName === "Agent" || roleName === "Applicant") {
@@ -34,14 +35,15 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
 
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
     const whereClause: any = {
-      companyId: activeCompanyId,
+      ...baseWhere,
     };
 
     if (search) {
       const matchingApplicants = await prisma.applicant.findMany({
         where: {
-          companyId: activeCompanyId,
+          ...baseWhere,
           OR: [
             { fullName: { contains: search, mode: "insensitive" } },
             { passportNumber: { contains: search, mode: "insensitive" } },
@@ -69,6 +71,12 @@ export async function GET(request: Request) {
             passportNumber: true,
           },
         },
+        branch: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
       },
     });
 
@@ -76,6 +84,8 @@ export async function GET(request: Request) {
       "Invoice No",
       "Applicant Name",
       "Passport Number",
+      "Branch Name",
+      "Branch Code",
       "Amount",
       "Outstanding",
       "Status",
@@ -99,6 +109,8 @@ export async function GET(request: Request) {
         inv.invoiceNo,
         inv.applicant?.fullName || "Unknown Candidate",
         inv.applicant?.passportNumber || "N/A",
+        inv.branch?.name || "N/A",
+        inv.branch?.code || "N/A",
         amount.toFixed(2),
         outstanding.toFixed(2),
         status,
@@ -111,11 +123,8 @@ export async function GET(request: Request) {
     const csvText = buildCsv(headers, rows);
     return csvResponse(`invoices_export_${Date.now()}.csv`, csvText);
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized access or inactive company workspace." },
-        { status: 401 }
-      );
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/exports/invoices Error:", error);
     return NextResponse.json(

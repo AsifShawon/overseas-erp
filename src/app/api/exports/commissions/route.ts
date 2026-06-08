@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext, buildBranchWhere } from "@/lib/branch-scope";
 import { buildCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId, userId, roleName, permissions } = branchScope;
 
     // Applicant role blocked
     if (roleName === "Applicant") {
@@ -55,8 +56,9 @@ export async function GET(request: Request) {
     const agentIdParam = url.searchParams.get("agentId") || "";
 
     // Build the query where clause
+    const baseWhere = buildBranchWhere(activeCompanyId, branchScope);
     const whereClause: any = {
-      companyId: activeCompanyId,
+      ...baseWhere,
     };
 
     // Apply agent cohort constraints
@@ -117,6 +119,12 @@ export async function GET(request: Request) {
             orderNumber: true,
           },
         },
+        branch: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
       },
     });
 
@@ -126,6 +134,8 @@ export async function GET(request: Request) {
       "Applicant Name",
       "Passport Number",
       "Job Order Number",
+      "Branch Name",
+      "Branch Code",
       "Amount",
       "Status",
       "Payout Ref",
@@ -144,6 +154,8 @@ export async function GET(request: Request) {
         c.applicant.fullName,
         c.applicant.passportNumber,
         c.jobOrder.orderNumber,
+        c.branch?.name || "N/A",
+        c.branch?.code || "N/A",
         Number(c.amount).toFixed(2),
         c.status,
         payoutRefStr,
@@ -155,11 +167,8 @@ export async function GET(request: Request) {
     const csvText = buildCsv(headers, rows);
     return csvResponse(`commissions_export_${Date.now()}.csv`, csvText);
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json(
-        { error: "Unauthorized access or inactive company workspace." },
-        { status: 401 }
-      );
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/exports/commissions Error:", error);
     return NextResponse.json(

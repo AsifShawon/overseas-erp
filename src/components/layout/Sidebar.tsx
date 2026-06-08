@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Globe2,
   Mail,
+  Building2,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -52,6 +53,7 @@ const SIDEBAR_LINKS: SidebarLink[] = [
   { label: "Notifications", href: "/notifications", icon: Bell, permission: "VIEW_NOTIFICATIONS" },
   { label: "Audit Logs", href: "/audit-logs", icon: History, permission: "VIEW_AUDIT_LOGS" },
   { label: "Company Users", href: "/settings/users", icon: Users, permission: "VIEW_COMPANY_USERS" },
+  { label: "Branches", href: "/settings/branches", icon: Building2, permission: "VIEW_BRANCHES" },
   { label: "RBAC Settings", href: "/rbac", icon: ShieldCheck, permission: "MANAGE_RBAC" },
 ];
 
@@ -91,6 +93,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
       case "Notifications": return "notifications";
       case "Audit Logs": return "auditLogs";
       case "Company Users": return "companyUsers";
+      case "Branches": return "branches";
       case "RBAC Settings": return "rbacSettings";
       case "Platform Dashboard": return "platformDashboard";
       case "Company Applications": return "companyApplications";

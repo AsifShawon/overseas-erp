@@ -3,14 +3,15 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { requireBranchContext } from "@/lib/branch-scope";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { activeCompanyId } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId } = branchScope;
     const { id } = await params;
     const body = await request.json();
 
@@ -20,6 +21,10 @@ export async function PATCH(
     });
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    if (!branchScope.isAllBranches && task.branchId && !branchScope.branchIds.includes(task.branchId)) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch task." }, { status: 403 });
     }
 
     const { title, description, status, priority, dueAt, assignedToId } = body;
@@ -39,8 +44,8 @@ export async function PATCH(
 
     return NextResponse.json(updated);
   } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
+      return NextResponse.json({ error: err.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: err.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("PATCH /api/tasks/[id] Error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -52,7 +57,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { activeCompanyId } = await getCompanyContextOrThrow(request);
+    const branchScope = await requireBranchContext(request);
+    const { activeCompanyId } = branchScope;
     const { id } = await params;
 
     const task = await prisma.task.findFirst({
@@ -66,10 +72,14 @@ export async function GET(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
+    if (!branchScope.isAllBranches && task.branchId && !branchScope.branchIds.includes(task.branchId)) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch task." }, { status: 403 });
+    }
+
     return NextResponse.json(task);
   } catch (err: any) {
-    if (err.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
+      return NextResponse.json({ error: err.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: err.message === "FORBIDDEN" ? 403 : 401 });
     }
     console.error("GET /api/tasks/[id] Error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

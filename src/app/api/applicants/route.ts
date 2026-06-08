@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCompanyContextOrThrow } from "@/lib/tenant-scope";
+import { getUserBranchScope, buildBranchWhere, validateWriteBranch } from "@/lib/branch-scope";
 import { z } from "zod";
 
 // Zod validation schema for creating a new candidate
@@ -24,6 +25,7 @@ const CreateApplicantSchema = z.object({
   trade: z.string().min(1, "Trade category is required"),
   agentId: z.string().optional().nullable(),
   jobOrderId: z.string().optional().nullable(),
+  branchId: z.string().optional().nullable(),
 });
 
 /**
@@ -34,6 +36,14 @@ const CreateApplicantSchema = z.object({
 export async function GET(request: Request) {
   try {
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
+
+    if (branchScope.branchIds.includes("INACCESSIBLE_BRANCH")) {
+      return NextResponse.json({ error: "Forbidden. Inaccessible branch scope." }, { status: 403 });
+    }
 
     // Boundary Check: Applicants are forbidden from accessing the entire directory list
     if (roleName === "Applicant") {
@@ -83,10 +93,9 @@ export async function GET(request: Request) {
     const skip = (page - 1) * pageSize;
 
     // Build the query where clause
-    const where: any = {
+    const where: any = buildBranchWhere(activeCompanyId, branchScope, {
       isArchived: archived,
-      companyId: activeCompanyId, // FORCE TENANT ISOLATION
-    };
+    });
 
     // Cohort boundary enforcement
     if (enforcedAgentId) {
@@ -179,6 +188,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { activeCompanyId, userId, roleName, permissions } = await getCompanyContextOrThrow(request);
+    const branchScope = await getUserBranchScope(request);
+    if (!branchScope) {
+      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    }
 
     // Check RBAC permission for creation
     const isSuperOrOps = roleName === "Super Admin" || roleName === "Operations Admin";
@@ -209,7 +222,27 @@ export async function POST(request: Request) {
       validatedData.agentId = enforcedAgentId;
     }
 
-    // Check passport uniqueness (schema constraint is globally unique, so query globally)
+    // Resolve and Validate branchId
+    let targetBranchId = validatedData.branchId;
+    if (targetBranchId) {
+      await validateWriteBranch(targetBranchId, activeCompanyId, branchScope);
+    } else {
+      if (branchScope.isAllBranches) {
+        const hoBranch = await prisma.branch.findFirst({
+          where: { companyId: activeCompanyId, isHeadOffice: true, status: "ACTIVE" },
+        });
+        if (!hoBranch) {
+          return NextResponse.json({ error: "Head Office branch not found. Please specify a branchId." }, { status: 400 });
+        }
+        targetBranchId = hoBranch.id;
+      } else if (branchScope.branchIds.length === 1) {
+        targetBranchId = branchScope.branchIds[0];
+      } else {
+        return NextResponse.json({ error: "Multiple branches assigned. branchId is required in payload." }, { status: 400 });
+      }
+    }
+
+    // Check passport uniqueness
     const existingApplicant = await prisma.applicant.findUnique({
       where: { passportNumber: validatedData.passportNumber.trim() },
     });
@@ -221,7 +254,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify jobOrderId belongs to activeCompanyId
+    // Verify jobOrderId belongs to activeCompanyId and accessible branch
     if (validatedData.jobOrderId) {
       const jobOrder = await prisma.jobOrder.findFirst({
         where: { id: validatedData.jobOrderId, companyId: activeCompanyId },
@@ -229,15 +262,27 @@ export async function POST(request: Request) {
       if (!jobOrder) {
         return NextResponse.json({ error: "The specified Job Order does not exist in this company." }, { status: 400 });
       }
+      if (jobOrder.branchId && jobOrder.branchId !== targetBranchId) {
+        const isJobBranchAccessible = branchScope.isAllBranches || branchScope.branchIds.includes(jobOrder.branchId);
+        if (!isJobBranchAccessible) {
+          return NextResponse.json({ error: "The selected Job Order belongs to a branch that is not accessible to you." }, { status: 403 });
+        }
+      }
     }
 
-    // Verify agentId belongs to activeCompanyId
+    // Verify agentId belongs to activeCompanyId and accessible branch
     if (validatedData.agentId) {
       const agent = await prisma.agent.findFirst({
         where: { id: validatedData.agentId, companyId: activeCompanyId },
       });
       if (!agent) {
         return NextResponse.json({ error: "The specified Agent does not exist in this company." }, { status: 400 });
+      }
+      if (agent.branchId && agent.branchId !== targetBranchId) {
+        const isAgentBranchAccessible = branchScope.isAllBranches || branchScope.branchIds.includes(agent.branchId);
+        if (!isAgentBranchAccessible) {
+          return NextResponse.json({ error: "The selected Agent belongs to a branch that is not accessible to you." }, { status: 403 });
+        }
       }
     }
 
@@ -260,7 +305,6 @@ export async function POST(request: Request) {
           throw new Error(`The placement quota limit for this Job Order (${jobOrder.totalQuota}) has been fully filled.`);
         }
 
-        // Increment the JobOrder allocatedQuota atomically
         await tx.jobOrder.update({
           where: { id: jobOrder.id },
           data: {
@@ -276,6 +320,7 @@ export async function POST(request: Request) {
           ...validatedData,
           passportNumber: validatedData.passportNumber.trim(),
           companyId: activeCompanyId, // ASSIGN TENANT
+          branchId: targetBranchId,   // ASSIGN BRANCH
         },
       });
     });
@@ -331,8 +376,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(applicant, { status: 201 });
   } catch (error: any) {
-    if (error.message === "UNAUTHORIZED") {
-      return NextResponse.json({ error: "Unauthorized access or inactive company workspace." }, { status: 401 });
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });
     }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Validation failed." }, { status: 400 });
