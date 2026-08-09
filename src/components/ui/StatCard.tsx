@@ -1,23 +1,16 @@
 import React from "react";
-import * as Icons from "lucide-react";
-import { MetricCard } from "./MetricCard";
+import { MetricCard, type MetricCardProps } from "./MetricCard";
 
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  description?: string;
-  iconName?: keyof typeof Icons;
-  trend?: {
-    value: string;
-    isPositive: boolean;
-  };
-  variant?: "default" | "success" | "warning" | "danger" | "info";
-  className?: string;
-}
+/**
+ * Back-compatible alias for MetricCard.
+ *
+ * Kept so the many existing `StatCard` call sites keep working; new code should
+ * import MetricCard directly.
+ */
+export type StatCardProps = MetricCardProps;
 
 export function StatCard(props: StatCardProps) {
   return <MetricCard {...props} />;
 }
 
 export default StatCard;
-

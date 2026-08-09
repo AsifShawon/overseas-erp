@@ -10,6 +10,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import {
+  CHART_GRID_STROKE,
+  CHART_SEMANTIC,
+  CHART_TICK,
+  CHART_TOOLTIP_LABEL_STYLE,
+  CHART_TOOLTIP_STYLE,
+} from "./chart-theme";
 
 export interface AreaTrendDataPoint {
   label: string;
@@ -29,8 +36,8 @@ interface AreaTrendChartProps {
 export function AreaTrendChart({
   data,
   height = 260,
-  primaryColor = "#4f46e5",
-  secondaryColor = "#0284c7",
+  primaryColor = CHART_SEMANTIC.primary,
+  secondaryColor = CHART_SEMANTIC.info,
   primaryName = "Count",
   secondaryName = "Target",
 }: AreaTrendChartProps) {
@@ -58,28 +65,22 @@ export function AreaTrendChart({
               </linearGradient>
             )}
           </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.6} />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID_STROKE} />
           <XAxis
             dataKey="label"
             axisLine={false}
             tickLine={false}
-            tick={{ fontSize: 11, fill: "var(--text-soft)" }}
+            tick={CHART_TICK}
             dy={8}
           />
           <YAxis
             axisLine={false}
             tickLine={false}
-            tick={{ fontSize: 11, fill: "var(--text-soft)" }}
+            tick={CHART_TICK}
           />
           <Tooltip
-            contentStyle={{
-              backgroundColor: "var(--surface)",
-              borderColor: "var(--border)",
-              borderRadius: "0.5rem",
-              fontSize: "0.75rem",
-              color: "var(--text)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}
+            contentStyle={CHART_TOOLTIP_STYLE}
+            labelStyle={CHART_TOOLTIP_LABEL_STYLE}
           />
           <Area
             type="monotone"

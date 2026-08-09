@@ -1,14 +1,14 @@
 "use client";
 
 import React from "react";
-import * as Icons from "lucide-react";
+import { ICONS, type IconName } from "./icon-registry";
 
 export interface TimelineItem {
   key: string;
   title: string | React.ReactNode;
   description?: string | React.ReactNode;
   timestamp?: string;
-  iconName?: keyof typeof Icons;
+  iconName?: IconName;
   status?: "completed" | "active" | "pending" | "error" | "warning";
   action?: React.ReactNode;
 }
@@ -60,7 +60,7 @@ export function Timeline({ items, layout = "vertical", className = "" }: Timelin
       <div className={`flex flex-col md:flex-row gap-6 md:gap-4 overflow-x-auto py-4 ${className}`}>
         {items.map((item, idx) => {
           const colors = getStatusColor(item.status);
-          const IconComponent = item.iconName ? Icons[item.iconName] as React.ComponentType<{ className?: string }> : null;
+          const IconComponent = item.iconName ? ICONS[item.iconName] : null;
 
           return (
             <div key={item.key} className="flex-1 flex flex-row md:flex-col gap-4 md:gap-2 relative min-w-[200px]">
@@ -110,7 +110,7 @@ export function Timeline({ items, layout = "vertical", className = "" }: Timelin
       <ul className="-mb-8">
         {items.map((item, idx) => {
           const colors = getStatusColor(item.status);
-          const IconComponent = item.iconName ? Icons[item.iconName] as React.ComponentType<{ className?: string }> : null;
+          const IconComponent = item.iconName ? ICONS[item.iconName] : null;
 
           return (
             <li key={item.key}>

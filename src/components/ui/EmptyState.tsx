@@ -1,15 +1,15 @@
 import React from "react";
-import * as Icons from "lucide-react";
+import { ICONS, type IconName } from "./icon-registry";
 
 interface EmptyStateProps {
   title: string;
   description: string;
-  iconName?: keyof typeof Icons;
+  iconName?: IconName;
   actionButton?: React.ReactNode;
 }
 
 export function EmptyState({ title, description, iconName = "Search", actionButton }: EmptyStateProps) {
-  const IconComponent = Icons[iconName] as React.ComponentType<{ className?: string }>;
+  const IconComponent = ICONS[iconName];
 
   return (
     <div className="flex min-h-[300px] flex-col items-center justify-center rounded-xl border border-dashed border-border-theme bg-bg-muted/50 p-8 text-center">

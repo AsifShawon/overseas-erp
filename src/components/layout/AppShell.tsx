@@ -96,17 +96,14 @@ function ForcePasswordReset() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md relative overflow-hidden rounded-2xl border border-border-theme bg-surface p-6 md:p-8 shadow-2xl transition-all">
-        {/* Glow styling accent */}
-        <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-500" />
-
+    <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md relative overflow-hidden rounded-card border border-border-theme bg-surface p-6 md:p-8 shadow-md transition-all">
         <div className="flex flex-col items-center text-center mb-6 space-y-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning-soft text-warning-theme border border-warning-theme/25">
             <Lock className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-lg font-bold text-text-theme">Hardened Password Required</h2>
+            <h2 className="text-lg font-semibold text-text-theme">Password Change Required</h2>
             <p className="text-xs text-text-soft leading-relaxed px-4">
               Your account has been provisioned with temporary credentials. You must set a new secure password before accessing the system.
             </p>
@@ -115,15 +112,15 @@ function ForcePasswordReset() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {errorMsg && (
-            <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50/50 p-3 text-xs text-rose-800 dark:border-rose-950/40 dark:bg-rose-950/20 dark:text-rose-400">
-              <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
+            <div role="alert" className="flex items-start gap-2 rounded-md border border-danger-theme/25 bg-danger-soft p-3 text-xs text-danger-theme">
+              <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 text-xs text-emerald-800 dark:border-emerald-950/40 dark:bg-emerald-950/20 dark:text-emerald-400">
-              <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+            <div role="status" className="flex items-start gap-2 rounded-md border border-success-theme/25 bg-success-soft p-3 text-xs text-success-theme">
+              <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{successMsg}</span>
             </div>
           )}
@@ -141,7 +138,7 @@ function ForcePasswordReset() {
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="Enter temporary password"
                 disabled={loading}
-                className="w-full rounded-lg border border-border-theme bg-bg py-2 pl-3 pr-10 text-xs outline-none transition-all focus:border-primary-theme focus:bg-surface focus:ring-1 focus:ring-primary-theme text-text-theme"
+                className="h-10 w-full rounded-md border border-input-border bg-input-bg pl-3 pr-10 text-xs text-text-theme"
               />
               <button
                 type="button"
@@ -166,7 +163,7 @@ function ForcePasswordReset() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Choose a strong new password"
                 disabled={loading}
-                className="w-full rounded-lg border border-border-theme bg-bg py-2 pl-3 pr-10 text-xs outline-none transition-all focus:border-primary-theme focus:bg-surface focus:ring-1 focus:ring-primary-theme text-text-theme"
+                className="h-10 w-full rounded-md border border-input-border bg-input-bg pl-3 pr-10 text-xs text-text-theme"
               />
               <button
                 type="button"
@@ -192,7 +189,7 @@ function ForcePasswordReset() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"
                 disabled={loading}
-                className="w-full rounded-lg border border-border-theme bg-bg py-2 pl-3 pr-10 text-xs outline-none transition-all focus:border-primary-theme focus:bg-surface focus:ring-1 focus:ring-primary-theme text-text-theme"
+                className="h-10 w-full rounded-md border border-input-border bg-input-bg pl-3 pr-10 text-xs text-text-theme"
               />
               <button
                 type="button"
@@ -208,21 +205,21 @@ function ForcePasswordReset() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-theme px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-600 transition-colors shadow-lg hover:shadow-indigo-500/20 disabled:opacity-50"
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary-theme px-4 text-xs font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Hardening Credentials...
+                  Updating password...
                 </>
               ) : (
-                "Set Secure Password"
+                "Set New Password"
               )}
             </button>
             <button
               type="button"
               onClick={logout}
-              className="w-full text-center py-2 text-[10px] text-text-muted hover:text-danger-theme transition-colors font-semibold"
+              className="w-full text-center py-2 text-[11px] text-text-muted hover:text-danger-theme transition-colors font-medium cursor-pointer"
             >
               Cancel & Log Out
             </button>
@@ -248,20 +245,20 @@ function InnerAppShell({ children }: { children: React.ReactNode }) {
   // 1. Platform pages guard: platform pages require isPlatformAdmin
   if (pathname.startsWith("/platform") && !user.isPlatformAdmin) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white dark:bg-slate-950 shadow-xl border border-slate-100 dark:border-slate-800 rounded-2xl p-6 text-center space-y-4">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
+      <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-card border border-border-theme bg-surface p-6 text-center shadow-md space-y-4">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-danger-soft text-danger-theme">
             <ShieldAlert className="h-8 w-8" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+          <h2 className="text-lg font-semibold text-text-theme">
             Access Denied
           </h2>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+          <p className="mx-auto max-w-sm text-xs leading-relaxed text-text-muted">
             You do not have permission to access the platform administration area.
           </p>
           <button
             onClick={() => router.push(user.roleName === "Applicant" ? "/applicant/portal" : "/dashboard")}
-            className="w-full rounded-lg bg-slate-950 dark:bg-slate-50 dark:text-slate-950 text-white font-semibold py-2 text-xs transition-colors hover:bg-slate-800 dark:hover:bg-slate-200"
+            className="h-9.5 w-full rounded-md bg-primary-theme text-xs font-semibold text-white transition-colors hover:bg-primary-hover cursor-pointer"
           >
             Go Back to Safety
           </button>
@@ -292,22 +289,22 @@ function InnerAppShell({ children }: { children: React.ReactNode }) {
 
     if (!user.activeCompanyId || user.companyStatus !== "ACTIVE") {
       return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white dark:bg-slate-950 shadow-xl border border-slate-100 dark:border-slate-800 rounded-2xl p-6 text-center space-y-4">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
+        <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-card border border-border-theme bg-surface p-6 text-center shadow-md space-y-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-danger-soft text-danger-theme">
               <ShieldAlert className="h-8 w-8" />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-text-theme">
               Workspace Inactive
             </h2>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+            <p className="mx-auto max-w-sm text-xs leading-relaxed text-text-muted">
               {user.activeCompanyId 
                 ? `Your workspace (${user.activeCompanyName}) is currently inactive or suspended. Please contact platform administration to restore access.`
                 : "No active company workspace is available for this account."}
             </p>
             <button
               onClick={logout}
-              className="w-full rounded-lg bg-slate-950 dark:bg-slate-50 dark:text-slate-950 text-white font-semibold py-2 text-xs transition-colors hover:bg-slate-800 dark:hover:bg-slate-200"
+              className="h-9.5 w-full rounded-md bg-primary-theme text-xs font-semibold text-white transition-colors hover:bg-primary-hover cursor-pointer"
             >
               Log Out
             </button>
@@ -341,13 +338,17 @@ function InnerAppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main Layout Area */}
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
-          sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
+        className={`flex-1 flex flex-col min-w-0 transition-[padding] duration-200 ${
+          sidebarCollapsed ? "lg:pl-18" : "lg:pl-60"
         } pl-0`}
       >
         <Topbar onMenuClick={() => setMobileOpen(!mobileOpen)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7">
-          <div className="w-full space-y-6">{children}</div>
+        {/*
+          Operational ERP screens are full-bleed on purpose — no narrow centered
+          column. Padding: 16px mobile / 20-24px tablet / 28px desktop.
+        */}
+        <main id="main-content" className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7">
+          <div className="w-full space-y-5">{children}</div>
         </main>
       </div>
     </div>

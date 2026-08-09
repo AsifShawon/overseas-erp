@@ -11,8 +11,15 @@ import { DocumentChecklist } from "@/components/shared/DocumentChecklist";
 import { LedgerTable } from "@/components/shared/LedgerTable";
 import { WorkflowStepper } from "@/components/shared/WorkflowStepper";
 import { ReceiptPreview } from "@/components/shared/ReceiptPreview";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { AppButton } from "@/components/ui/AppButton";
+import { AppBadge } from "@/components/ui/AppBadge";
+import { Tabs } from "@/components/ui/Tabs";
+import { SummaryStrip } from "@/components/ui/SummaryStrip";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { ErrorPanel, EmptyPanel } from "@/components/ui/PageState";
 import { useT } from "@/i18n/useT";
-import { formatNumber } from "@/i18n/format";
+import { formatCurrency } from "@/i18n/format";
 import {
   MockApplicant,
   MockDocument,
@@ -25,12 +32,11 @@ import {
   User,
   FileText,
   CreditCard,
-  ShieldAlert,
   ArrowLeft,
   Archive,
   RotateCcw,
-  Sparkles,
-  Globe2,
+  GitBranch,
+  Loader2,
 } from "lucide-react";
 
 interface DBApplicant {
@@ -156,7 +162,9 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   const [recordingReceipt, setRecordingReceipt] = useState<boolean>(false);
 
   // Tab and Interactive state
-  const [activeTab, setActiveTab] = useState<"bio" | "compliance" | "financial">("bio");
+  const [activeTab, setActiveTab] = useState<
+    "bio" | "workflow" | "compliance" | "financial"
+  >("bio");
   const [selectedReceipt, setSelectedReceipt] = useState<MockReceipt | undefined>(undefined);
   const [readOnlyAlert, setReadOnlyAlert] = useState<{ action: string } | null>(null);
 
@@ -204,96 +212,77 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
     loadData();
   }, [id, accessToken, authLoading]);
 
-  // Auth/fetch Loading Screen
+  // Auth/fetch loading — skeleton mirrors the real dossier layout
   if (authLoading || fetching) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center p-4">
-        <div className="relative flex flex-col items-center max-w-sm text-center space-y-6 animate-in fade-in duration-300">
-          <div className="relative flex items-center justify-center h-16 w-16 rounded-2xl bg-white dark:bg-slate-950 shadow-xl border border-slate-100 dark:border-slate-800">
-            <Globe2 className="h-8 w-8 text-indigo-500 animate-spin" />
-            <div className="absolute inset-0 rounded-2xl border-2 border-indigo-500/20 animate-pulse" />
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-              {locale === "bn" ? "আবেদনকারী ফাইল লোড হচ্ছে..." : "Loading Candidate Dossier..."}
-            </h3>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
-              {locale === "bn"
-                ? "ডাটাবেস থেকে আবেদনকারীর প্রয়োজনীয় বায়োডাটা এবং লেনদেনের হিসাব খাতা লোড করা হচ্ছে।"
-                : "Fetching verified biographical details and transactional history ledger from PostgreSQL database."}
-            </p>
+      <div className="space-y-5">
+        <div className="space-y-3">
+          <Skeleton className="h-3 w-28" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10" circle />
+            <Skeleton className="h-6 w-56" />
           </div>
         </div>
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-9 w-72" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
-  // Handle Unauthorized Session Error
+  // Unauthorized session
   if (statusCode === 401) {
     return (
-      <div className="text-center py-16 space-y-4 animate-in fade-in duration-300">
-        <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-          {locale === "bn" ? "সেশন শেষ হয়েছে" : "Session Expired"}
-        </h3>
-        <p className="text-xs text-slate-500 max-w-sm mx-auto">
-          {locale === "bn"
-            ? "আপনার নিরাপত্তা সেশন শেষ হয়ে গেছে। অনুগ্রহ করে আবার সিস্টেমে লগইন করুন।"
-            : "Your authentication session has expired. Please sign in again."}
-        </p>
-        <button
-          onClick={() => router.push("/login")}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 shadow-sm cursor-pointer"
-        >
-          {locale === "bn" ? "লগইন এ যান" : "Go to Login"}
-        </button>
-      </div>
+      <ErrorPanel
+        title={locale === "bn" ? "সেশন শেষ হয়েছে" : "Session expired"}
+        message={
+          locale === "bn"
+            ? "আপনার নিরাপত্তা সেশন শেষ হয়ে গেছে। অনুগ্রহ করে আবার লগইন করুন।"
+            : "Your authentication session has expired. Please sign in again."
+        }
+        onRetry={() => router.push("/login")}
+        retryLabel={locale === "bn" ? "লগইন" : "Go to login"}
+      />
     );
   }
 
-  // Handle Cohort-Scoped Access Denied
+  // Scope-restricted access
   if (statusCode === 403) {
     return (
-      <div className="text-center py-16 space-y-4 animate-in fade-in duration-300">
-        <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-          {t("common.accessDenied")}
-        </h3>
-        <p className="text-xs text-slate-500 max-w-sm mx-auto">
-          {locale === "bn"
-            ? "আপনার এই আবেদনকারীর ফাইল দেখার কোনো অনুমতি নেই।"
-            : "You do not have the required permissions to view this candidate dossier or it is restricted by sourcing boundaries."}
-        </p>
-        <button
-          onClick={() => router.push("/applicants")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 cursor-pointer"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t("applicantDetail.backBtn")}
-        </button>
-      </div>
+      <ErrorPanel
+        title={t("common.accessDenied")}
+        message={
+          locale === "bn"
+            ? "আপনার এই আবেদনকারীর ফাইল দেখার অনুমতি নেই।"
+            : "You do not have permission to view this candidate dossier."
+        }
+        onRetry={() => router.push("/applicants")}
+        retryLabel={t("applicantDetail.backBtn")}
+      />
     );
   }
 
-  // Handle Dossier Not Found
+  // Not found
   if (statusCode === 404 || !dbData) {
     return (
-      <div className="text-center py-16 space-y-4 animate-in fade-in duration-300">
-        <ShieldAlert className="h-12 w-12 text-rose-500 mx-auto" />
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-          {locale === "bn" ? "আবেদনকারী ফাইল পাওয়া যায়নি" : "Candidate File Not Found"}
-        </h3>
-        <p className="text-xs text-slate-500 max-w-sm mx-auto">
-          {locale === "bn"
-            ? "অনুরোধ করা আবেদনকারী ফাইলটি খুঁজে পাওয়া যায়নি বা এটি স্থায়ীভাবে ডিলিট করা হয়েছে।"
-            : "The requested applicant file ID is either restricted by sourcing boundaries or has been permanently archived."}
-        </p>
-        <button
-          onClick={() => router.push("/applicants")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 cursor-pointer"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t("applicantDetail.backBtn")}
-        </button>
-      </div>
+      <EmptyPanel
+        iconName="FileQuestion"
+        title={
+          locale === "bn" ? "আবেদনকারী ফাইল পাওয়া যায়নি" : "Candidate not found"
+        }
+        description={
+          locale === "bn"
+            ? "অনুরোধ করা ফাইলটি খুঁজে পাওয়া যায়নি বা এটি আপনার স্কোপের বাইরে।"
+            : "The requested applicant could not be found, or it falls outside your access scope."
+        }
+        action={
+          <AppButton variant="secondary" onClick={() => router.push("/applicants")}>
+            <ArrowLeft className="h-4 w-4" />
+            {t("applicantDetail.backBtn")}
+          </AppButton>
+        }
+      />
     );
   }
 
@@ -638,133 +627,168 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="space-y-5">
-
-      {/* Header Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border-theme pb-4">
-        <div className="space-y-1">
+      {/* ---------------- Record header ---------------- */}
+      <div className="space-y-3">
+        <nav aria-label="Breadcrumb" className="text-[11px] text-text-soft">
           <button
+            type="button"
             onClick={() => router.push("/applicants")}
-            className="flex items-center gap-1 text-xs font-semibold text-text-soft hover:text-primary-theme uppercase tracking-wider cursor-pointer"
+            className="inline-flex items-center gap-1 transition-colors hover:text-primary-theme cursor-pointer"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> {t("applicantDetail.backBtn")}
+            <ArrowLeft className="h-3 w-3" />
+            {t("applicantDetail.backBtn")}
           </button>
-          <div className="flex flex-wrap items-center gap-2.5 mt-0.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary-theme font-bold text-sm uppercase shrink-0">
-              {applicant.fullName ? applicant.fullName.substring(0, 2) : "CA"}
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-text-theme sm:text-2xl">
-              {applicant.fullName}
-            </h1>
-            <span className="font-mono text-xs bg-bg-muted text-text-soft border border-border-theme px-2 py-0.5 rounded font-semibold">
-              PASSPORT: {applicant.passportNumber}
-            </span>
-          </div>
-        </div>
+        </nav>
 
-        {/* Soft Archive Controls */}
-        {canArchive && (
-          <div className="flex items-center gap-2">
-            {applicant.isArchived ? (
-              <button
-                onClick={() => handleSoftArchive("RESTORE")}
-                className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/30 transition-colors cursor-pointer"
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> {t("applicantDetail.restoreCandidate")}
-              </button>
-            ) : (
-              <button
-                onClick={() => handleSoftArchive("ARCHIVE")}
-                className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-900/30 transition-colors cursor-pointer"
-              >
-                <Archive className="h-3.5 w-3.5" /> {t("applicantDetail.softArchiveCandidate")}
-              </button>
-            )}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-sm font-semibold uppercase text-primary-theme">
+              {applicant.fullName ? applicant.fullName.substring(0, 2) : "CA"}
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate text-xl font-semibold tracking-tight text-text-theme sm:text-2xl">
+                  {applicant.fullName}
+                </h1>
+                <StatusBadge status={applicant.currentStage} />
+                {applicant.isArchived && (
+                  <AppBadge variant="neutral" dot>
+                    {locale === "bn" ? "আর্কাইভড" : "Archived"}
+                  </AppBadge>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs text-text-soft">
+                <span className="font-mono">{applicant.passportNumber}</span>
+                <span className="mx-1.5">·</span>
+                {applicant.trade}
+              </p>
+            </div>
           </div>
+
+          {canArchive && (
+            <div className="flex shrink-0 items-center gap-2">
+              {applicant.isArchived ? (
+                <AppButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleSoftArchive("RESTORE")}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {t("applicantDetail.restoreCandidate")}
+                </AppButton>
+              ) : (
+                <AppButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleSoftArchive("ARCHIVE")}
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                  {t("applicantDetail.softArchiveCandidate")}
+                </AppButton>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ---------------- Key facts at a glance ---------------- */}
+      <SummaryStrip
+        items={[
+          {
+            label: locale === "bn" ? "বর্তমান ধাপ" : "Current Stage",
+            value: <StatusBadge status={applicant.currentStage} />,
+          },
+          {
+            label: locale === "bn" ? "জব অর্ডার" : "Job Order",
+            value: dbData.jobOrder?.orderNumber || (locale === "bn" ? "নির্ধারিত নয়" : "Unassigned"),
+          },
+          {
+            label: locale === "bn" ? "গন্তব্য" : "Destination",
+            value: dbData.jobOrder?.country || "—",
+          },
+          {
+            label: locale === "bn" ? "এজেন্ট" : "Agent",
+            value: dbData.agent?.companyName || (locale === "bn" ? "সরাসরি" : "Direct"),
+          },
+          {
+            label: locale === "bn" ? "বকেয়া" : "Outstanding",
+            value: formatCurrency(outstandingBalance, "BDT", locale),
+            tone: outstandingBalance > 0 ? "danger" : "success",
+          },
+        ]}
+      />
+
+      {/* ---------------- Tabbed dossier ---------------- */}
+      <Tabs
+        tabs={[
+          { id: "bio", label: t("applicantDetail.tabBioData"), icon: User },
+          {
+            id: "workflow",
+            label: locale === "bn" ? "ওয়ার্কফ্লো" : "Workflow",
+            icon: GitBranch,
+          },
+          {
+            id: "compliance",
+            label: t("applicantDetail.tabCompliance"),
+            icon: FileText,
+            count: documents.length,
+          },
+          {
+            id: "financial",
+            label: t("applicantDetail.tabLedger"),
+            icon: CreditCard,
+            count: ledgers.length,
+          },
+        ]}
+        activeTab={activeTab}
+        onChange={(id) => setActiveTab(id as typeof activeTab)}
+      />
+
+      <div>
+        {activeTab === "bio" && (
+          <div className="space-y-5">
+            <ApplicantProfileCard applicant={applicant} />
+            <PortalAccessPanel
+              applicant={applicant}
+              accessToken={accessToken}
+              userRole={user ? user.roleName : null}
+              onRefresh={loadData}
+            />
+          </div>
+        )}
+
+        {activeTab === "workflow" && (
+          <WorkflowStepper
+            currentStage={applicant.currentStage}
+            onTransition={handleWorkflowTransition}
+          />
+        )}
+
+        {activeTab === "compliance" && (
+          <DocumentChecklist
+            documents={documents}
+            onUpload={handleUploadDocument}
+            onVerify={handleVerifyDocument}
+            onDownload={handleDownloadDocument}
+          />
+        )}
+
+        {activeTab === "financial" && (
+          <LedgerTable
+            entries={ledgers}
+            outstandingBalance={outstandingBalance}
+            onRecordPayment={handleRecordPayment}
+            onRecordInvoice={handleRecordInvoice}
+            invoices={invoices}
+            applicantName={applicant.fullName}
+            passportNumber={applicant.passportNumber}
+            trade={applicant.trade}
+            applicantId={applicant.id}
+          />
         )}
       </div>
 
-      {/* Main Workflow Stepper Card */}
-      <WorkflowStepper currentStage={applicant.currentStage} onTransition={handleWorkflowTransition} />
-
-      {/* Top Horizontal Workspace Tabs */}
-      <div className="space-y-4">
-        <div className="border-b border-border-theme">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
-            {[
-              { id: "bio", label: t("applicantDetail.tabBioData"), icon: User },
-              { id: "compliance", label: t("applicantDetail.tabCompliance"), icon: FileText, count: documents.length },
-              { id: "financial", label: t("applicantDetail.tabLedger"), icon: CreditCard, count: ledgers.length },
-            ].map((tab) => {
-              const isActive = activeTab === tab.id;
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`relative flex items-center gap-2 px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap rounded-t-lg ${
-                    isActive
-                      ? "bg-surface border-t border-x border-border-theme text-primary-theme font-bold"
-                      : "text-text-soft hover:text-text-theme"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
-                  {tab.count !== undefined && (
-                    <span
-                      className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
-                        isActive ? "bg-primary-soft text-primary-theme" : "bg-bg-muted text-text-soft"
-                      }`}
-                    >
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tab Content Container */}
-        <div>
-          {activeTab === "bio" && (
-            <div className="space-y-5">
-              <ApplicantProfileCard applicant={applicant} />
-              <PortalAccessPanel
-                applicant={applicant}
-                accessToken={accessToken}
-                userRole={user ? user.roleName : null}
-                onRefresh={loadData}
-              />
-            </div>
-          )}
-
-          {activeTab === "compliance" && (
-            <DocumentChecklist
-              documents={documents}
-              onUpload={handleUploadDocument}
-              onVerify={handleVerifyDocument}
-              onDownload={handleDownloadDocument}
-            />
-          )}
-
-          {activeTab === "financial" && (
-            <LedgerTable
-              entries={ledgers}
-              outstandingBalance={outstandingBalance}
-              onRecordPayment={handleRecordPayment}
-              onRecordInvoice={handleRecordInvoice}
-              invoices={invoices}
-              applicantName={applicant.fullName}
-              passportNumber={applicant.passportNumber}
-              trade={applicant.trade}
-              applicantId={applicant.id}
-            />
-          )}
-        </div>
-      </div>
-
-
-      {/* Elegant Receipt Printer Modal Modal Popup */}
+      {/* Receipt preview modal */}
       {selectedReceipt && (
         <ReceiptPreview
           receipt={selectedReceipt}
@@ -774,70 +798,27 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
         />
       )}
 
-      {/* Glassmorphic Read-Only Warning Alert Modal */}
-      {readOnlyAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-indigo-100 bg-white p-6 md:p-8 shadow-2xl dark:border-indigo-900/30 dark:bg-slate-950 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400 pb-3 mb-4 border-b border-border-theme">
-              <Sparkles className="h-5.5 w-5.5 animate-pulse shrink-0" />
-              <h3 className="text-base md:text-lg font-bold uppercase tracking-wider">{locale === "bn" ? "সিস্টেম সংযোগ নোটিশ" : "SYSTEM CONNECTION NOTICE"}</h3>
-            </div>
-            <p className="text-sm md:text-[15px] text-slate-600 dark:text-slate-400 leading-relaxed font-semibold">
-              {locale === "bn"
-                ? `অ্যাকশন "${readOnlyAlert.action}" সফলভাবে সম্পন্ন হয়েছে।`
-                : `The action "${readOnlyAlert.action}" has been successfully verified.`}
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setReadOnlyAlert(null)}
-                className="rounded-xl bg-indigo-600 px-5 py-3 text-sm md:text-[15px] font-bold text-white transition hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 hover:shadow-indigo-600/30 cursor-pointer w-full sm:w-auto"
-              >
-                {locale === "bn" ? "নিশ্চিত করুন" : "Acknowledge"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Glassmorphic Invoicing Loading Overlay */}
-      {invoicing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-6 md:p-8 shadow-xl dark:border-slate-800 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
-            <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-slate-900 mx-auto">
-              <Globe2 className="h-6 w-6 text-indigo-500 animate-spin" />
-            </div>
-            <div className="space-y-1.5">
-              <h3 className="text-sm md:text-base font-bold text-slate-800 dark:text-slate-100">
-                {locale === "bn" ? "ইনভয়েস প্রসেস করা হচ্ছে..." : "Processing Invoice Posting..."}
-              </h3>
-              <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 font-semibold leading-relaxed">
-                {locale === "bn"
-                  ? "হিসাব খাতার ডাবল-এন্ট্রি এবং বকেয়া ব্যালেন্স সফলভাবে ডাটাবেসে পোস্টিং হচ্ছে।"
-                  : "Writing double-entry ledger entries and updating outstanding balances securely."}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Glassmorphic Receipt Loading Overlay */}
-      {recordingReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-6 md:p-8 shadow-xl dark:border-slate-800 dark:bg-slate-950 animate-in zoom-in-95 duration-200 text-center space-y-4">
-            <div className="relative flex items-center justify-center h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-slate-900 mx-auto">
-              <Globe2 className="h-6 w-6 text-indigo-500 animate-spin" />
-            </div>
-            <div className="space-y-1.5">
-              <h3 className="text-sm md:text-base font-bold text-slate-800 dark:text-slate-100">
-                {locale === "bn" ? "রসিদ রেকর্ড করা হচ্ছে..." : "Recording Payment Receipt..."}
-              </h3>
-              <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 font-semibold leading-relaxed">
-                {locale === "bn"
-                  ? "ক্রেডিট খাতা এন্ট্রি পোস্টিং এবং ইনভয়েস ব্যালেন্স সমন্বয় করা হচ্ছে।"
-                  : "Writing double-entry credit ledger entries and decrementing invoice dues securely."}
-              </p>
-            </div>
-          </div>
+      {/*
+        Non-blocking progress toast for finance writes. Replaces the previous
+        full-screen overlays — the ledger post is quick and the user should not
+        lose sight of the record while it completes.
+      */}
+      {(invoicing || recordingReceipt) && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="app-dialog-enter fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-md border border-border-theme bg-surface-elevated px-4 py-3 shadow-md"
+        >
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary-theme" />
+          <p className="text-xs font-medium text-text-theme">
+            {invoicing
+              ? locale === "bn"
+                ? "ইনভয়েস পোস্ট করা হচ্ছে..."
+                : "Posting invoice..."
+              : locale === "bn"
+                ? "রসিদ রেকর্ড করা হচ্ছে..."
+                : "Recording receipt..."}
+          </p>
         </div>
       )}
     </div>

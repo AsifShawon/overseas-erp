@@ -1,0 +1,28 @@
+{
+  // Stop the file watcher from monitoring generated output. `.next` alone is
+  // ~1.8GB of build artifacts that are rewritten on every compile, which keeps
+  // the VS Code extension-host/utility process busy for no benefit.
+  // Note: VS Code's default only excludes `**/node_modules/*/**`, which still
+  // watches the top level of node_modules — these patterns are stricter.
+  "files.watcherExclude": {
+    "**/.next/**": true,
+    "**/node_modules/**": true,
+    "**/generated/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true
+  },
+
+  // Keep full-text search off generated code so results stay relevant and the
+  // search indexer doesn't walk ~2.6GB of files nobody edits.
+  "search.exclude": {
+    "**/.next": true,
+    "**/node_modules": true,
+    "**/generated": true,
+    "**/package-lock.json": true,
+    "**/*.tsbuildinfo": true
+  }
+
+  // `files.exclude` is deliberately not set: these folders stay visible in the
+  // Explorer (the Prisma client in `generated/` is often worth inspecting).
+  // Only watching and searching are excluded above.
+}

@@ -54,6 +54,14 @@ export const en = {
     quickLoginFailed: "Quick login failed.",
   },
   nav: {
+    section: {
+      overview: "OVERVIEW",
+      operations: "OPERATIONS",
+      finance: "FINANCE",
+      insights: "INSIGHTS",
+      system: "SYSTEM",
+      platform: "PLATFORM ADMIN",
+    },
     dashboard: "Dashboard",
     applicants: "Applicants",
     jobOrders: "Job Orders / Openings",

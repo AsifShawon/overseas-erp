@@ -11,6 +11,12 @@ import { DataTable } from "@/components/shared/DataTable";
 import { ChartCard } from "@/components/ui/ChartCard";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
+import { CHART_SEMANTIC, chartColor } from "@/components/charts/chart-theme";
+import { AppCard, AppCardHeader } from "@/components/ui/AppCard";
+import { AppButton } from "@/components/ui/AppButton";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ErrorPanel } from "@/components/ui/PageState";
+import { MetricCardSkeleton, ChartSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { useT } from "@/i18n/useT";
 
 import { formatDate, formatDateTime, formatNumber, formatCurrency } from "@/i18n/format";
@@ -19,11 +25,45 @@ import {
   WorkflowStage,
 } from "@/lib/mockData";
 import {
-  TrendingUp,
   AlertTriangle,
   History,
-  Loader2,
+  RefreshCw,
+  ShieldCheck,
+  Clock,
 } from "lucide-react";
+
+/** Row shapes returned by /api/reports/dashboard for the executive cohort. */
+interface AuditLogRow {
+  id: string;
+  userId: string;
+  roleName: string;
+  actionType: string;
+  tableName: string;
+  recordId: string;
+  timestamp: string;
+}
+
+interface PassportWarningRow {
+  id: string;
+  fullName: string;
+  passportNumber: string;
+  passportExpiry: string;
+}
+
+interface JobOrderRow {
+  id: string;
+  employerName: string;
+  country: string;
+  trade: string;
+  totalQuota: number;
+  allocatedQuota: number;
+}
+
+interface GeographyRow {
+  country: string;
+  percent: number;
+  allocated: number;
+}
 
 export default function DashboardPage() {
   const { user, accessToken } = useMockAuth();
@@ -82,55 +122,53 @@ export default function DashboardPage() {
   if (user?.roleName === "Applicant") {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent mx-auto"></div>
-          <p className="text-xs text-slate-500">{t("dashboard.redirectingPortal")}</p>
-        </div>
+        <p className="text-xs text-text-soft">{t("dashboard.redirectingPortal")}</p>
       </div>
     );
   }
 
-  // State-of-the-art Loading state
+  const pageHeader = (
+    <PageHeader
+      title={t("dashboard.pageTitle")}
+      description={t("dashboard.pageDesc", { name: user?.fullName || "" })}
+      actions={
+        !loading && !error ? (
+          <AppButton variant="secondary" size="sm" onClick={fetchDashboardData}>
+            <RefreshCw className="h-3.5 w-3.5" />
+            {locale === "bn" ? "রিফ্রেশ" : "Refresh"}
+          </AppButton>
+        ) : undefined
+      }
+    />
+  );
+
+  // Skeletons mirror the real dashboard structure rather than a full-page spinner.
   if (loading) {
     return (
-      <div className="space-y-8">
-        <PageHeader
-          title={t("dashboard.pageTitle")}
-          description={t("dashboard.fetchingMetrics")}
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: t("nav.dashboard") }]}
-        />
-        <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-border-theme bg-surface p-5 shadow-sm space-y-4">
-          <div className="relative h-12 w-12 rounded-2xl bg-surface border border-border-theme flex items-center justify-center shadow-lg animate-pulse">
-            <Loader2 className="h-6 w-6 text-primary-theme animate-spin" />
+      <div className="space-y-5">
+        {pageHeader}
+        <MetricCardSkeleton count={4} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <ChartSkeleton />
           </div>
-          <p className="text-xs text-text-soft font-bold animate-pulse">{t("common.loadingData")}</p>
+          <ChartSkeleton />
         </div>
+        <TableSkeleton rows={5} columns={5} />
       </div>
     );
   }
 
-  // State-of-the-art Error fallback
   if (error) {
     return (
-      <div className="space-y-8">
-        <PageHeader
-          title={t("dashboard.pageTitle")}
-          description="Service Connection Interrupted"
-          breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: t("nav.dashboard") }]}
+      <div className="space-y-5">
+        {pageHeader}
+        <ErrorPanel
+          title={t("dashboard.failedToLoad")}
+          message={error}
+          onRetry={fetchDashboardData}
+          retryLabel={t("dashboard.retryBtn")}
         />
-        <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-rose-100 bg-rose-50/50 p-6 text-center shadow-sm dark:border-rose-950/10 dark:bg-rose-950/5 space-y-4">
-          <AlertTriangle className="h-10 w-10 text-rose-500" />
-          <div className="space-y-1">
-            <h3 className="text-sm font-bold text-rose-900 dark:text-rose-400">{t("dashboard.failedToLoad")}</h3>
-            <p className="text-xs text-rose-700/80 dark:text-rose-400/70 max-w-md">{error}</p>
-          </div>
-          <button
-            onClick={fetchDashboardData}
-            className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 shadow-sm"
-          >
-            {t("dashboard.retryBtn")}
-          </button>
-        </div>
       </div>
     );
   }
@@ -177,154 +215,426 @@ export default function DashboardPage() {
     totalPlacedCount = 0,
     stageCounts = {} as Record<string, number>,
     recentAuditLogs = [],
+    geographyShare = [],
+    avgSourcingDays = 0,
+    avgMedicalDays = 0,
+    avgVettingDays = 0,
+    avgVisaDays = 0,
+    avgFlightDays = 0,
   } = data || {};
 
-  // Formatted chart data for Super Admin
-  const stageBarChartData = [
-    { label: t("workflow.SELECTED") || "Selected", value: stageCounts["SELECTED"] || 0, color: "#4f46e5" },
-    { label: t("workflow.MEDICAL_WAITING") || "Medical", value: stageCounts["MEDICAL_WAITING"] || 0, color: "#f59e0b" },
-    { label: t("workflow.VISA_SUBMITTED") || "Visa Sent", value: stageCounts["VISA_SUBMITTED"] || 0, color: "#8b5cf6" },
-    { label: t("workflow.DEPLOYED") || "Deployed", value: stageCounts["DEPLOYED"] || 0, color: "#10b981" },
+  const stageLabel = (stage: string) => {
+    const translated = t(`workflow.${stage}`);
+    return translated !== `workflow.${stage}`
+      ? translated
+      : WORKFLOW_LABELS[stage as WorkflowStage] || stage;
+  };
+
+  /*
+   * Pipeline distribution across the whole workflow — every stage the API
+   * reports, rather than a hand-picked four. Values come straight from
+   * stageCounts; nothing here is synthesised.
+   */
+  const PIPELINE_STAGES: WorkflowStage[] = [
+    "APPLIED",
+    "INTERVIEWED",
+    "SELECTED",
+    "MEDICAL_WAITING",
+    "MEDICAL_FIT",
+    "TRAINING_COMPLETED",
+    "VISA_SUBMITTED",
+    "VISA_STAMPED",
+    "TICKETED",
+    "DEPLOYED",
   ];
+
+  const stageBarChartData = PIPELINE_STAGES.map((stage, idx) => ({
+    label: stageLabel(stage),
+    value: stageCounts[stage] || 0,
+    color: chartColor(idx),
+  }));
 
   const collectionsDonutData = [
-    { name: locale === "bn" ? "আদায়কৃত" : "Collected", value: totalCollected, color: "#10b981" },
-    { name: locale === "bn" ? "বকেয়া" : "Outstanding", value: totalOutstanding, color: "#f43f5e" },
+    {
+      name: locale === "bn" ? "আদায়কৃত" : "Collected",
+      value: totalCollected,
+      color: CHART_SEMANTIC.success,
+    },
+    {
+      name: locale === "bn" ? "বকেয়া" : "Outstanding",
+      value: totalOutstanding,
+      color: CHART_SEMANTIC.danger,
+    },
   ];
 
+  /*
+   * Average days per stage, computed server-side from real workflow history.
+   * Replaces the previously hardcoded "28 Days" / "8.5%" style figures.
+   */
+  const cycleTimeData = [
+    { label: locale === "bn" ? "সোর্সিং" : "Sourcing", value: Number(avgSourcingDays) },
+    { label: locale === "bn" ? "মেডিকেল" : "Medical", value: Number(avgMedicalDays) },
+    { label: locale === "bn" ? "ভেটিং" : "Vetting", value: Number(avgVettingDays) },
+    { label: locale === "bn" ? "ভিসা" : "Visa", value: Number(avgVisaDays) },
+    { label: locale === "bn" ? "ফ্লাইট" : "Flight", value: Number(avgFlightDays) },
+  ].filter((d) => d.value > 0);
+
+  /*
+   * End-to-end pipeline duration = sum of the per-stage averages the API
+   * computes from real workflow transition history.
+   */
+  const totalPipelineDays = Math.round(
+    cycleTimeData.reduce((sum, d) => sum + d.value, 0)
+  );
+
+  const quotaFillPct =
+    totalQuota > 0 ? Math.round((allocatedQuota / totalQuota) * 100) : 0;
+  const collectionPct =
+    totalInvoiced > 0 ? Math.round((totalCollected / totalInvoiced) * 100) : 0;
+
+  const isExecutiveView =
+    user.roleName === "Super Admin" ||
+    user.roleName === "Platform Admin" ||
+    user.isPlatformAdmin;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {isExecutiveView && pageHeader}
 
-      {/* ------------------ SUPER ADMIN & PLATFORM ADMIN DASHBOARD ------------------ */}
-      {(user.roleName === "Super Admin" || user.roleName === "Platform Admin" || user.isPlatformAdmin) && (
-
-
+      {/* ================= SUPER ADMIN & PLATFORM ADMIN ================= */}
+      {isExecutiveView && (
         <div className="space-y-5">
-          {/* LEVEL 1: Top KPI Cards Row */}
+          {/*
+            LEVEL 1 — needs action now.
+            Rendered before any passive metric so blockers are seen first.
+          */}
+          {(passportExpiryWarnings.length > 0 || documentPendingCount > 0) && (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <AppCard className="lg:col-span-2" padding="none">
+                <div className="p-4">
+                  <AppCardHeader
+                    icon={AlertTriangle}
+                    title={t("dashboard.alertsWarnings")}
+                    subtitle={t("dashboard.alertsDesc")}
+                  />
+                  <ul className="mt-3 space-y-2">
+                    {passportExpiryWarnings.map((app: PassportWarningRow) => (
+                      <li
+                        key={app.id}
+                        className="flex items-start gap-2.5 rounded-md border border-danger-theme/20 bg-danger-soft px-3 py-2"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-danger-theme"
+                        />
+                        <p className="text-xs leading-relaxed text-danger-theme">
+                          {locale === "bn" ? (
+                            <>
+                              <strong>{app.fullName}</strong>-এর পাসপোর্ট (
+                              <span className="font-mono">{app.passportNumber}</span>) মেয়াদ
+                              শেষ হবে {formatDate(app.passportExpiry, locale)} তারিখে।
+                            </>
+                          ) : (
+                            <>
+                              <strong>{app.fullName}</strong> passport{" "}
+                              <span className="font-mono">{app.passportNumber}</span> expires{" "}
+                              {formatDate(app.passportExpiry, locale)}.
+                            </>
+                          )}
+                        </p>
+                      </li>
+                    ))}
+                    {documentPendingCount > 0 && (
+                      <li className="flex items-start gap-2.5 rounded-md border border-warning-theme/20 bg-warning-soft px-3 py-2">
+                        <span
+                          aria-hidden="true"
+                          className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warning-theme"
+                        />
+                        <p className="text-xs leading-relaxed text-warning-theme">
+                          {t("dashboard.documentVerificationPending", {
+                            count: formatNumber(documentPendingCount, locale),
+                          })}
+                        </p>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+                <div className="flex items-center justify-end border-t border-border-theme px-4 py-2.5">
+                  <AppButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push("/documents")}
+                  >
+                    {locale === "bn" ? "ডকুমেন্ট সারিতে যান" : "Go to document queue"}
+                  </AppButton>
+                </div>
+              </AppCard>
+
+              {/* Quota + collection health at a glance */}
+              <AppCard>
+                <AppCardHeader
+                  icon={ShieldCheck}
+                  title={locale === "bn" ? "পরিচালন স্বাস্থ্য" : "Operational Health"}
+                />
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-text-muted">
+                        {locale === "bn" ? "কোটা পূরণ" : "Quota filled"}
+                      </span>
+                      <span className="text-xs font-semibold text-text-theme tabular-nums-ui">
+                        {formatNumber(allocatedQuota, locale)} /{" "}
+                        {formatNumber(totalQuota, locale)} ({formatNumber(quotaFillPct, locale)}%)
+                      </span>
+                    </div>
+                    <ProgressBar
+                      className="mt-2"
+                      value={quotaFillPct}
+                      tone="auto"
+                      label={locale === "bn" ? "কোটা পূরণ" : "Quota filled"}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-text-muted">
+                        {locale === "bn" ? "আদায়ের হার" : "Collection rate"}
+                      </span>
+                      <span className="text-xs font-semibold text-text-theme tabular-nums-ui">
+                        {formatNumber(collectionPct, locale)}%
+                      </span>
+                    </div>
+                    <ProgressBar
+                      className="mt-2"
+                      value={collectionPct}
+                      tone={collectionPct >= 70 ? "success" : "warning"}
+                      label={locale === "bn" ? "আদায়ের হার" : "Collection rate"}
+                    />
+                  </div>
+                </div>
+              </AppCard>
+            </div>
+          )}
+
+          {/* LEVEL 2 — operational status KPIs */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title={t("dashboard.activeCandidates")}
               value={formatNumber(activeApplicants, locale)}
-              description={t("dashboard.softArchivedEntries", { count: formatNumber(archivedApplicants, locale) })}
+              description={t("dashboard.softArchivedEntries", {
+                count: formatNumber(archivedApplicants, locale),
+              })}
               iconName="Users"
-              trend={{ value: "8.5%", isPositive: true }}
               variant="default"
             />
             <StatCard
               title={t("dashboard.jobOrdersOpen")}
               value={`${formatNumber(openJobOrders, locale)} / ${formatNumber(totalJobOrders, locale)}`}
-              description={t("dashboard.quotasAllocated", { allocated: formatNumber(allocatedQuota, locale), total: formatNumber(totalQuota, locale) })}
+              description={t("dashboard.quotasAllocated", {
+                allocated: formatNumber(allocatedQuota, locale),
+                total: formatNumber(totalQuota, locale),
+              })}
               iconName="Briefcase"
               variant="info"
             />
             <StatCard
               title={t("dashboard.accountsReceivable")}
               value={formatCurrency(totalOutstanding, "BDT", locale)}
-              description={t("dashboard.totalBilled", { amount: formatCurrency(totalInvoiced, "BDT", locale) })}
+              description={t("dashboard.totalBilled", {
+                amount: formatCurrency(totalInvoiced, "BDT", locale),
+              })}
               iconName="CreditCard"
-              trend={{ value: "12%", isPositive: false }}
               variant="warning"
             />
             <StatCard
               title={t("dashboard.sourcingAgents")}
-              value={t("dashboard.activeAgentsCount", { active: formatNumber(activeAgents, locale) })}
-              description={t("dashboard.registeredTiers", { total: formatNumber(totalAgents, locale) })}
+              value={t("dashboard.activeAgentsCount", {
+                active: formatNumber(activeAgents, locale),
+              })}
+              description={t("dashboard.registeredTiers", {
+                total: formatNumber(totalAgents, locale),
+              })}
               iconName="UserCheck"
               variant="success"
             />
           </div>
 
-          {/* LEVEL 2: Primary Analytics & Visualizations Grid */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-            {/* Pipeline Stage Distribution Bar Chart */}
+          {/* Primary analytics: pipeline distribution + collections split */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <ChartCard
               title={t("dashboard.pipelineStageDistribution")}
-              subtitle={locale === "bn" ? "নিয়োগ পাইপলাইনের প্রধান ধাপসমূহের ক্যান্ডিডেট বন্টন" : "Candidates active across operational milestones"}
+              subtitle={
+                locale === "bn"
+                  ? "প্রতিটি ধাপে বর্তমানে থাকা সক্রিয় প্রার্থী সংখ্যা"
+                  : "Active candidates currently sitting at each stage"
+              }
               className="lg:col-span-2"
             >
-              <BarChart data={stageBarChartData} height={230} />
+              <BarChart data={stageBarChartData} height={250} />
             </ChartCard>
 
-            {/* Financial Collections Split Donut Chart */}
             <ChartCard
-              title={locale === "bn" ? "বিলিং ও কালেকশন অনুপাত" : "Collections & Receivables Split"}
-              subtitle={locale === "bn" ? "মোট ইনভয়েসকৃত ফি এবং বকেয়া আদায়ের অনুপাত" : "Overall invoiced fees vs outstanding balance"}
+              title={locale === "bn" ? "বিলিং ও কালেকশন" : "Collections & Receivables"}
+              subtitle={
+                locale === "bn"
+                  ? "মোট ইনভয়েসকৃত ফি বনাম বকেয়া"
+                  : "Invoiced fees against outstanding balance"
+              }
             >
-              <DonutChart data={collectionsDonutData} height={230} />
+              <DonutChart data={collectionsDonutData} height={250} />
             </ChartCard>
           </div>
 
-          {/* LEVEL 3: Urgent Alerts & Compliance Panel */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-            {/* Warning & Urgent Action Widget */}
-            <div className="rounded-xl border border-border-theme bg-surface p-5 shadow-xs flex flex-col justify-between">
-              <div>
-                <h3 className="text-xs font-bold text-text-theme mb-1.5 flex items-center gap-2 uppercase tracking-wider">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" /> {t("dashboard.alertsWarnings")}
-                </h3>
-                <p className="text-xs text-text-soft font-medium">{t("dashboard.alertsDesc")}</p>
-                <div className="mt-4 space-y-2.5">
-                  {passportExpiryWarnings.length > 0 ? (
-                    passportExpiryWarnings.map((app: any) => (
-                      <div key={app.id} className="flex gap-2 rounded-lg bg-rose-50/60 p-2.5 border border-rose-200/60 dark:bg-rose-950/20 dark:border-rose-900/30">
-                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0 animate-ping" />
-                        <p className="text-xs text-rose-800 dark:text-rose-400 font-medium">
-                          {locale === "bn" ? (
-                            <>আবেদনকারী <strong>{app.fullName}</strong>-এর পাসপোর্ট ({app.passportNumber}) মেয়াদ শেষ হবে।</>
-                          ) : (
-                            <>Candidate <strong>{app.fullName}</strong> passport ({app.passportNumber}) expires on {app.passportExpiry}.</>
-                          )}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex gap-2 rounded-lg bg-emerald-50/60 p-2.5 border border-emerald-200/60 dark:bg-emerald-950/20 dark:border-emerald-900/30">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                      <p className="text-xs text-emerald-800 dark:text-emerald-400 font-medium">
-                        {t("dashboard.noCriticalWarnings")}
-                      </p>
-                    </div>
-                  )}
+          {/* Cycle time + quota utilisation */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {cycleTimeData.length > 0 && (
+              <ChartCard
+                title={locale === "bn" ? "গড় প্রক্রিয়াকরণ সময়" : "Average Stage Duration"}
+                subtitle={
+                  locale === "bn"
+                    ? "প্রকৃত ওয়ার্কফ্লো ইতিহাস থেকে গণনাকৃত (দিনে)"
+                    : "Days per stage, computed from actual workflow history"
+                }
+              >
+                <BarChart data={cycleTimeData} height={220} />
+              </ChartCard>
+            )}
 
-                  {documentPendingCount > 0 && (
-                    <div className="flex gap-2 rounded-lg bg-amber-50/60 p-2.5 border border-amber-200/60 dark:bg-amber-950/20 dark:border-amber-900/30">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                      <p className="text-xs text-amber-800 dark:text-amber-400 font-medium">
-                        {t("dashboard.documentVerificationPending", { count: formatNumber(documentPendingCount, locale) })}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="mt-4 pt-3 border-t border-border-theme flex justify-between items-center text-xs text-text-soft font-medium">
-                <span>{t("dashboard.lastUpdatedJustNow")}</span>
-                <span className="font-bold text-primary-theme cursor-pointer hover:underline">{t("dashboard.resolveAllBtn")}</span>
-              </div>
-            </div>
-
-            {/* Audit Console Table */}
-            <div className="lg:col-span-2 rounded-xl border border-border-theme bg-surface p-5 shadow-xs">
-              <h3 className="text-xs font-bold text-text-theme mb-3.5 flex items-center gap-2 uppercase tracking-wider">
-                <History className="h-4 w-4 text-primary-theme" /> {t("dashboard.recentSystemAudits")}
-              </h3>
-              <DataTable<any>
-                data={recentAuditLogs}
-                columns={[
-                  { header: t("auditLogs.tableHeaderTimestamp"), accessor: (log: any) => formatDateTime(log.timestamp, locale) },
-                  { header: t("auditLogs.tableHeaderStaff"), accessor: (log: any) => `${log.userId} (${t(`roles.${log.roleName}`) || log.roleName})` },
-                  { header: t("auditLogs.tableHeaderAction"), accessor: (log: any) => <span className="font-semibold text-text-theme">{log.actionType}</span> },
-                  { header: t("auditLogs.tableHeaderModule"), accessor: (log: any) => log.tableName },
-                  { header: t("auditLogs.tableHeaderRecord"), accessor: (log: any) => <span className="font-mono text-[10px] bg-bg-muted border border-border-theme px-1.5 py-0.5 rounded text-text-theme">{log.recordId}</span> },
-                ]}
-                searchPlaceholder={t("dashboard.filterAuditTrailPlaceholder")}
-                searchField="actionType"
-                emptyStateTitle={t("common.noRecords")}
-                pageSize={5}
+            <AppCard>
+              <AppCardHeader
+                icon={Clock}
+                title={t("dashboard.quotaUtilization")}
+                subtitle={
+                  locale === "bn"
+                    ? "খোলা ডিমান্ড অনুযায়ী স্লট পূরণের অগ্রগতি"
+                    : "Slot fill progress across open demands"
+                }
               />
+              {jobOrders.length > 0 ? (
+                <ul className="mt-4 space-y-3.5">
+                  {jobOrders.slice(0, 5).map((jo: JobOrderRow) => {
+                    const pct =
+                      jo.totalQuota > 0
+                        ? Math.round((jo.allocatedQuota / jo.totalQuota) * 100)
+                        : 0;
+                    return (
+                      <li key={jo.id}>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="min-w-0 truncate text-xs font-medium text-text-theme">
+                            {jo.trade}
+                            <span className="ml-1.5 font-normal text-text-soft">
+                              {jo.employerName} · {jo.country}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-xs text-text-muted tabular-nums-ui">
+                            {formatNumber(jo.allocatedQuota, locale)}/
+                            {formatNumber(jo.totalQuota, locale)}
+                          </span>
+                        </div>
+                        <ProgressBar className="mt-1.5" value={pct} tone="auto" size="sm" />
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="mt-4 text-xs text-text-soft">{t("dashboard.noJobOrders")}</p>
+              )}
+            </AppCard>
+          </div>
+
+          {/* Deployment geography — real allocation share from the API */}
+          {geographyShare.length > 0 && (
+            <AppCard>
+              <AppCardHeader
+                title={locale === "bn" ? "গন্তব্য দেশ বন্টন" : "Destination Distribution"}
+                subtitle={
+                  locale === "bn"
+                    ? "বরাদ্দকৃত কোটার ভিত্তিতে দেশভিত্তিক অংশ"
+                    : "Share of allocated quota by destination country"
+                }
+              />
+              <ul className="mt-4 space-y-3">
+                {geographyShare.slice(0, 6).map((g: GeographyRow, idx: number) => (
+                  <li key={g.country}>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 truncate text-xs font-medium text-text-theme">
+                        {g.country}
+                      </span>
+                      <span className="shrink-0 text-xs text-text-muted tabular-nums-ui">
+                        {formatNumber(g.percent, locale)}%
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-bg-muted">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${g.percent}%`, backgroundColor: chartColor(idx) }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </AppCard>
+          )}
+
+          {/* LEVEL 3 — historical / audit */}
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <History className="h-4 w-4 text-text-soft" />
+              <h2 className="text-sm font-semibold text-text-theme">
+                {t("dashboard.recentSystemAudits")}
+              </h2>
             </div>
+            <DataTable<AuditLogRow>
+              data={recentAuditLogs}
+              rowKey={(log: AuditLogRow, i: number) => log.id || String(i)}
+              columns={[
+                {
+                  header: t("auditLogs.tableHeaderTimestamp"),
+                  accessor: (log: AuditLogRow) => (
+                    <span className="whitespace-nowrap text-text-muted">
+                      {formatDateTime(log.timestamp, locale)}
+                    </span>
+                  ),
+                },
+                {
+                  header: t("auditLogs.tableHeaderStaff"),
+                  accessor: (log: AuditLogRow) => (
+                    <div className="min-w-0">
+                      <div className="truncate font-medium text-text-theme">{log.userId}</div>
+                      <div className="truncate text-[11px] text-text-soft">
+                        {t(`roles.${log.roleName}`) || log.roleName}
+                      </div>
+                    </div>
+                  ),
+                  primary: true,
+                },
+                {
+                  header: t("auditLogs.tableHeaderAction"),
+                  accessor: (log: AuditLogRow) => (
+                    <span className="font-medium text-text-theme">{log.actionType}</span>
+                  ),
+                },
+                {
+                  header: t("auditLogs.tableHeaderModule"),
+                  accessor: (log: AuditLogRow) => log.tableName,
+                  hideOnMobile: true,
+                },
+                {
+                  header: t("auditLogs.tableHeaderRecord"),
+                  accessor: (log: AuditLogRow) => (
+                    <span className="font-mono text-[11px] text-text-soft">{log.recordId}</span>
+                  ),
+                  hideOnMobile: true,
+                },
+              ]}
+              searchPlaceholder={t("dashboard.filterAuditTrailPlaceholder")}
+              searchField="actionType"
+              emptyStateTitle={t("common.noRecords")}
+              pageSize={6}
+            />
           </div>
         </div>
       )}
+
 
 
       {/* ------------------ OPERATIONS ADMIN DASHBOARD ------------------ */}
@@ -336,7 +646,6 @@ export default function DashboardPage() {
               value={`${formatNumber(allocatedQuota, locale)} ${locale === "bn" ? "টি পাঠানো হয়েছে" : "Placed"}`}
               description={t("dashboard.totalForeignSlots", { total: formatNumber(totalQuota, locale) })}
               iconName="Briefcase"
-              trend={{ value: "4.8%", isPositive: true }}
             />
             <StatCard
               title={t("dashboard.candidatesUnderReview")}
@@ -346,8 +655,20 @@ export default function DashboardPage() {
             />
             <StatCard
               title={t("dashboard.meanDeploymentTime")}
-              value={locale === "bn" ? "২৮ দিন" : "28 Days"}
-              description={t("dashboard.deploymentTimeDesc")}
+              value={
+                totalPipelineDays > 0
+                  ? `${formatNumber(totalPipelineDays, locale)} ${
+                      locale === "bn" ? "দিন" : "Days"
+                    }`
+                  : "—"
+              }
+              description={
+                totalPipelineDays > 0
+                  ? t("dashboard.deploymentTimeDesc")
+                  : locale === "bn"
+                    ? "পর্যাপ্ত ওয়ার্কফ্লো ইতিহাস নেই"
+                    : "Not enough workflow history yet"
+              }
               iconName="Clock"
             />
             <StatCard
@@ -448,7 +769,6 @@ export default function DashboardPage() {
               value={formatNumber(pendingDocumentCount, locale)}
               description={t("dashboard.awaitingVerificationSeal")}
               iconName="FileText"
-              trend={{ value: "15%", isPositive: false }}
             />
             <StatCard
               title={t("dashboard.completedVerifications")}
@@ -484,7 +804,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex gap-2">
                       {app.documents.map((d: any) => (
-                        <span key={d.id} className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-1 text-[9px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/20 dark:text-amber-400">
+                        <span key={d.id} className="inline-flex items-center gap-1 rounded-sm border border-warning-theme/25 bg-warning-soft px-2 py-1 text-[10px] font-medium text-warning-theme">
                           {d.documentType} ({d.fileName})
                         </span>
                       ))}
@@ -556,7 +876,6 @@ export default function DashboardPage() {
               value={formatCurrency(totalOutstanding, "BDT", locale)}
               description={t("dashboard.activeInvoiceCollections")}
               iconName="CreditCard"
-              trend={{ value: "10%", isPositive: false }}
             />
             <StatCard
               title={t("dashboard.totalFeesBilled")}
@@ -587,7 +906,7 @@ export default function DashboardPage() {
                 { header: t("documents.tableHeaderCandidate"), accessor: (inv: any) => inv.applicantId },
                 { header: t("dashboard.totalFeesBilled"), accessor: (inv: any) => formatCurrency(inv.amount, "BDT", locale) },
                 { header: t("invoicesReceipts.tableHeaderOutstanding"), accessor: (inv: any) => (
-                  <span className={`font-semibold ${inv.outstanding > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                  <span className={`font-semibold ${inv.outstanding > 0 ? "text-danger-theme" : "text-success-theme"}`}>
                     {formatCurrency(inv.outstanding, "BDT", locale)}
                   </span>
                 )},
@@ -639,7 +958,7 @@ export default function DashboardPage() {
                 { header: t("applicants.tableHeaderPassport"), accessor: (a: any) => a.passportNumber },
                 { header: t("applicants.tableHeaderTrade"), accessor: (a: any) => a.trade },
                 { header: t("applicants.tableHeaderStage"), accessor: (a: any) => <StatusBadge status={a.currentStage} /> },
-                { header: t("agents.tableHeaderStatus"), accessor: (a: any) => a.isArchived ? <span className="text-rose-600 font-semibold">{t("statuses.CANCELLED")}</span> : <span className="text-emerald-600 font-semibold">{t("statuses.ACTIVE")}</span> },
+                { header: t("agents.tableHeaderStatus"), accessor: (a: any) => a.isArchived ? <span className="font-medium text-danger-theme">{t("statuses.CANCELLED")}</span> : <span className="font-medium text-success-theme">{t("statuses.ACTIVE")}</span> },
               ]}
               searchPlaceholder={t("dashboard.filterCandidatesPlaceholder")}
               searchField="fullName"

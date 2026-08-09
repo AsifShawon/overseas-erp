@@ -3,51 +3,65 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
 
+type Variant =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "ghost"
+  | "danger"
+  | "success";
+type Size = "sm" | "md" | "lg" | "icon";
+
 interface AppButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "danger" | "success";
+  variant?: Variant;
+  size?: Size;
   isLoading?: boolean;
 }
+
+/**
+ * The single button primitive for the whole application.
+ *
+ * Every colour comes from a semantic design token — no raw palette classes and
+ * no `dark:` variants, so both themes follow automatically.
+ */
+const VARIANTS: Record<Variant, string> = {
+  primary:
+    "bg-primary-theme text-white border border-transparent hover:bg-primary-hover",
+  secondary:
+    "bg-surface text-text-theme border border-border-theme hover:bg-bg-muted",
+  outline:
+    "bg-transparent text-text-theme border border-border-strong hover:bg-bg-muted",
+  ghost:
+    "bg-transparent text-text-muted border border-transparent hover:bg-bg-muted hover:text-text-theme",
+  danger:
+    "bg-danger-theme text-white border border-transparent hover:opacity-90",
+  success:
+    "bg-success-theme text-white border border-transparent hover:opacity-90",
+};
+
+const SIZES: Record<Size, string> = {
+  sm: "h-8 px-3 text-xs gap-1.5",
+  md: "h-9.5 px-3.5 text-xs gap-1.5",
+  lg: "h-11 px-5 text-sm gap-2",
+  icon: "h-9.5 w-9.5 p-0 justify-center",
+};
 
 export function AppButton({
   children,
   variant = "primary",
+  size = "md",
   isLoading = false,
   className = "",
   disabled,
+  type = "button",
   ...props
 }: AppButtonProps) {
-  const baseStyle =
-    "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 cursor-pointer";
-
-  let variantStyle = "";
-
-  switch (variant) {
-    case "primary":
-      variantStyle =
-        "bg-primary-theme hover:bg-primary-hover text-white shadow-sm shadow-indigo-600/10";
-      break;
-    case "secondary":
-      variantStyle =
-        "border border-border-strong bg-white hover:bg-bg-muted text-text-theme dark:bg-slate-900";
-      break;
-    case "ghost":
-      variantStyle =
-        "text-text-muted hover:bg-bg-muted hover:text-text-theme";
-      break;
-    case "danger":
-      variantStyle =
-        "bg-danger-theme hover:bg-danger-theme/90 text-white shadow-sm shadow-rose-600/10";
-      break;
-    case "success":
-      variantStyle =
-        "bg-success-theme hover:bg-success-theme/90 text-white shadow-sm shadow-emerald-600/10";
-      break;
-  }
-
   return (
     <button
+      type={type}
       disabled={disabled || isLoading}
-      className={`${baseStyle} ${variantStyle} ${className}`}
+      aria-busy={isLoading || undefined}
+      className={`inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-semibold leading-none transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 cursor-pointer ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       {...props}
     >
       {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

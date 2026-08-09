@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
-import * as Icons from "lucide-react";
+import { ICONS, type IconName } from "./icon-registry";
 
 interface ErrorStateProps {
   title: string;
   description: string;
-  iconName?: keyof typeof Icons;
+  iconName?: IconName;
   actionButton?: React.ReactNode;
   className?: string;
 }
@@ -18,7 +18,7 @@ export function ErrorState({
   actionButton,
   className = "",
 }: ErrorStateProps) {
-  const IconComponent = Icons[iconName] as React.ComponentType<{ className?: string }>;
+  const IconComponent = ICONS[iconName];
 
   return (
     <div

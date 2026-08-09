@@ -9,11 +9,17 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import {
+  CHART_TOOLTIP_LABEL_STYLE,
+  CHART_TOOLTIP_STYLE,
+  chartColor,
+} from "./chart-theme";
 
 export interface DonutChartDataPoint {
   name: string;
   value: number;
-  color: string;
+  /** Optional — falls back to the shared categorical ramp. */
+  color?: string;
 }
 
 interface DonutChartProps {
@@ -44,14 +50,8 @@ export function DonutChart({
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Tooltip
-            contentStyle={{
-              backgroundColor: "var(--surface)",
-              borderColor: "var(--border)",
-              borderRadius: "0.5rem",
-              fontSize: "0.75rem",
-              color: "var(--text)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}
+            contentStyle={CHART_TOOLTIP_STYLE}
+            labelStyle={CHART_TOOLTIP_LABEL_STYLE}
           />
           <Pie
             data={data}
@@ -63,14 +63,16 @@ export function DonutChart({
             dataKey="value"
           >
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} stroke="var(--surface)" strokeWidth={2} />
+              <Cell key={`cell-${index}`} fill={entry.color || chartColor(index)} stroke="var(--surface)" strokeWidth={2} />
             ))}
           </Pie>
           <Legend
             verticalAlign="bottom"
             height={36}
             iconType="circle"
-            formatter={(value) => <span className="text-xs font-semibold text-text-muted">{value}</span>}
+            formatter={(value: string) => (
+              <span className="text-xs text-text-muted">{value}</span>
+            )}
           />
         </PieChart>
       </ResponsiveContainer>

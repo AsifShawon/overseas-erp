@@ -9,10 +9,14 @@ import { DataTable } from "@/components/shared/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PermissionGate } from "@/components/ui/PermissionGate";
 import { WORKFLOW_LABELS, WorkflowStage } from "@/lib/mockData";
-import { SlidersHorizontal, Plus, FileSpreadsheet, Loader2, AlertCircle } from "lucide-react";
+import { Plus, FileSpreadsheet, AlertCircle, Archive, Eye } from "lucide-react";
 import { AppModal } from "@/components/ui/AppModal";
 import { AppInput } from "@/components/ui/AppInput";
 import { AppSelect } from "@/components/ui/AppSelect";
+import { AppButton } from "@/components/ui/AppButton";
+import { AppBadge } from "@/components/ui/AppBadge";
+import { DropdownMenu } from "@/components/ui/DropdownMenu";
+import { ErrorPanel } from "@/components/ui/PageState";
 import { useT } from "@/i18n/useT";
 import { formatNumber } from "@/i18n/format";
 
@@ -276,79 +280,78 @@ export default function ApplicantsPage() {
   const tableColumns = [
     {
       header: t("applicants.tableHeaderName"),
+      primary: true,
       accessor: (a: any) => (
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-primary-theme font-bold text-xs shrink-0 uppercase">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary-soft text-[11px] font-semibold uppercase text-primary-theme">
             {a.fullName ? a.fullName.substring(0, 2) : "CA"}
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-bold text-text-theme truncate text-xs">{a.fullName}</span>
-            <span className="text-[11px] text-text-soft truncate font-medium">
-              {a.phone || a.email || (locale === "bn" ? "কোনো ফোন নম্বর নেই" : "No phone listed")}
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-xs font-semibold text-text-theme">
+              {a.fullName}
             </span>
-          </div>
+            <span className="truncate text-[11px] text-text-soft">
+              {a.phone || a.email || (locale === "bn" ? "ফোন নেই" : "No phone")}
+            </span>
+          </span>
         </div>
       ),
     },
     {
       header: t("applicants.tableHeaderPassport"),
       accessor: (a: any) => (
-        <span className="font-mono text-xs font-semibold text-text-theme bg-bg-muted border border-border-theme px-2 py-0.5 rounded">
-          {a.passportNumber}
-        </span>
+        <span className="font-mono text-xs text-text-muted">{a.passportNumber}</span>
       ),
     },
-    { header: t("applicants.tableHeaderTrade"), accessor: (a: any) => <span className="text-xs font-semibold text-text-theme">{a.trade}</span> },
+    {
+      header: t("applicants.tableHeaderTrade"),
+      accessor: (a: any) => <span className="text-xs text-text-theme">{a.trade}</span>,
+      hideOnMobile: true,
+    },
     {
       header: t("applicants.tableHeaderStage"),
       accessor: (a: any) => <StatusBadge status={a.currentStage} />,
     },
     {
-      header: locale === "bn" ? "রেকর্ড অবস্থা" : "Integrity",
-      accessor: (a: any) => (
-        <span
-          className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-            a.isArchived
-              ? "text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
-              : "text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
-          }`}
-        >
-          {a.isArchived
-            ? locale === "bn"
-              ? "আর্কাইভ করা"
-              : "Archived"
-            : locale === "bn"
-            ? "সক্রিয় নিরীক্ষণ"
-            : "Active Vetting"}
-        </span>
-      ),
+      header: locale === "bn" ? "রেকর্ড অবস্থা" : "Record",
+      accessor: (a: any) =>
+        a.isArchived ? (
+          <AppBadge variant="neutral" dot>
+            {locale === "bn" ? "আর্কাইভড" : "Archived"}
+          </AppBadge>
+        ) : (
+          <AppBadge variant="success" dot>
+            {locale === "bn" ? "সক্রিয়" : "Active"}
+          </AppBadge>
+        ),
+      hideOnMobile: true,
     },
   ];
 
   // Actions header
   const headerActions = (
-    <div className="flex items-center gap-2">
-      {hasAccess("CREATE_APPLICANT") && (
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-primary-theme px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-primary-hover transition-colors cursor-pointer"
-        >
-          <Plus className="h-4 w-4" /> {t("applicants.addApplicantBtn")}
-        </button>
-      )}
-      <button
+    <>
+      <AppButton
+        variant="secondary"
+        size="sm"
         onClick={handleExport}
+        isLoading={isExporting}
         disabled={isExporting}
-        className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3 py-1.5 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
       >
-        {isExporting ? (
-          <Loader2 className="h-3.5 w-3.5 text-emerald-600 animate-spin" />
-        ) : (
-          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-        )}
-        {isExporting ? (locale === "bn" ? "এক্সপোর্ট হচ্ছে..." : "Exporting...") : t("common.exportCsv")}
-      </button>
-    </div>
+        {!isExporting && <FileSpreadsheet className="h-3.5 w-3.5" />}
+        {isExporting
+          ? locale === "bn"
+            ? "এক্সপোর্ট হচ্ছে..."
+            : "Exporting..."
+          : t("common.exportCsv")}
+      </AppButton>
+      {hasAccess("CREATE_APPLICANT") && (
+        <AppButton size="sm" onClick={() => setIsCreateModalOpen(true)}>
+          <Plus className="h-4 w-4" />
+          {t("applicants.addApplicantBtn")}
+        </AppButton>
+      )}
+    </>
   );
 
   return (
@@ -357,34 +360,42 @@ export default function ApplicantsPage() {
         <PageHeader
           title={t("applicants.pageTitle")}
           description={t("applicants.pageDesc")}
-          breadcrumbs={[{ label: locale === "bn" ? "ইআরপি হাব" : "ERP Hub", href: "/dashboard" }, { label: t("nav.applicants") }]}
           actions={headerActions}
         />
 
-        {/* Pipeline Quick-Filter Summary Strip */}
+        {/*
+          Pipeline quick filters. These drive the existing selectedStage state —
+          the same filter the dropdown below uses — so nothing new is queried.
+        */}
         <div className="flex flex-wrap items-center gap-2">
           {[
-            { id: "ALL", label: locale === "bn" ? "সব প্রার্থী" : "All Candidates", count: totalCount },
+            { id: "ALL", label: locale === "bn" ? "সব প্রার্থী" : "All", count: totalCount },
             { id: "SELECTED", label: locale === "bn" ? "মনোনীত" : "Selected", count: selectedCount },
             { id: "MEDICAL_WAITING", label: locale === "bn" ? "মেডিকেল" : "Medical", count: medicalCount },
-            { id: "VISA_SUBMITTED", label: locale === "bn" ? "ভিসা প্রসেসিং" : "Visa Processing", count: visaCount },
+            { id: "VISA_SUBMITTED", label: locale === "bn" ? "ভিসা" : "Visa", count: visaCount },
             { id: "DEPLOYED", label: locale === "bn" ? "ফ্লাইট সম্পন্ন" : "Deployed", count: deployedCount },
           ].map((item) => {
             const isSelected = selectedStage === item.id;
             return (
               <button
                 key={item.id}
+                type="button"
+                aria-pressed={isSelected}
                 onClick={() => setSelectedStage(item.id)}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                className={`flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors cursor-pointer ${
                   isSelected
-                    ? "border-primary-theme bg-primary-soft text-primary-theme font-bold shadow-xs"
-                    : "border-border-theme bg-surface text-text-soft hover:bg-bg-muted hover:text-text-theme"
+                    ? "border-primary-theme bg-primary-soft text-primary-theme"
+                    : "border-border-theme bg-surface text-text-muted hover:bg-bg-muted hover:text-text-theme"
                 }`}
               >
                 <span>{item.label}</span>
-                <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
-                  isSelected ? "bg-primary-theme text-white" : "bg-bg-muted text-text-muted"
-                }`}>
+                <span
+                  className={`rounded-sm px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums-ui ${
+                    isSelected
+                      ? "bg-primary-theme text-white"
+                      : "bg-bg-muted text-text-soft"
+                  }`}
+                >
                   {formatNumber(item.count, locale)}
                 </span>
               </button>
@@ -392,115 +403,127 @@ export default function ApplicantsPage() {
           })}
         </div>
 
-        {/* Filters Bar */}
-        <div className="flex flex-col gap-3 rounded-xl border border-border-theme bg-surface p-4 shadow-xs sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2 shrink-0 text-text-theme text-xs font-bold mr-1">
-            <SlidersHorizontal className="h-4 w-4 text-primary-theme" /> {locale === "bn" ? "ফিল্টারসমূহ" : "Filters"}
-          </div>
-
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 flex-1">
-            {/* Trade Select */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">{locale === "bn" ? "ট্রেড ক্যাটাগরি" : "Trade Category"}</label>
-              <select
-                value={selectedTrade}
-                onChange={(e) => setSelectedTrade(e.target.value)}
-                className="w-full rounded-lg border border-border-theme bg-bg py-1 px-2.5 text-xs font-semibold outline-none focus:border-primary-theme text-text-theme"
-              >
-                <option value="ALL">{locale === "bn" ? "সব ট্রেড সেগমেন্ট" : "All Trade Segments"}</option>
-                {availableTrades.map((trade) => (
-                  <option key={trade} value={trade}>
-                    {trade}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Workflow Stage Select */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">{locale === "bn" ? "প্রক্রিয়ার ধাপ (Milestone)" : "Logistics Milestone"}</label>
-              <select
-                value={selectedStage}
-                onChange={(e) => setSelectedStage(e.target.value)}
-                className="w-full rounded-lg border border-border-theme bg-bg py-1 px-2.5 text-xs font-semibold outline-none focus:border-primary-theme text-text-theme"
-              >
-                <option value="ALL">{locale === "bn" ? "সব ধাপ" : "All Stages"}</option>
-                {availableStages.map((stage) => {
-                  const translatedStage = t(`workflow.${stage}`);
-                  const displayStage = translatedStage !== `workflow.${stage}` ? translatedStage : (WORKFLOW_LABELS[stage as WorkflowStage] || stage);
-                  return (
-                    <option key={stage} value={stage}>
-                      {displayStage}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            {/* Soft-Archived Toggle */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">{locale === "bn" ? "অডিট ভিউ" : "Audit View"}</label>
-              <div className="flex h-8 items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="archived-toggle"
-                  checked={showArchived}
-                  onChange={(e) => setShowArchived(e.target.checked)}
-                  className="h-4 w-4 rounded border-border-strong text-primary-theme focus:ring-primary-theme cursor-pointer accent-primary-theme"
-                />
-                <label
-                  htmlFor="archived-toggle"
-                  className="text-xs font-semibold text-text-theme cursor-pointer select-none"
-                >
-                  {locale === "bn" ? "শুধু আর্কাইভ করা ফাইল দেখান" : "Show Soft-Archived Files Only"}
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Live Data rendering with beautiful loading/error and empty states */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-border-theme bg-surface p-5 shadow-sm space-y-4">
-            <div className="relative h-12 w-12 rounded-2xl bg-surface border border-border-theme flex items-center justify-center shadow-lg">
-              <Loader2 className="h-6 w-6 text-primary-theme animate-spin" />
-            </div>
-            <p className="text-xs text-text-soft font-bold animate-pulse">{locale === "bn" ? "ডাটাবেস থেকে আবেদনকারী তালিকা লোড হচ্ছে..." : "Loading live applicants from database..."}</p>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-rose-100 bg-rose-50/50 p-6 text-center shadow-sm dark:border-rose-950/10 dark:bg-rose-950/5 space-y-4">
-            <AlertCircle className="h-10 w-10 text-rose-500" />
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-rose-900 dark:text-rose-400">{locale === "bn" ? "তালিকা লোড করতে ব্যর্থ হয়েছে" : "Failed to Load Directory"}</h3>
-              <p className="text-xs text-rose-700/80 dark:text-rose-400/70 max-w-md">{error}</p>
-            </div>
-            <button
-              onClick={fetchApplicants}
-              className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 shadow-sm cursor-pointer"
-            >
-              {t("dashboard.retryBtn")}
-            </button>
-          </div>
+        {/* Live data — table owns its own search, filters sit in its toolbar */}
+        {error ? (
+          <ErrorPanel
+            title={
+              locale === "bn"
+                ? "তালিকা লোড করতে ব্যর্থ হয়েছে"
+                : "Failed to load applicants"
+            }
+            message={error}
+            onRetry={fetchApplicants}
+            retryLabel={t("dashboard.retryBtn")}
+          />
         ) : (
           <DataTable
             data={filteredApplicants}
+            loading={loading}
+            rowKey={(a: any) => a.id}
             columns={tableColumns}
             searchPlaceholder={t("applicants.searchPlaceholder")}
             searchField="fullName"
+            extraSearchFields={["passportNumber", "phone", "trade"]}
             onRowClick={handleRowClick}
+            rowActions={(a: any) => (
+              <DropdownMenu
+                items={[
+                  {
+                    label: locale === "bn" ? "বিস্তারিত দেখুন" : "View dossier",
+                    icon: Eye,
+                    onClick: () => router.push(`/applicants/${a.id}`),
+                  },
+                ]}
+                ariaLabel={
+                  locale === "bn"
+                    ? `${a.fullName} এর কার্যক্রম`
+                    : `Actions for ${a.fullName}`
+                }
+              />
+            )}
+            filterComponent={
+              <>
+                <label htmlFor="filter-trade" className="sr-only">
+                  {locale === "bn" ? "ট্রেড" : "Trade"}
+                </label>
+                <select
+                  id="filter-trade"
+                  value={selectedTrade}
+                  onChange={(e) => setSelectedTrade(e.target.value)}
+                  className="h-9 max-w-44 rounded-md border border-input-border bg-input-bg px-2.5 text-xs text-text-theme"
+                >
+                  <option value="ALL">
+                    {locale === "bn" ? "সব ট্রেড" : "All trades"}
+                  </option>
+                  {availableTrades.map((trade) => (
+                    <option key={trade} value={trade}>
+                      {trade}
+                    </option>
+                  ))}
+                </select>
+
+                <label htmlFor="filter-stage" className="sr-only">
+                  {locale === "bn" ? "ধাপ" : "Stage"}
+                </label>
+                <select
+                  id="filter-stage"
+                  value={selectedStage}
+                  onChange={(e) => setSelectedStage(e.target.value)}
+                  className="h-9 max-w-44 rounded-md border border-input-border bg-input-bg px-2.5 text-xs text-text-theme"
+                >
+                  <option value="ALL">
+                    {locale === "bn" ? "সব ধাপ" : "All stages"}
+                  </option>
+                  {availableStages.map((stage) => {
+                    const translated = t(`workflow.${stage}`);
+                    const displayStage =
+                      translated !== `workflow.${stage}`
+                        ? translated
+                        : WORKFLOW_LABELS[stage as WorkflowStage] || stage;
+                    return (
+                      <option key={stage} value={stage}>
+                        {displayStage}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <button
+                  type="button"
+                  aria-pressed={showArchived}
+                  onClick={() => setShowArchived(!showArchived)}
+                  className={`flex h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors cursor-pointer ${
+                    showArchived
+                      ? "border-primary-theme bg-primary-soft text-primary-theme"
+                      : "border-border-theme bg-surface text-text-muted hover:bg-bg-muted"
+                  }`}
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                  {locale === "bn" ? "আর্কাইভড" : "Archived"}
+                </button>
+              </>
+            }
             emptyStateTitle={
               showArchived
                 ? locale === "bn"
-                  ? "কোনো আর্কাইভড ফাইল পাওয়া যায়নি"
-                  : "No archived files found"
+                  ? "কোনো আর্কাইভড ফাইল নেই"
+                  : "No archived applicants"
                 : locale === "bn"
-                ? "কোনো সক্রিয় ফাইল পাওয়া যায়নি"
-                : "No active vetting files found"
+                  ? "কোনো প্রার্থী পাওয়া যায়নি"
+                  : "No applicants found"
             }
             emptyStateDescription={
               locale === "bn"
-                ? "অনুগ্রহ করে আপনার ফিল্টার রিসেট করুন বা সক্রিয় প্রার্থীদের তালিকায় ফিরে যান।"
-                : "Try resetting your filters or toggle the view back to active candidate records."
+                ? "ফিল্টার পরিবর্তন করুন বা নতুন প্রার্থী নিবন্ধন করুন।"
+                : "Try adjusting your filters, or register a new applicant."
+            }
+            emptyStateAction={
+              hasAccess("CREATE_APPLICANT") && !showArchived ? (
+                <AppButton size="sm" onClick={() => setIsCreateModalOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  {t("applicants.addApplicantBtn")}
+                </AppButton>
+              ) : undefined
             }
           />
         )}
@@ -513,8 +536,8 @@ export default function ApplicantsPage() {
         >
           <form onSubmit={handleSubmit} className="space-y-6">
             {formError && (
-              <div className="flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-100 p-4 text-xs font-medium text-rose-800 dark:bg-rose-950/20 dark:border-rose-950/30 dark:text-rose-400">
-                <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
+              <div role="alert" className="flex items-center gap-2 rounded-md border border-danger-theme/25 bg-danger-soft p-3 text-xs text-danger-theme">
+                <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
@@ -661,7 +684,7 @@ export default function ApplicantsPage() {
                   </AppSelect>
 
                   {activeRoleName === "Agent" ? (
-                    <div className="md:col-span-2 rounded-xl bg-indigo-50/50 p-4 border border-indigo-100 dark:bg-indigo-950/15 dark:border-indigo-950/30 text-indigo-700 dark:text-indigo-400">
+                    <div className="md:col-span-2 rounded-md border border-primary-theme/25 bg-primary-soft p-3 text-primary-theme">
                       <p className="font-bold text-xs mb-0.5">{locale === "bn" ? "রিক্রুটার স্কোপ সক্রিয়" : "Recruiter Scoping Active"}</p>
                       <p className="text-[11px] opacity-90">{locale === "bn" ? "এই আবেদনকারী আপনার এজেন্সি প্রোফাইলের অধীনে নিবন্ধিত হবে।" : "This applicant will be registered under your agency profile."}</p>
                     </div>
@@ -687,29 +710,23 @@ export default function ApplicantsPage() {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-theme">
-              <button
-                type="button"
+            <div className="flex items-center justify-end gap-2 border-t border-border-theme pt-4">
+              <AppButton
+                variant="secondary"
                 onClick={handleCancel}
                 disabled={isSubmitting}
-                className="rounded-xl border border-border-theme bg-surface px-4 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {t("common.cancel")}
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-1.5 rounded-xl bg-primary-theme px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-hover shadow-primary-theme/20 disabled:opacity-50 transition-all cursor-pointer"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    {locale === "bn" ? "তৈরি হচ্ছে..." : "Creating..."}
-                  </>
-                ) : (
-                  locale === "bn" ? "আবেদনকারী তৈরি করুন" : "Create Applicant"
-                )}
-              </button>
+              </AppButton>
+              <AppButton type="submit" isLoading={isSubmitting}>
+                {isSubmitting
+                  ? locale === "bn"
+                    ? "তৈরি হচ্ছে..."
+                    : "Creating..."
+                  : locale === "bn"
+                    ? "আবেদনকারী তৈরি করুন"
+                    : "Create Applicant"}
+              </AppButton>
             </div>
           </form>
         </AppModal>

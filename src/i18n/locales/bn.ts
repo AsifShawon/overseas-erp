@@ -56,6 +56,14 @@ export const bn: TranslationKeys = {
     quickLoginFailed: "কুইক সাইন-ইন ব্যর্থ হয়েছে।",
   },
   nav: {
+    section: {
+      overview: "সংক্ষিপ্ত বিবরণ",
+      operations: "কার্যক্রম",
+      finance: "অর্থ ব্যবস্থাপনা",
+      insights: "বিশ্লেষণ",
+      system: "সিস্টেম",
+      platform: "প্ল্যাটফর্ম অ্যাডমিন",
+    },
     dashboard: "ড্যাশবোর্ড",
     applicants: "আবেদনকারী",
     jobOrders: "জব অর্ডার / ওপেনিং (Job Order / Opening)",

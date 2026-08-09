@@ -1,51 +1,51 @@
 import React from "react";
 
+type BadgeVariant =
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "neutral"
+  | "primary";
+
 interface AppBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "success" | "warning" | "danger" | "info" | "neutral" | "primary";
+  variant?: BadgeVariant;
+  /** Adds a leading status dot — useful when colour alone must not carry meaning. */
+  dot?: boolean;
   children: React.ReactNode;
 }
 
+const VARIANTS: Record<BadgeVariant, string> = {
+  success: "bg-success-soft text-success-theme border-success-theme/25",
+  warning: "bg-warning-soft text-warning-theme border-warning-theme/25",
+  danger: "bg-danger-soft text-danger-theme border-danger-theme/25",
+  info: "bg-info-soft text-info-theme border-info-theme/25",
+  primary: "bg-primary-soft text-primary-theme border-primary-theme/25",
+  neutral: "bg-bg-muted text-text-muted border-border-theme",
+};
+
+/**
+ * Compact semantic badge. Vertical padding is kept at py-1 (not py-0.5) so
+ * Bangla matras and conjuncts have room to render without clipping.
+ */
 export function AppBadge({
   children,
   variant = "neutral",
+  dot = false,
   className = "",
   ...props
 }: AppBadgeProps) {
-  let colorStyle = "";
-
-  switch (variant) {
-    case "success":
-      colorStyle =
-        "bg-success-soft text-success-theme border-success-theme/20 dark:border-success-theme/10";
-      break;
-    case "warning":
-      colorStyle =
-        "bg-warning-soft text-warning-theme border-warning-theme/20 dark:border-warning-theme/10";
-      break;
-    case "danger":
-      colorStyle =
-        "bg-danger-soft text-danger-theme border-danger-theme/20 dark:border-danger-theme/10";
-      break;
-    case "info":
-      colorStyle =
-        "bg-info-soft text-info-theme border-info-theme/20 dark:border-info-theme/10";
-      break;
-    case "primary":
-      colorStyle =
-        "bg-primary-soft text-primary-theme border-primary-theme/20 dark:border-primary-theme/10";
-      break;
-    case "neutral":
-    default:
-      colorStyle =
-        "bg-bg-muted text-text-muted border-border-strong";
-      break;
-  }
-
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide transition-colors ${colorStyle} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[11px] font-semibold leading-none ${VARIANTS[variant]} ${className}`}
       {...props}
     >
+      {dot && (
+        <span
+          aria-hidden="true"
+          className="h-1.5 w-1.5 shrink-0 rounded-full bg-current"
+        />
+      )}
       {children}
     </span>
   );
