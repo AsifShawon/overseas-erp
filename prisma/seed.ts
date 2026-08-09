@@ -387,7 +387,69 @@ async function main() {
   console.log(`   ✓ Users seeded.\n`);
 
   // ------------------------------------------
-  // STEP 5: Seed Agents
+  // STEP 5: Seed Default Company and User Memberships
+  // ------------------------------------------
+  console.log("🏢 Seeding Default Company and User Memberships...");
+
+  const defaultCompany = await prisma.company.upsert({
+    where: { slug: "overseas-agency" },
+    update: {
+      name: "Overseas Manpower Agency",
+      status: "ACTIVE",
+      businessType: "Recruitment Agency",
+      country: "Bangladesh",
+      ownerName: superAdmin.fullName,
+      ownerEmail: superAdmin.email,
+    },
+    create: {
+      name: "Overseas Manpower Agency",
+      slug: "overseas-agency",
+      businessType: "Recruitment Agency",
+      country: "Bangladesh",
+      ownerName: superAdmin.fullName,
+      ownerEmail: superAdmin.email,
+      status: "ACTIVE",
+    },
+  });
+
+  const membershipSeedData = [
+    { user: superAdmin, roleName: "Super Admin", isOwner: true },
+    { user: opsAdmin, roleName: "Operations Admin" },
+    { user: hrOfficer, roleName: "HR Officer" },
+    { user: docsOfficer, roleName: "Documentation Officer" },
+    { user: accountsOfficer, roleName: "Accounts Officer" },
+    { user: agentKabirUser, roleName: "Agent" },
+    { user: agentTariqUser, roleName: "Agent" },
+    { user: applicantUser, roleName: "Applicant" },
+  ];
+
+  for (const membership of membershipSeedData) {
+    await prisma.userMembership.upsert({
+      where: {
+        userId_companyId: {
+          userId: membership.user.id,
+          companyId: defaultCompany.id,
+        },
+      },
+      update: {
+        roleId: roleMap[membership.roleName],
+        status: "ACTIVE",
+        isOwner: membership.isOwner ?? false,
+      },
+      create: {
+        userId: membership.user.id,
+        companyId: defaultCompany.id,
+        roleId: roleMap[membership.roleName],
+        status: "ACTIVE",
+        isOwner: membership.isOwner ?? false,
+      },
+    });
+  }
+
+  console.log(`   ✓ Default company and ${membershipSeedData.length} user memberships seeded.\n`);
+
+  // ------------------------------------------
+  // STEP 6: Seed Agents
   // ------------------------------------------
   console.log("🤝 Seeding Agents...");
 
