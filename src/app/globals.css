@@ -3,12 +3,12 @@
 /* 1. Tailwind v4 Custom Dark Variant - strictly binds dark: utilities to data-theme="dark" */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* 2. Light Theme Design Tokens (Default) */
+/* 2. Light Theme Design Tokens (Onion Enterprise Aesthetic) */
 :root {
   color-scheme: light;
   
-  --bg: #f5f7fa;
-  --bg-muted: #eef2f6;
+  --bg: #f8fafc;
+  --bg-muted: #f1f5f9;
   --surface: #ffffff;
   --surface-elevated: #ffffff;
   --surface-soft: #f8fafc;
@@ -16,16 +16,16 @@
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
   
-  --text: #090d16;
-  --text-muted: #334155;
+  --text: #0f172a;
+  --text-muted: #475569;
   --text-soft: #64748b;
   
-  /* Brand colors */
-  --primary: #1e3a8a; /* Deep professional blue */
-  --primary-hover: #172554;
-  --primary-soft: #eff6ff;
+  /* Onion Indigo/Violet Brand Palette */
+  --primary: #4f46e5; /* Vibrant indigo */
+  --primary-hover: #4338ca;
+  --primary-soft: #eef2ff;
   
-  --brand-red: #dc2626; /* Strong VisaTek red */
+  --brand-red: #dc2626;
   --brand-red-hover: #b91c1c;
   --brand-red-soft: #fef2f2;
   
@@ -42,17 +42,18 @@
   --info-soft: #eff6ff;
   
   --input-bg: #ffffff;
-  --input-text: #090d16;
+  --input-text: #0f172a;
   --input-placeholder: #94a3b8;
   --input-border: #cbd5e1;
   
-  /* Sidebar dark navy tokens */
-  --sidebar-bg: #090d16;
+  /* Sidebar dark navy tokens (Sleek unified dark sidebar) */
+  --sidebar-bg: #0d1322;
   --sidebar-text: #94a3b8;
-  --sidebar-hover-bg: #1e293b;
-  --sidebar-active-bg: #1e3a8a;
+  --sidebar-hover-bg: #1a233a;
+  --sidebar-active-bg: #4f46e5;
   --sidebar-active-text: #ffffff;
   --sidebar-border: #1e293b;
+  --sidebar-section: #64748b;
 }
 
 /* 3. Dark Theme Design Tokens (Manual Override Only) */
@@ -72,9 +73,9 @@
   --text-muted: #cbd5e1;
   --text-soft: #94a3b8;
   
-  --primary: #3b82f6; /* Lighter blue for dark mode visibility */
-  --primary-hover: #60a5fa;
-  --primary-soft: rgba(59, 130, 246, 0.15);
+  --primary: #6366f1;
+  --primary-hover: #818cf8;
+  --primary-soft: rgba(99, 102, 241, 0.15);
   
   --brand-red: #f43f5e;
   --brand-red-hover: #fda4af;
@@ -97,13 +98,13 @@
   --input-placeholder: #64748b;
   --input-border: #1e293b;
   
-  /* Sidebar dark navy tokens for dark mode */
   --sidebar-bg: #070a13;
   --sidebar-text: #94a3b8;
   --sidebar-hover-bg: #0f1524;
-  --sidebar-active-bg: #3b82f6;
+  --sidebar-active-bg: #6366f1;
   --sidebar-active-text: #ffffff;
   --sidebar-border: #0f1524;
+  --sidebar-section: #475569;
 }
 
 /* 4. Map Variables into Tailwind v4 Theme Configuration */
@@ -152,6 +153,7 @@
   --color-sidebar-active-bg: var(--sidebar-active-bg);
   --color-sidebar-active-text: var(--sidebar-active-text);
   --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-section: var(--sidebar-section);
 }
 
 /* 5. Base Styles for Layout and Core Elements */
@@ -159,20 +161,22 @@
   body {
     background-color: var(--bg);
     color: var(--text);
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.5;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  /* Ensure focus ring outlines and core components match colors */
+  /* Form controls styled uniformly */
   input, select, textarea {
     background-color: var(--input-bg);
     color: var(--input-text);
     border: 1px solid var(--input-border);
-    border-radius: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.75rem;
+    border-radius: 0.625rem; /* 10px */
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem; /* 13px */
+    line-height: 1.4;
     outline: none;
-    transition: all 0.2s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
   select option, select optgroup {
@@ -185,9 +189,9 @@
   }
 
   input:focus, select:focus, textarea:focus {
-    outline: 2px solid var(--primary);
-    outline-offset: 1px;
+    outline: none;
     border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-soft);
   }
 
   input:disabled, select:disabled, textarea:disabled, button:disabled {
@@ -205,7 +209,6 @@
     cursor: pointer;
   }
 }
-
 
 /* 6. Global ERP Utility Classes */
 .app-shell {
@@ -226,8 +229,8 @@
   background-color: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 1rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  border-radius: 0.875rem; /* 14px */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
 .app-panel {
@@ -241,38 +244,42 @@
   background-color: var(--input-bg);
   color: var(--input-text);
   border: 1px solid var(--input-border);
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   outline: none;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .app-input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px var(--primary-soft);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .app-select {
   background-color: var(--input-bg);
   color: var(--input-text);
   border: 1px solid var(--input-border);
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   outline: none;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .app-select:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px var(--primary-soft);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .app-button-primary {
   background-color: var(--primary);
   color: #ffffff;
   padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   font-weight: 600;
-  transition: all 0.2s ease;
+  font-size: 0.8125rem;
+  transition: all 0.15s ease;
   cursor: pointer;
+  display: inline-flex;
+  items-center: center;
+  justify-content: center;
 }
 
 .app-button-primary:hover:not(:disabled) {
@@ -280,27 +287,32 @@
 }
 
 .app-button-secondary {
-  background-color: var(--bg-muted);
+  background-color: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
   padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   font-weight: 600;
-  transition: all 0.2s ease;
+  font-size: 0.8125rem;
+  transition: all 0.15s ease;
   cursor: pointer;
+  display: inline-flex;
+  items-center: center;
+  justify-content: center;
 }
 
 .app-button-secondary:hover:not(:disabled) {
-  background-color: var(--border);
+  background-color: var(--bg-muted);
 }
 
 .app-button-danger {
   background-color: var(--danger);
   color: #ffffff;
   padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   font-weight: 600;
-  transition: all 0.2s ease;
+  font-size: 0.8125rem;
+  transition: all 0.15s ease;
   cursor: pointer;
 }
 
@@ -312,14 +324,18 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  font-size: 0.8125rem;
 }
 
 .app-table th {
   background-color: var(--bg-muted);
-  color: var(--text-muted);
+  color: var(--text-soft);
   font-weight: 600;
-  border-bottom: 1px solid var(--border-strong);
-  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--border);
+  padding: 0.625rem 1rem;
 }
 
 .app-table td {
@@ -345,7 +361,7 @@
   color: var(--text-soft);
 }
 
-/* Login page — quick-login popover entrance animation */
+/* Animations */
 @keyframes popoverIn {
   from {
     opacity: 0;
@@ -361,7 +377,6 @@
   animation: popoverIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Shake animation for auth errors */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20%       { transform: translateX(-4px); }
@@ -373,3 +388,4 @@
 .animate-shake {
   animation: shake 0.4s ease;
 }
+

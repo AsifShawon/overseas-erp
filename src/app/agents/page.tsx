@@ -390,7 +390,7 @@ export default function AgentsPage() {
     {
       header: t("agents.tableHeaderCode"),
       accessor: (a: any) => (
-        <span className="font-mono font-bold text-primary-theme">
+        <span className="font-mono font-bold text-primary-theme bg-primary-soft border border-primary-theme/20 px-2 py-0.5 rounded text-xs">
           {a.agentCode}
         </span>
       ),
@@ -398,11 +398,17 @@ export default function AgentsPage() {
     {
       header: t("agents.tableHeaderCompany"),
       accessor: (a: any) => (
-        <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-text-theme">{a.companyName}</span>
-          <span className="text-[10px] text-text-soft font-medium">
-            {locale === "bn" ? "লাইসেন্স নং:" : "License No:"} <span className="font-mono">{a.licenseNo || "N/A"}</span>
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-bg-muted text-text-theme font-bold text-xs shrink-0 uppercase border border-border-theme">
+            <Globe2 className="h-4 w-4 text-primary-theme" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-text-theme truncate text-xs">{a.companyName}</span>
+            <span className="text-[11px] text-text-soft truncate font-medium">
+              {locale === "bn" ? "লাইসেন্স নং: " : "License: "}
+              <span className="font-mono text-text-muted">{a.licenseNo || "N/A"}</span>
+            </span>
+          </div>
         </div>
       ),
     },
@@ -410,22 +416,22 @@ export default function AgentsPage() {
       header: locale === "bn" ? "প্রধান প্রতিনিধি" : "Lead Representative",
       accessor: (a: any) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-text-theme">{a.fullName}</span>
-          <span className="text-[10px] text-text-soft font-mono font-medium">{a.email}</span>
+          <span className="font-bold text-text-theme text-xs">{a.fullName}</span>
+          <span className="text-[11px] text-text-soft font-mono font-medium">{a.email}</span>
         </div>
       ),
     },
     { 
       header: t("agents.tableHeaderPhone"), 
-      accessor: (a: any) => <span className="text-text-theme font-mono font-semibold">{a.phone || "N/A"}</span> 
+      accessor: (a: any) => <span className="text-text-theme font-mono font-semibold text-xs">{a.phone || "N/A"}</span> 
     },
     {
       header: t("common.status"),
       accessor: (a: any) => (
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold border ${
           a.isActive 
-            ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30" 
-            : "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
+            ? "bg-success-soft text-success-theme border-success-theme/30" 
+            : "bg-danger-soft text-danger-theme border-danger-theme/30"
         }`}>
           {locale === "bn"
             ? (a.isActive ? "সক্রিয় সরবরাহ" : "লাইসেন্স স্থগিত")
@@ -437,26 +443,26 @@ export default function AgentsPage() {
     {
       header: t("common.actions"),
       accessor: (a: any) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {hasAccess("MANAGE_AGENTS") && (
             <>
               <button
                 onClick={() => handleEditClick(a)}
-                className="p-1.5 text-text-soft hover:text-primary-theme hover:bg-bg-muted rounded-lg transition-colors cursor-pointer"
-                title={locale === "bn" ? "সোর্সিং পার্টনার প্রোফাইল সম্পাদন" : "Edit Sourcing Partner Profile"}
+                className="p-1 text-text-soft hover:text-primary-theme hover:bg-bg-muted rounded-md transition-colors cursor-pointer"
+                title={locale === "bn" ? "সম্পাদন" : "Edit Profile"}
               >
-                <Edit className="h-4 w-4" />
+                <Edit className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => handleToggleActive(a)}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                className={`p-1 rounded-md transition-colors cursor-pointer ${
                   a.isActive
-                    ? "text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/15"
-                    : "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/15"
+                    ? "text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20"
+                    : "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/20"
                 }`}
-                title={locale === "bn" ? (a.isActive ? "সোর্সিং পার্টনার স্থগিত করুন" : "সোর্সিং পার্টনার সক্রিয় করুন") : (a.isActive ? "Suspend Sourcing Partner" : "Activate Sourcing Partner")}
+                title={locale === "bn" ? (a.isActive ? "স্থগিত করুন" : "সক্রিয় করুন") : (a.isActive ? "Suspend" : "Activate")}
               >
-                {a.isActive ? <Ban className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                {a.isActive ? <Ban className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
               </button>
             </>
           )}
@@ -464,6 +470,7 @@ export default function AgentsPage() {
       ),
     },
   ];
+
 
   return (
     <div className="space-y-6">

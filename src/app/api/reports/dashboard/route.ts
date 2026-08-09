@@ -33,9 +33,12 @@ export async function GET(request: Request) {
     // -------------------------------------------------------------
     if (
       roleName === "Super Admin" ||
+      roleName === "Platform Admin" ||
+      branchScope.isPlatformAdmin ||
       roleName === "Operations Admin" ||
       (isOperationsRequest && hasViewReports)
     ) {
+
       const sixMonthsFromNow = new Date();
       sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
 
@@ -717,8 +720,30 @@ export async function GET(request: Request) {
       });
     }
 
-    // fallback
-    return NextResponse.json({ error: "Role not recognized." }, { status: 400 });
+    // Fallback for custom or unrecognized staff roles
+    return NextResponse.json({
+      activeApplicants: 0,
+      archivedApplicants: 0,
+      totalAgents: 0,
+      activeAgents: 0,
+      totalJobOrders: 0,
+      openJobOrders: 0,
+      totalQuota: 0,
+      allocatedQuota: 0,
+      totalInvoiced: 0,
+      totalCollected: 0,
+      totalOutstanding: 0,
+      totalCommissionAccrued: 0,
+      totalCommissionPaid: 0,
+      pendingCommission: 0,
+      stageCounts: {},
+      recentAuditLogs: [],
+      recentNotifications: [],
+      passportExpiryWarnings: [],
+      documentPendingCount: 0,
+      jobOrders: [],
+    });
+
   } catch (error: any) {
     if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
       return NextResponse.json({ error: error.message === "FORBIDDEN" ? "Forbidden" : "Unauthorized" }, { status: error.message === "FORBIDDEN" ? 403 : 401 });

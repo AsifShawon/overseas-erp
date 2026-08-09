@@ -9,6 +9,7 @@ export interface BranchScope {
   permissions: string[];
   isAllBranches: boolean;
   branchIds: string[];
+  isPlatformAdmin: boolean;
 }
 
 /**
@@ -21,7 +22,11 @@ export async function getUserBranchScope(request: Request): Promise<BranchScope 
     return null;
   }
 
-  const isAllBranches = ctx.permissions.includes("VIEW_ALL_BRANCH_DATA");
+  const isAllBranches =
+    ctx.permissions.includes("VIEW_ALL_BRANCH_DATA") ||
+    ctx.isPlatformAdmin ||
+    ctx.roleName === "Platform Admin" ||
+    ctx.roleName === "Super Admin";
 
   let branchIds: string[] = [];
   const memberships = await prisma.branchMembership.findMany({
@@ -71,6 +76,7 @@ export async function getUserBranchScope(request: Request): Promise<BranchScope 
           permissions: ctx.permissions,
           isAllBranches: false,
           branchIds: [selectedBranchId],
+          isPlatformAdmin: !!ctx.isPlatformAdmin,
         };
       } else {
         return {
@@ -81,10 +87,14 @@ export async function getUserBranchScope(request: Request): Promise<BranchScope 
           permissions: ctx.permissions,
           isAllBranches: false,
           branchIds: ["INACCESSIBLE_BRANCH"],
+          isPlatformAdmin: !!ctx.isPlatformAdmin,
         };
       }
     }
   }
+
+  // If user has no specific branch assignment restriction, default to company-wide scope
+  const effectiveIsAllBranches = isAllBranches || branchIds.length === 0;
 
   return {
     userId: ctx.userId,
@@ -92,10 +102,13 @@ export async function getUserBranchScope(request: Request): Promise<BranchScope 
     roleName: ctx.roleName,
     roleId: ctx.roleId,
     permissions: ctx.permissions,
-    isAllBranches,
+    isAllBranches: effectiveIsAllBranches,
     branchIds,
+    isPlatformAdmin: !!ctx.isPlatformAdmin,
   };
 }
+
+
 
 /**
  * Requires valid authenticated user context with branch access permissions.

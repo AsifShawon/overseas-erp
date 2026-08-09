@@ -8,7 +8,11 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DataTable } from "@/components/shared/DataTable";
+import { ChartCard } from "@/components/ui/ChartCard";
+import { BarChart } from "@/components/charts/BarChart";
+import { DonutChart } from "@/components/charts/DonutChart";
 import { useT } from "@/i18n/useT";
+
 import { formatDate, formatDateTime, formatNumber, formatCurrency } from "@/i18n/format";
 import {
   WORKFLOW_LABELS,
@@ -175,17 +179,28 @@ export default function DashboardPage() {
     recentAuditLogs = [],
   } = data || {};
 
-  return (
-    <div className="space-y-8">
-      <PageHeader
-        title={t("dashboard.pageTitle")}
-        description={t("dashboard.pageDesc", { name: user.fullName })}
-        breadcrumbs={[{ label: "ERP Hub", href: "/dashboard" }, { label: t("nav.dashboard") }]}
-      />
+  // Formatted chart data for Super Admin
+  const stageBarChartData = [
+    { label: t("workflow.SELECTED") || "Selected", value: stageCounts["SELECTED"] || 0, color: "#4f46e5" },
+    { label: t("workflow.MEDICAL_WAITING") || "Medical", value: stageCounts["MEDICAL_WAITING"] || 0, color: "#f59e0b" },
+    { label: t("workflow.VISA_SUBMITTED") || "Visa Sent", value: stageCounts["VISA_SUBMITTED"] || 0, color: "#8b5cf6" },
+    { label: t("workflow.DEPLOYED") || "Deployed", value: stageCounts["DEPLOYED"] || 0, color: "#10b981" },
+  ];
 
-      {/* ------------------ SUPER ADMIN DASHBOARD ------------------ */}
-      {user.roleName === "Super Admin" && (
-        <div className="space-y-6">
+  const collectionsDonutData = [
+    { name: locale === "bn" ? "আদায়কৃত" : "Collected", value: totalCollected, color: "#10b981" },
+    { name: locale === "bn" ? "বকেয়া" : "Outstanding", value: totalOutstanding, color: "#f43f5e" },
+  ];
+
+  return (
+    <div className="space-y-6">
+
+      {/* ------------------ SUPER ADMIN & PLATFORM ADMIN DASHBOARD ------------------ */}
+      {(user.roleName === "Super Admin" || user.roleName === "Platform Admin" || user.isPlatformAdmin) && (
+
+
+        <div className="space-y-5">
+          {/* LEVEL 1: Top KPI Cards Row */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title={t("dashboard.activeCandidates")}
@@ -193,12 +208,14 @@ export default function DashboardPage() {
               description={t("dashboard.softArchivedEntries", { count: formatNumber(archivedApplicants, locale) })}
               iconName="Users"
               trend={{ value: "8.5%", isPositive: true }}
+              variant="default"
             />
             <StatCard
               title={t("dashboard.jobOrdersOpen")}
               value={`${formatNumber(openJobOrders, locale)} / ${formatNumber(totalJobOrders, locale)}`}
               description={t("dashboard.quotasAllocated", { allocated: formatNumber(allocatedQuota, locale), total: formatNumber(totalQuota, locale) })}
               iconName="Briefcase"
+              variant="info"
             />
             <StatCard
               title={t("dashboard.accountsReceivable")}
@@ -206,118 +223,109 @@ export default function DashboardPage() {
               description={t("dashboard.totalBilled", { amount: formatCurrency(totalInvoiced, "BDT", locale) })}
               iconName="CreditCard"
               trend={{ value: "12%", isPositive: false }}
+              variant="warning"
             />
             <StatCard
               title={t("dashboard.sourcingAgents")}
               value={t("dashboard.activeAgentsCount", { active: formatNumber(activeAgents, locale) })}
               description={t("dashboard.registeredTiers", { total: formatNumber(totalAgents, locale) })}
               iconName="UserCheck"
+              variant="success"
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Pipeline Stage Summary */}
-            <div className="lg:col-span-2 rounded-2xl border border-border-theme bg-surface p-6 shadow-sm hover:shadow-md transition-all duration-300">
-              <h3 className="text-sm font-bold text-text-theme mb-4 flex items-center gap-2">
-                <TrendingUp className="h-4.5 w-4.5 text-primary-theme" /> {t("dashboard.pipelineStageDistribution")}
-              </h3>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {(["SELECTED", "MEDICAL_WAITING", "VISA_SUBMITTED", "DEPLOYED"] as WorkflowStage[]).map((stage) => {
-                  const count = stageCounts[stage] || 0;
-                  const label = t(`workflow.${stage}`) || WORKFLOW_LABELS[stage];
-                  
-                  // Color highlights map
-                  const colorsMap: Record<string, { border: string, bg: string, text: string, dot: string }> = {
-                    SELECTED: { border: "border-indigo-100 dark:border-indigo-900/30", bg: "bg-indigo-50/20 dark:bg-indigo-950/10", text: "text-indigo-700 dark:text-indigo-400", dot: "bg-indigo-500" },
-                    MEDICAL_WAITING: { border: "border-amber-100 dark:border-amber-900/30", bg: "bg-amber-50/20 dark:bg-amber-950/10", text: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" },
-                    VISA_SUBMITTED: { border: "border-purple-100 dark:border-purple-900/30", bg: "bg-purple-50/20 dark:bg-purple-950/10", text: "text-purple-700 dark:text-purple-400", dot: "bg-purple-500" },
-                    DEPLOYED: { border: "border-emerald-100 dark:border-emerald-900/30", bg: "bg-emerald-50/20 dark:bg-emerald-950/10", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" }
-                  };
-                  const color = colorsMap[stage] || { border: "border-border-theme", bg: "bg-surface-soft", text: "text-text-theme", dot: "bg-primary-theme" };
+          {/* LEVEL 2: Primary Analytics & Visualizations Grid */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            {/* Pipeline Stage Distribution Bar Chart */}
+            <ChartCard
+              title={t("dashboard.pipelineStageDistribution")}
+              subtitle={locale === "bn" ? "নিয়োগ পাইপলাইনের প্রধান ধাপসমূহের ক্যান্ডিডেট বন্টন" : "Candidates active across operational milestones"}
+              className="lg:col-span-2"
+            >
+              <BarChart data={stageBarChartData} height={230} />
+            </ChartCard>
 
-                  return (
-                    <div key={stage} className={`rounded-xl border ${color.border} ${color.bg} p-5 hover:scale-[1.02] transition-transform duration-200`}>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`h-1.5 w-1.5 rounded-full ${color.dot}`} />
-                        <p className={`text-[10px] font-bold ${color.text} uppercase tracking-wider truncate`}>{label}</p>
-                      </div>
-                      <h4 className="mt-3 text-3xl font-black text-text-theme">{formatNumber(count, locale)}</h4>
-                      <p className="text-[9px] text-text-soft font-semibold mt-1.5">{t("dashboard.candidatesInStage")}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            {/* Financial Collections Split Donut Chart */}
+            <ChartCard
+              title={locale === "bn" ? "বিলিং ও কালেকশন অনুপাত" : "Collections & Receivables Split"}
+              subtitle={locale === "bn" ? "মোট ইনভয়েসকৃত ফি এবং বকেয়া আদায়ের অনুপাত" : "Overall invoiced fees vs outstanding balance"}
+            >
+              <DonutChart data={collectionsDonutData} height={230} />
+            </ChartCard>
+          </div>
 
-            {/* Warning Widget */}
-            <div className="rounded-2xl border border-border-theme bg-surface p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-300">
+          {/* LEVEL 3: Urgent Alerts & Compliance Panel */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            {/* Warning & Urgent Action Widget */}
+            <div className="rounded-xl border border-border-theme bg-surface p-5 shadow-xs flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-bold text-text-theme mb-2 flex items-center gap-2">
-                  <AlertTriangle className="h-4.5 w-4.5 text-amber-500" /> {t("dashboard.alertsWarnings")}
+                <h3 className="text-xs font-bold text-text-theme mb-1.5 flex items-center gap-2 uppercase tracking-wider">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" /> {t("dashboard.alertsWarnings")}
                 </h3>
-                <p className="text-xs text-text-soft">{t("dashboard.alertsDesc")}</p>
-                <div className="mt-4 space-y-3">
+                <p className="text-xs text-text-soft font-medium">{t("dashboard.alertsDesc")}</p>
+                <div className="mt-4 space-y-2.5">
                   {passportExpiryWarnings.length > 0 ? (
                     passportExpiryWarnings.map((app: any) => (
-                      <div key={app.id} className="flex gap-2 rounded-lg bg-rose-50/50 p-2.5 border border-rose-100/50 dark:bg-rose-950/10 dark:border-rose-900/10">
-                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0 animate-ping"></span>
-                        <p className="text-[10px] text-rose-700 dark:text-rose-400">
+                      <div key={app.id} className="flex gap-2 rounded-lg bg-rose-50/60 p-2.5 border border-rose-200/60 dark:bg-rose-950/20 dark:border-rose-900/30">
+                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0 animate-ping" />
+                        <p className="text-xs text-rose-800 dark:text-rose-400 font-medium">
                           {locale === "bn" ? (
-                            <>আবেদনকারী <strong>{app.fullName}</strong>-এর পাসপোর্ট ({app.passportNumber}) মেয়াদ {app.passportExpiry}-এ শেষ হবে। জরুরি ব্যবস্থা প্রয়োজন।</>
+                            <>আবেদনকারী <strong>{app.fullName}</strong>-এর পাসপোর্ট ({app.passportNumber}) মেয়াদ শেষ হবে।</>
                           ) : (
-                            <>Candidate <strong>{app.fullName}</strong> passport ({app.passportNumber}) expires on {app.passportExpiry}. Urgent action required.</>
+                            <>Candidate <strong>{app.fullName}</strong> passport ({app.passportNumber}) expires on {app.passportExpiry}.</>
                           )}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <div className="flex gap-2 rounded-lg bg-emerald-50/50 p-2.5 border border-emerald-100/50 dark:bg-emerald-950/10 dark:border-emerald-900/10">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span>
-                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400">
+                    <div className="flex gap-2 rounded-lg bg-emerald-50/60 p-2.5 border border-emerald-200/60 dark:bg-emerald-950/20 dark:border-emerald-900/30">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                      <p className="text-xs text-emerald-800 dark:text-emerald-400 font-medium">
                         {t("dashboard.noCriticalWarnings")}
                       </p>
                     </div>
                   )}
 
                   {documentPendingCount > 0 && (
-                    <div className="flex gap-2 rounded-lg bg-amber-50/50 p-2.5 border border-amber-100/50 dark:bg-amber-950/10 dark:border-amber-900/10">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
-                      <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                    <div className="flex gap-2 rounded-lg bg-amber-50/60 p-2.5 border border-amber-200/60 dark:bg-amber-950/20 dark:border-amber-900/30">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                      <p className="text-xs text-amber-800 dark:text-amber-400 font-medium">
                         {t("dashboard.documentVerificationPending", { count: formatNumber(documentPendingCount, locale) })}
                       </p>
                     </div>
                   )}
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-border-theme flex justify-between items-center text-[10px] text-text-soft font-medium">
+              <div className="mt-4 pt-3 border-t border-border-theme flex justify-between items-center text-xs text-text-soft font-medium">
                 <span>{t("dashboard.lastUpdatedJustNow")}</span>
                 <span className="font-bold text-primary-theme cursor-pointer hover:underline">{t("dashboard.resolveAllBtn")}</span>
               </div>
             </div>
-          </div>
 
-          {/* Immutable Audit Logs widget */}
-          <div className="rounded-xl border border-border-theme bg-surface p-6 shadow-sm">
-            <h3 className="text-sm font-bold text-text-theme mb-4 flex items-center gap-2">
-              <History className="h-4.5 w-4.5 text-primary-theme" /> {t("dashboard.recentSystemAudits")}
-            </h3>
-            <DataTable<any>
-              data={recentAuditLogs}
-              columns={[
-                { header: t("auditLogs.tableHeaderTimestamp"), accessor: (log: any) => formatDateTime(log.timestamp, locale) },
-                { header: t("auditLogs.tableHeaderStaff"), accessor: (log: any) => `${log.userId} (${t(`roles.${log.roleName}`) || log.roleName})` },
-                { header: t("auditLogs.tableHeaderAction"), accessor: (log: any) => <span className="font-semibold text-text-theme">{log.actionType}</span> },
-                { header: t("auditLogs.tableHeaderModule"), accessor: (log: any) => log.tableName },
-                { header: t("auditLogs.tableHeaderRecord"), accessor: (log: any) => <span className="font-mono text-[10px] bg-bg-muted border border-border-theme px-1 py-0.5 rounded text-text-theme">{log.recordId}</span> },
-                { header: t("auditLogs.tableHeaderIp"), accessor: (log: any) => log.ipAddress || "N/A" },
-              ]}
-              searchPlaceholder={t("dashboard.filterAuditTrailPlaceholder")}
-              searchField="actionType"
-              emptyStateTitle={t("common.noRecords")}
-            />
+            {/* Audit Console Table */}
+            <div className="lg:col-span-2 rounded-xl border border-border-theme bg-surface p-5 shadow-xs">
+              <h3 className="text-xs font-bold text-text-theme mb-3.5 flex items-center gap-2 uppercase tracking-wider">
+                <History className="h-4 w-4 text-primary-theme" /> {t("dashboard.recentSystemAudits")}
+              </h3>
+              <DataTable<any>
+                data={recentAuditLogs}
+                columns={[
+                  { header: t("auditLogs.tableHeaderTimestamp"), accessor: (log: any) => formatDateTime(log.timestamp, locale) },
+                  { header: t("auditLogs.tableHeaderStaff"), accessor: (log: any) => `${log.userId} (${t(`roles.${log.roleName}`) || log.roleName})` },
+                  { header: t("auditLogs.tableHeaderAction"), accessor: (log: any) => <span className="font-semibold text-text-theme">{log.actionType}</span> },
+                  { header: t("auditLogs.tableHeaderModule"), accessor: (log: any) => log.tableName },
+                  { header: t("auditLogs.tableHeaderRecord"), accessor: (log: any) => <span className="font-mono text-[10px] bg-bg-muted border border-border-theme px-1.5 py-0.5 rounded text-text-theme">{log.recordId}</span> },
+                ]}
+                searchPlaceholder={t("dashboard.filterAuditTrailPlaceholder")}
+                searchField="actionType"
+                emptyStateTitle={t("common.noRecords")}
+                pageSize={5}
+              />
+            </div>
           </div>
         </div>
       )}
+
 
       {/* ------------------ OPERATIONS ADMIN DASHBOARD ------------------ */}
       {user.roleName === "Operations Admin" && (

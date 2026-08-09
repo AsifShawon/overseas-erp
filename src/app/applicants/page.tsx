@@ -262,6 +262,13 @@ export default function ApplicantsPage() {
   const availableTrades = Array.from(new Set(applicants.map((a) => a.trade)));
   const availableStages = Array.from(new Set(applicants.map((a) => a.currentStage)));
 
+  // Calculate summary counts
+  const totalCount = applicants.length;
+  const selectedCount = applicants.filter((a) => a.currentStage === "SELECTED").length;
+  const medicalCount = applicants.filter((a) => a.currentStage === "MEDICAL_WAITING" || a.currentStage === "MEDICAL_FIT").length;
+  const visaCount = applicants.filter((a) => a.currentStage === "VISA_SUBMITTED" || a.currentStage === "VISA_STAMPED").length;
+  const deployedCount = applicants.filter((a) => a.currentStage === "DEPLOYED").length;
+
   const handleRowClick = (app: any) => {
     router.push(`/applicants/${app.id}`);
   };
@@ -270,15 +277,28 @@ export default function ApplicantsPage() {
     {
       header: t("applicants.tableHeaderName"),
       accessor: (a: any) => (
-        <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-text-theme">{a.fullName}</span>
-          <span className="text-[10px] text-text-soft">{a.email || (locale === "bn" ? "কোনো ইমেল নেই" : "No claimed email")}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-primary-theme font-bold text-xs shrink-0 uppercase">
+            {a.fullName ? a.fullName.substring(0, 2) : "CA"}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-text-theme truncate text-xs">{a.fullName}</span>
+            <span className="text-[11px] text-text-soft truncate font-medium">
+              {a.phone || a.email || (locale === "bn" ? "কোনো ফোন নম্বর নেই" : "No phone listed")}
+            </span>
+          </div>
         </div>
       ),
     },
-    { header: t("applicants.tableHeaderPassport"), accessor: (a: any) => <span className="font-mono text-text-theme">{a.passportNumber}</span> },
-    { header: t("applicants.tableHeaderPhone"), accessor: (a: any) => <span className="text-text-theme">{a.phone}</span> },
-    { header: t("applicants.tableHeaderTrade"), accessor: (a: any) => <span className="text-text-theme">{a.trade}</span> },
+    {
+      header: t("applicants.tableHeaderPassport"),
+      accessor: (a: any) => (
+        <span className="font-mono text-xs font-semibold text-text-theme bg-bg-muted border border-border-theme px-2 py-0.5 rounded">
+          {a.passportNumber}
+        </span>
+      ),
+    },
+    { header: t("applicants.tableHeaderTrade"), accessor: (a: any) => <span className="text-xs font-semibold text-text-theme">{a.trade}</span> },
     {
       header: t("applicants.tableHeaderStage"),
       accessor: (a: any) => <StatusBadge status={a.currentStage} />,
@@ -287,10 +307,10 @@ export default function ApplicantsPage() {
       header: locale === "bn" ? "রেকর্ড অবস্থা" : "Integrity",
       accessor: (a: any) => (
         <span
-          className={`text-[10px] font-bold ${
+          className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
             a.isArchived
-              ? "text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 dark:bg-rose-950/20"
-              : "text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 dark:bg-emerald-950/20"
+              ? "text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
+              : "text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
           }`}
         >
           {a.isArchived
@@ -311,7 +331,7 @@ export default function ApplicantsPage() {
       {hasAccess("CREATE_APPLICANT") && (
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-primary-theme px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-hover shadow-primary-theme/20 cursor-pointer"
+          className="flex items-center gap-1.5 rounded-lg bg-primary-theme px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-primary-hover transition-colors cursor-pointer"
         >
           <Plus className="h-4 w-4" /> {t("applicants.addApplicantBtn")}
         </button>
@@ -319,12 +339,12 @@ export default function ApplicantsPage() {
       <button
         onClick={handleExport}
         disabled={isExporting}
-        className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3.5 py-2 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
+        className="flex items-center gap-1.5 rounded-lg border border-border-theme bg-surface px-3 py-1.5 text-xs font-semibold text-text-theme hover:bg-bg-muted disabled:opacity-50 transition-colors cursor-pointer"
       >
         {isExporting ? (
-          <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
+          <Loader2 className="h-3.5 w-3.5 text-emerald-600 animate-spin" />
         ) : (
-          <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
         )}
         {isExporting ? (locale === "bn" ? "এক্সপোর্ট হচ্ছে..." : "Exporting...") : t("common.exportCsv")}
       </button>
@@ -332,7 +352,7 @@ export default function ApplicantsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PermissionGate permission="VIEW_APPLICANTS" showFallback={true}>
         <PageHeader
           title={t("applicants.pageTitle")}
@@ -341,20 +361,51 @@ export default function ApplicantsPage() {
           actions={headerActions}
         />
 
-        {/* Dense Filters Bar */}
-        <div className="flex flex-col gap-4 rounded-xl border border-border-theme bg-surface p-5 shadow-sm sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2 shrink-0 text-text-theme text-xs font-bold mr-2">
-            <SlidersHorizontal className="h-4 w-4 text-primary-theme" /> {locale === "bn" ? "নিরীক্ষণ ফিল্টার" : "Vetting Filters"}
+        {/* Pipeline Quick-Filter Summary Strip */}
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { id: "ALL", label: locale === "bn" ? "সব প্রার্থী" : "All Candidates", count: totalCount },
+            { id: "SELECTED", label: locale === "bn" ? "মনোনীত" : "Selected", count: selectedCount },
+            { id: "MEDICAL_WAITING", label: locale === "bn" ? "মেডিকেল" : "Medical", count: medicalCount },
+            { id: "VISA_SUBMITTED", label: locale === "bn" ? "ভিসা প্রসেসিং" : "Visa Processing", count: visaCount },
+            { id: "DEPLOYED", label: locale === "bn" ? "ফ্লাইট সম্পন্ন" : "Deployed", count: deployedCount },
+          ].map((item) => {
+            const isSelected = selectedStage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setSelectedStage(item.id)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                  isSelected
+                    ? "border-primary-theme bg-primary-soft text-primary-theme font-bold shadow-xs"
+                    : "border-border-theme bg-surface text-text-soft hover:bg-bg-muted hover:text-text-theme"
+                }`}
+              >
+                <span>{item.label}</span>
+                <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                  isSelected ? "bg-primary-theme text-white" : "bg-bg-muted text-text-muted"
+                }`}>
+                  {formatNumber(item.count, locale)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Filters Bar */}
+        <div className="flex flex-col gap-3 rounded-xl border border-border-theme bg-surface p-4 shadow-xs sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 shrink-0 text-text-theme text-xs font-bold mr-1">
+            <SlidersHorizontal className="h-4 w-4 text-primary-theme" /> {locale === "bn" ? "ফিল্টারসমূহ" : "Filters"}
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 flex-1">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 flex-1">
             {/* Trade Select */}
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">{locale === "bn" ? "ট্রেড ক্যাটাগরি" : "Trade Category"}</label>
               <select
                 value={selectedTrade}
                 onChange={(e) => setSelectedTrade(e.target.value)}
-                className="w-full rounded-lg border border-border-theme bg-bg p-1.5 text-xs font-medium outline-none focus:border-primary-theme focus:bg-surface text-text-theme"
+                className="w-full rounded-lg border border-border-theme bg-bg py-1 px-2.5 text-xs font-semibold outline-none focus:border-primary-theme text-text-theme"
               >
                 <option value="ALL">{locale === "bn" ? "সব ট্রেড সেগমেন্ট" : "All Trade Segments"}</option>
                 {availableTrades.map((trade) => (
@@ -371,7 +422,7 @@ export default function ApplicantsPage() {
               <select
                 value={selectedStage}
                 onChange={(e) => setSelectedStage(e.target.value)}
-                className="w-full rounded-lg border border-border-theme bg-bg p-1.5 text-xs font-medium outline-none focus:border-primary-theme focus:bg-surface text-text-theme"
+                className="w-full rounded-lg border border-border-theme bg-bg py-1 px-2.5 text-xs font-semibold outline-none focus:border-primary-theme text-text-theme"
               >
                 <option value="ALL">{locale === "bn" ? "সব ধাপ" : "All Stages"}</option>
                 {availableStages.map((stage) => {
@@ -389,7 +440,7 @@ export default function ApplicantsPage() {
             {/* Soft-Archived Toggle */}
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-text-soft uppercase tracking-wide">{locale === "bn" ? "অডিট ভিউ" : "Audit View"}</label>
-              <div className="flex h-9 items-center gap-2">
+              <div className="flex h-8 items-center gap-2">
                 <input
                   type="checkbox"
                   id="archived-toggle"

@@ -637,27 +637,28 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+
       {/* Header Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 dark:border-slate-800">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border-theme pb-4">
         <div className="space-y-1">
           <button
             onClick={() => router.push("/applicants")}
-            className="flex items-center gap-1.5 text-xs md:text-sm font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-wider cursor-pointer"
+            className="flex items-center gap-1 text-xs font-semibold text-text-soft hover:text-primary-theme uppercase tracking-wider cursor-pointer"
           >
-            <ArrowLeft className="h-4 w-4" /> {t("applicantDetail.backBtn")}
+            <ArrowLeft className="h-3.5 w-3.5" /> {t("applicantDetail.backBtn")}
           </button>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+          <div className="flex flex-wrap items-center gap-2.5 mt-0.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary-theme font-bold text-sm uppercase shrink-0">
+              {applicant.fullName ? applicant.fullName.substring(0, 2) : "CA"}
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-text-theme sm:text-2xl">
               {applicant.fullName}
             </h1>
-            <span className="font-mono text-xs md:text-sm bg-slate-100 text-slate-500 border px-2.5 py-0.5 rounded-lg dark:bg-slate-800 dark:border-slate-700 font-bold">
-              ID: {applicant.id}
+            <span className="font-mono text-xs bg-bg-muted text-text-soft border border-border-theme px-2 py-0.5 rounded font-semibold">
+              PASSPORT: {applicant.passportNumber}
             </span>
           </div>
-          <p className="text-sm md:text-[15px] text-slate-400 font-semibold leading-relaxed">
-            {locale === "bn" ? "নিযুক্ত ট্রেড সেগমেন্ট: " : "Placement Trade Segment: "}<span className="font-bold text-slate-600 dark:text-slate-300">{applicant.trade}</span>
-          </p>
         </div>
 
         {/* Soft Archive Controls */}
@@ -666,16 +667,16 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
             {applicant.isArchived ? (
               <button
                 onClick={() => handleSoftArchive("RESTORE")}
-                className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs md:text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 transition-all hover:scale-105 active:scale-95 duration-200 cursor-pointer"
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/30 transition-colors cursor-pointer"
               >
-                <RotateCcw className="h-4 w-4" /> {t("applicantDetail.restoreCandidate")}
+                <RotateCcw className="h-3.5 w-3.5" /> {t("applicantDetail.restoreCandidate")}
               </button>
             ) : (
               <button
                 onClick={() => handleSoftArchive("ARCHIVE")}
-                className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs md:text-sm font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 transition-all hover:scale-105 active:scale-95 duration-200 cursor-pointer"
+                className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-900/30 transition-colors cursor-pointer"
               >
-                <Archive className="h-4 w-4" /> {t("applicantDetail.softArchiveCandidate")}
+                <Archive className="h-3.5 w-3.5" /> {t("applicantDetail.softArchiveCandidate")}
               </button>
             )}
           </div>
@@ -685,61 +686,48 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
       {/* Main Workflow Stepper Card */}
       <WorkflowStepper currentStage={applicant.currentStage} onTransition={handleWorkflowTransition} />
 
-      {/* Workspace Tabs Layout */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-        {/* Tab Navigation Panels */}
-        <div className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wide px-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-            {locale === "bn" ? "আবেদনকারী ফাইলের বিভাগসমূহ" : "Candidate Dossier Sections"}
-          </h3>
-          <button
-            onClick={() => setActiveTab("bio")}
-            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-left text-xs md:text-sm font-bold transition-all cursor-pointer ${
-              activeTab === "bio"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
-            }`}
-          >
-            <User className="h-4.5 w-4.5" /> {t("applicantDetail.tabBioData")}
-          </button>
-          <button
-            onClick={() => setActiveTab("compliance")}
-            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-left text-xs md:text-sm font-bold transition-all cursor-pointer ${
-              activeTab === "compliance"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
-            }`}
-          >
-            <FileText className="h-4.5 w-4.5" /> {t("applicantDetail.tabCompliance")}
-          </button>
-          <button
-            onClick={() => setActiveTab("financial")}
-            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-left text-xs md:text-sm font-bold transition-all cursor-pointer ${
-              activeTab === "financial"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-900"
-            }`}
-          >
-            <CreditCard className="h-4.5 w-4.5" /> {t("applicantDetail.tabLedger")}
-          </button>
-
-          {/* Interactive Warning Banner */}
-          <div className="mt-8 rounded-xl bg-indigo-50/50 p-4 border border-indigo-100/50 dark:bg-indigo-950/10 dark:border-indigo-900/10">
-            <div className="flex gap-1.5 items-center text-xs md:text-sm text-indigo-800 dark:text-indigo-400 font-bold mb-1.5">
-              <Sparkles className="h-4.5 w-4.5 shrink-0 animate-pulse" /> {locale === "bn" ? "সরাসরি সিস্টেম সংযোগ" : "LIVE POSTGRESQL LINK"}
-            </div>
-            <p className="text-xs md:text-sm text-indigo-700/80 leading-relaxed dark:text-indigo-400/80 font-semibold">
-              {locale === "bn"
-                ? "আবেদনকারীর সব ফাইল এবং লেনদেন সরাসরি ডাটাবেসে রিয়েল-টাইমে আপডেট হচ্ছে।"
-                : "Applicant records, files and accounting transactions are updated live in the PostgreSQL database."}
-            </p>
+      {/* Top Horizontal Workspace Tabs */}
+      <div className="space-y-4">
+        <div className="border-b border-border-theme">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
+            {[
+              { id: "bio", label: t("applicantDetail.tabBioData"), icon: User },
+              { id: "compliance", label: t("applicantDetail.tabCompliance"), icon: FileText, count: documents.length },
+              { id: "financial", label: t("applicantDetail.tabLedger"), icon: CreditCard, count: ledgers.length },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`relative flex items-center gap-2 px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap rounded-t-lg ${
+                    isActive
+                      ? "bg-surface border-t border-x border-border-theme text-primary-theme font-bold"
+                      : "text-text-soft hover:text-text-theme"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                        isActive ? "bg-primary-soft text-primary-theme" : "bg-bg-muted text-text-soft"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Tab View Container */}
-        <div className="lg:col-span-3">
+        {/* Tab Content Container */}
+        <div>
           {activeTab === "bio" && (
-            <div className="space-y-6">
+            <div className="space-y-5">
               <ApplicantProfileCard applicant={applicant} />
               <PortalAccessPanel
                 applicant={applicant}
@@ -774,6 +762,7 @@ export default function ApplicantDetailPage({ params }: { params: Promise<{ id: 
           )}
         </div>
       </div>
+
 
       {/* Elegant Receipt Printer Modal Modal Popup */}
       {selectedReceipt && (

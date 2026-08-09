@@ -9,11 +9,9 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
   const { t } = useT();
-  // Resolve standard or technical enums
   let label = status;
-  let themeClass = "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800";
+  let themeClass = "bg-bg-muted text-text-muted border-border-theme";
 
-  // Check if status is a workflow stage or standard status
   const workflowTranslated = t(`workflow.${status}`);
   const statusTranslated = t(`statuses.${status}`);
 
@@ -25,14 +23,14 @@ export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
     label = WORKFLOW_LABELS[status as WorkflowStage];
   }
 
-  // Assign color themes
   switch (status) {
     // Active / Positive States
     case "VERIFIED":
     case "MEDICAL_FIT":
     case "DEPLOYED":
     case "PAID":
-      themeClass = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900";
+    case "ACTIVE":
+      themeClass = "bg-success-soft text-success-theme border-success-theme/30";
       break;
 
     // Warning / Pending States
@@ -41,7 +39,8 @@ export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
     case "MEDICAL_WAITING":
     case "VISA_SUBMITTED":
     case "ACCRUED":
-      themeClass = "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900";
+    case "PARTIAL":
+      themeClass = "bg-warning-soft text-warning-theme border-warning-theme/30";
       break;
 
     // Processing / Stage highlight states
@@ -49,7 +48,8 @@ export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
     case "TRAINING_COMPLETED":
     case "VISA_STAMPED":
     case "TICKETED":
-      themeClass = "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400 dark:border-indigo-900";
+    case "OPEN":
+      themeClass = "bg-primary-soft text-primary-theme border-primary-theme/30";
       break;
 
     // Stopped / Alert States
@@ -58,21 +58,26 @@ export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
     case "VISA_REJECTED":
     case "CANCELLED":
     case "EXPIRED":
-      themeClass = "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-400 dark:border-rose-900";
+    case "OVERDUE":
+    case "UNPAID":
+      themeClass = "bg-danger-soft text-danger-theme border-danger-theme/30";
       break;
 
     // Normal starting states
     case "APPLIED":
     case "INTERVIEWED":
-      themeClass = "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-400 dark:border-sky-900";
+      themeClass = "bg-info-soft text-info-theme border-info-theme/30";
       break;
   }
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold tracking-wide transition-colors ${themeClass} ${className}`}
+      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-bold tracking-wide transition-colors ${themeClass} ${className}`}
     >
       {label}
     </span>
   );
 }
+
+export default StatusBadge;
+

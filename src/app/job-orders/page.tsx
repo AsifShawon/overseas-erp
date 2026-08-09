@@ -414,24 +414,30 @@ export default function JobOrdersPage() {
     {
       header: t("jobOrders.orderReference"),
       accessor: (jo: JobOrder) => (
-        <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-text-theme">{jo.orderNumber}</span>
-          <span className="text-[10px] text-text-soft">
-            {t("jobOrders.employer", { name: jo.employerName })}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-primary-theme font-bold text-xs shrink-0">
+            <Briefcase className="h-4 w-4" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-text-theme truncate text-xs">{jo.orderNumber}</span>
+            <span className="text-[11px] text-text-soft truncate font-medium">{jo.employerName}</span>
+          </div>
         </div>
       ),
     },
     {
-      header: t("jobOrders.countryLocation"),
+      header: t("jobOrders.countryTrade"),
       accessor: (jo: JobOrder) => (
-        <div className="flex items-center gap-1 text-text-theme">
-          <MapPin className="h-3.5 w-3.5 text-text-soft" />
-          <span>{jo.country}</span>
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1 text-xs font-semibold text-text-theme">
+            <MapPin className="h-3 w-3 text-primary-theme shrink-0" />
+            <span>{jo.country}</span>
+          </div>
+          <span className="text-[11px] font-medium text-text-soft">{jo.trade}</span>
         </div>
       ),
     },
-    { header: t("jobOrders.tableHeaderTrade"), accessor: (jo: JobOrder) => jo.trade },
+
     {
       header: t("jobOrders.monthlySalary"),
       accessor: (jo: JobOrder) => {
